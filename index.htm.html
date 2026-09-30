@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WFP Monitoring System</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--nav:#17365d;--nav2:#214b7a;--bg:#f4f6f9;--card:#fff;--text:#243447;--muted:#6b7280;--border:#dfe4ea;--good:#16803c;--warn:#b7791f;--bad:#c53030}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--nav);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+header h1{font-size:20px;margin:0} header small{opacity:.8}
+.layout{display:flex;min-height:calc(100vh - 58px)} aside{width:230px;background:#102a47;color:#fff;padding:12px;flex-shrink:0}
+nav button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#dbe7f5;padding:12px;border-radius:6px;margin:3px 0;cursor:pointer;font-size:14px}
+nav button.active,nav button:hover{background:var(--nav2);color:#fff}
+main{padding:20px;flex:1;min-width:0}.page{display:none}.page.active{display:block}
+h2{margin-top:0}.card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:16px;margin-bottom:18px;box-shadow:0 1px 2px #00000008}
+.grid{display:grid;gap:14px}.grid4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid2{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
+label{font-size:12px;font-weight:700;color:#4b5563;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:5px;background:#fff}button.primary,.btn{background:var(--nav2);color:white;border:0;padding:9px 13px;border-radius:5px;cursor:pointer}.btn.secondary{background:#64748b}.btn.danger{background:#b91c1c}.btn.green{background:#15803d}.btn:disabled{opacity:.5;cursor:not-allowed}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.metric{background:#fff;border:1px solid var(--border);border-radius:9px;padding:16px}.metric .title{font-size:12px;color:var(--muted);font-weight:700}.metric .value{font-size:24px;font-weight:700;margin-top:8px}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+.table-wrap{overflow:auto;max-height:560px;border:1px solid var(--border);border-radius:7px}table{border-collapse:collapse;width:100%;font-size:12px;background:#fff}th,td{border-bottom:1px solid #e5e7eb;padding:8px;white-space:nowrap;text-align:left}th{background:#eef2f7;position:sticky;top:0;z-index:1}td.num,th.num{text-align:right}.empty{text-align:center;padding:28px;color:var(--muted)}
+.status{padding:3px 7px;border-radius:12px;font-size:11px;font-weight:700}.status.good{background:#dcfce7}.status.warn{background:#fef3c7}.status.bad{background:#fee2e2}
+.progress{height:7px;background:#e5e7eb;border-radius:10px;overflow:hidden}.progress i{display:block;height:100%;background:#356da8}
+.modal{display:none;position:fixed;inset:0;background:#0008;align-items:center;justify-content:center;z-index:30}.modal.show{display:flex}.modal-box{background:#fff;border-radius:9px;width:min(720px,95vw);max-height:90vh;overflow:auto;padding:20px}.modal-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:none;font-size:24px;cursor:pointer}
+.notice{background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:6px;font-size:13px}.error{background:#fef2f2;border:1px solid #fecaca;padding:10px;border-radius:6px;color:#991b1b}.success{background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:6px;color:#166534}
+.chartbox{height:300px}.footer-note{font-size:11px;color:var(--muted);margin-top:10px}
+@media(max-width:1000px){aside{width:190px}.cards,.grid4{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.layout{display:block}aside{width:100%}nav{display:flex;overflow:auto}nav button{min-width:max-content}.cards,.grid2,.grid3,.grid4{grid-template-columns:1fr}main{padding:12px}}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  header,aside,.actions,.btn,.footer-note{display:none!important}
+  .layout{display:block}
+  main{padding:0}
+  .page{display:none!important}
+  .page.active{display:block!important}
+  .card{border:0;box-shadow:none;padding:0;margin:0 0 10px}
+  .table-wrap{max-height:none;overflow:visible;border:0}
+  table{font-size:9px}
+  th,td{white-space:normal;padding:3px 4px}
+  th{position:static;background:#eef2f7;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+<header><div><h1>Work Financial Plan Monitoring System</h1><small>Budget • Release • Balance • Quantity Monitoring</small></div><div id="dataStatus">No WFP loaded</div></header>
+<div class="layout">
+<aside><nav id="nav">
+<button class="active" data-page="dashboard">📊 Dashboard</button>
+<button data-page="master">📋 WFP Master List</button>
+<button data-page="release">➕ Encode Release</button>
+<button data-page="transactions">🧾 Transaction Log</button>
+<button data-page="adjustments">↔ Budget Adjustments</button>
+<button data-page="reports">📑 Reports</button>
+<button data-page="import">⬆ Import / Export</button>
+<button data-page="audit">🔎 Audit Trail</button>
+</nav></aside>
+<main>
+<section id="dashboard" class="page active">
+<h2>Dashboard</h2>
+<div class="card"><div class="grid4">
+<div><label>Quarter</label><select id="fQuarter"><option value="ALL">All Quarters</option><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
+<div><label>Activity</label><select id="fActivity"><option value="ALL">All Activities</option></select></div>
+<div><label>Object of Expenditure</label><select id="fObject"><option value="ALL">All Objects</option></select></div>
+<div><label>Account Code</label><select id="fAccount"><option value="ALL">All Accounts</option></select></div>
+</div><div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="clearFilters()">Clear Filters</button><button class="btn" onclick="renderDashboard()">Refresh</button></div></div>
+<div class="cards">
+<div class="metric"><div class="title">QUARTERLY ALLOTTED BUDGET</div><div class="value" id="mBudget">₱0.00</div></div>
+<div class="metric"><div class="title">QUARTERLY RELEASE</div><div class="value" id="mRelease">₱0.00</div></div>
+<div class="metric"><div class="title">QUARTERLY BALANCE</div><div class="value good" id="mBalance">₱0.00</div></div>
+<div class="metric"><div class="title">OVERALL WFP BALANCE (ALL QUARTERS)</div><div class="value" id="mOverall">₱0.00</div></div>
+</div>
+<div class="card"><h3>Expenditure Breakdown</h3><div class="table-wrap"><table><thead><tr><th>Activity</th><th>Account Code</th><th>Object of Expenditure</th><th>Description</th><th class="num">Allotted Budget</th><th class="num">Release</th><th class="num">Balance</th></tr></thead><tbody id="breakdown"></tbody></table></div></div>
+<div class="grid3">
+<div class="card chartbox"><canvas id="quarterChart"></canvas></div>
+<div class="card chartbox"><canvas id="activityChart"></canvas></div>
+<div class="card chartbox"><canvas id="objectChart"></canvas></div>
+</div>
+</section>
+
+<section id="master" class="page"><h2>WFP Master List</h2><div class="card"><div class="actions"><button class="btn" onclick="openMasterModal()">Add WFP Record</button><button class="btn green" onclick="downloadTemplate()">Download WFP Template</button><button class="btn secondary" onclick="exportMaster()">Export Master</button></div></div>
+<div class="card"><input id="masterSearch" placeholder="Search AIP Code, activity, account, object or description..." oninput="renderMaster()"></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>AIP Code</th><th>Activity</th><th>Account Code</th><th>Object</th><th>Description</th><th>Unit</th><th class="num">Unit Price</th><th class="num">Est. Budget</th><th class="num">Q1 Qty</th><th class="num">Q1 Budget (Adj.)</th><th class="num">Q2 Qty</th><th class="num">Q2 Budget (Adj.)</th><th class="num">Q3 Qty</th><th class="num">Q3 Budget (Adj.)</th><th class="num">Q4 Qty</th><th class="num">Q4 Budget (Adj.)</th><th class="num">Annual Budget (Adj.)</th><th>Actions</th></tr></thead><tbody id="masterBody"></tbody></table></div></div></section>
+
+<section id="release" class="page"><h2>Encode Release</h2><div id="releaseMessage"></div><div class="card"><div class="grid3">
+<div><label>Release Date *</label><input type="date" id="rDate"></div>
+<div><label>Activity *</label><select id="rActivity"></select></div>
+<div><label>Object of Expenditure *</label><select id="rObject"></select></div>
+<div><label>Quarter *</label><select id="rQuarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
+<div><label>Description *</label><select id="rDescription"></select></div>
+<div><label>Quantity *</label><input type="number" min="0" step="0.01" id="rQty" oninput="updateReleasePreview()"></div>
+<div><label>Unit</label><input id="rUnit" readonly></div>
+<div><label>Unit Price</label><input id="rPrice" readonly></div>
+<div><label>Release Amount</label><input id="rAmount" readonly></div>
+<div><label>Reference Number</label><input id="rRef"></div>
+<div><label>Payee / Recipient</label><input id="rPayee"></div>
+<div><label>Remarks</label><input id="rRemarks"></div>
+</div>
+<div class="card" style="margin-top:15px;background:#f8fafc"><div class="grid4"><div><label>Planned Qty</label><strong id="pQty">0</strong></div><div><label>Released Qty</label><strong id="relQty">0</strong></div><div><label>Remaining Qty</label><strong id="remQty">0</strong></div><div><label>Quarter Budget</label><strong id="pBudget">₱0.00</strong></div><div><label>Released Amount</label><strong id="relAmt">₱0.00</strong></div><div><label>Remaining Budget</label><strong id="remBudget">₱0.00</strong></div></div></div>
+<div class="actions"><button class="btn green" id="saveReleaseBtn" onclick="saveRelease()">Save Release</button><button class="btn secondary" onclick="resetRelease()">Clear</button></div></div></section>
+
+<section id="transactions" class="page"><h2>Transaction Log</h2><div class="card"><input id="txSearch" placeholder="Search transactions..." oninput="renderTransactions()"></div><div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Activity</th><th>Account</th><th>Object</th><th>Description</th><th>Quarter</th><th class="num">Qty</th><th class="num">Amount</th><th>Reference</th><th>Actions</th></tr></thead><tbody id="txBody"></tbody></table></div></div></section>
+
+<section id="adjustments" class="page"><h2>Budget Adjustments</h2><div class="notice">An adjustment transfers budget between two specific WFP line items (Activity → Object of Expenditure → Description) for a specific quarter. The amount is deducted from the Source item's quarterly budget and added to the Recipient item's quarterly budget — it is not simply added on top of the total. All dashboard figures, the WFP Master List, release validation, and reports reflect these adjusted quarterly budgets.</div>
+<div id="adjMessage"></div>
+<div class="card"><div class="grid2">
+<div><label>Quarter *</label><select id="aQuarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
+<div><label>Date</label><input type="date" id="aDate"></div>
+</div></div>
+<div class="grid2">
+<div class="card"><h3 style="margin-top:0">Source (From)</h3><div class="grid3">
+<div><label>From Activity *</label><select id="afActivity"></select></div>
+<div><label>From Object of Expenditure *</label><select id="afObject"></select></div>
+<div><label>From Description *</label><select id="afDescription"></select></div>
+<div><label>From Account Code</label><input id="afAccount" readonly></div>
+</div></div>
+<div class="card"><h3 style="margin-top:0">Recipient (To)</h3><div class="grid3">
+<div><label>To Activity *</label><select id="atActivity"></select></div>
+<div><label>To Object of Expenditure *</label><select id="atObject"></select></div>
+<div><label>To Description *</label><select id="atDescription"></select></div>
+<div><label>To Account Code</label><input id="atAccount" readonly></div>
+</div></div>
+</div>
+<div class="card" style="background:#f8fafc"><div class="grid2">
+<div><label>Source</label><div id="adjFromPreview">Select From Activity, Object and Description.</div></div>
+<div><label>Recipient</label><div id="adjToPreview">Select To Activity, Object and Description.</div></div>
+</div></div>
+<div class="card"><div class="grid3">
+<div><label>Amount *</label><input type="number" min="0" step="0.01" id="aAmount" oninput="updateAdjPreview()"></div>
+<div><label>Reference No.</label><input id="aRef"></div>
+<div><label>Remarks</label><input id="aRemarks"></div>
+</div><div class="actions" style="margin-top:12px"><button class="btn green" id="saveAdjBtn" onclick="saveAdjustment()">Save Adjustment</button><button class="btn secondary" onclick="resetAdjustment()">Clear</button></div></div>
+<div class="card"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Quarter</th><th>Source (Activity → Object → Description)</th><th>Recipient (Activity → Object → Description)</th><th class="num">Amount</th><th>Reference</th><th>Remarks</th><th>Actions</th></tr></thead><tbody id="adjBody"></tbody></table></div></div></section>
+
+<section id="reports" class="page"><h2>Reports</h2><div class="card"><p>Generate the consolidated quarterly financial monitoring report from the current WFP master and release transactions.</p><div class="actions"><button class="btn green" onclick="exportReport()">Export Quarterly Monitoring Report</button><button class="btn" onclick="window.print()">Print Current Page</button></div></div><div class="card"><div class="table-wrap"><table><thead><tr><th>Activity</th><th>Account</th><th>Object</th><th>Description</th><th>Q1 Budget</th><th>Q1 Release</th><th>Q1 Balance</th><th>Q2 Budget</th><th>Q2 Release</th><th>Q2 Balance</th><th>Q3 Budget</th><th>Q3 Release</th><th>Q3 Balance</th><th>Q4 Budget</th><th>Q4 Release</th><th>Q4 Balance</th><th>Annual Budget</th><th>Total Release</th><th>Overall Balance</th></tr></thead><tbody id="reportBody"></tbody></table></div></div></section>
+
+<section id="import" class="page"><h2>Import / Export</h2><div class="card"><h3>Import WFP Excel File</h3><p class="notice">Expected columns are exactly the WFP fields used by this application. Review the preview before importing.</p><input type="file" id="fileInput" accept=".xlsx,.xls" onchange="previewFile(event)"><div id="importPreview"></div><div class="actions" style="margin-top:10px"><button class="btn green" id="confirmImport" disabled onclick="confirmImport()">Import / Replace WFP</button><button class="btn" onclick="downloadTemplate()">Download WFP Template</button></div></div>
+<div class="card"><h3>Backup</h3><p>Export all current application data to an Excel backup containing separate sheets.</p><div class="actions"><button class="btn green" onclick="exportBackup()">Export Full Backup</button><button class="btn secondary" onclick="exportJSON()">Export JSON Backup</button><input type="file" id="jsonInput" accept=".json" onchange="importJSON(event)"></div></div></section>
+
+<section id="audit" class="page"><h2>Audit Trail</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>Date/Time</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody id="auditBody"></tbody></table></div></div></section>
+</main></div>
+
+<div class="modal" id="masterModal"><div class="modal-box"><div class="modal-head"><h3 id="masterModalTitle">Add WFP Record</h3><button class="close" onclick="closeModal('masterModal')">×</button></div><div class="grid3" id="masterForm"></div><div class="actions" style="margin-top:14px"><button class="btn green" id="saveMasterBtn" onclick="saveMaster()">Save</button><button class="btn secondary" onclick="closeModal('masterModal')">Cancel</button></div></div></div>
+
+<script>
+/* ============================================================
+   WFP Monitoring System — corrected single-file build
+   ============================================================ */
+const KEY='wfp_monitor_v1';
+const cols=['AIP Code','Activity','Account Code','Object of Expenditure','Description','Unit','Unit Price','Est. Budget','Q1 Total Qty.','Q1 Est. Budget','Q2 Total Qty.','Q2 Est. Budget','Q3 Total Qty.','Q3 Est. Budget','Q4 Total Qty.','Q4 Est. Budget'];
+
+let db=loadDB(), editingMaster=null, editingTx=null, pendingImport=null, charts={}, saving=false;
+
+/* ---- shared helpers ---- */
+const todayLocal=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)};
+const r2=n=>Math.round((Number(n)||0)*100)/100;
+const PHP=new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'});
+
+function blank(){return {master:[],releases:[],adjustments:[],audit:[]}}
+
+function loadDB(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(KEY));
+    if(!raw||typeof raw!=='object')return blank();
+    const d={...blank(),...raw};
+    ['master','releases','adjustments','audit'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[]});
+    return d;
+  }catch(e){return blank()}
+}
+function saveDB(){
+  try{
+    localStorage.setItem(KEY,JSON.stringify(db));
+  }catch(e){
+    alert('Could not save: browser storage is full or unavailable. Export a backup and clear old audit logs.');
+    return;
+  }
+  updateStatus();
+}
+function money(n){return PHP.format(Number(n)||0)}
+function num(v){return Number(v)||0}
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
+function id(){return 'TX-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7).toUpperCase()}
+function log(action,record,details){db.audit.unshift({date:new Date().toLocaleString(),action,record,details});db.audit=db.audit.slice(0,1000)}
+function updateStatus(){document.getElementById('dataStatus').textContent=db.master.length?`${db.master.length} WFP records • ${db.releases.length} releases`:'No WFP loaded'}
+function guard(){ if(saving) return false; saving=true; setTimeout(()=>saving=false,500); return true; }
+
+/* ---- navigation ---- */
+function page(p){
+  if(p!=='release')editingTx=null;
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById(p).classList.add('active');
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
+  if(p==='dashboard')renderDashboard();
+  if(p==='master')renderMaster();
+  if(p==='transactions')renderTransactions();
+  if(p==='adjustments')renderAdjustments();
+  if(p==='reports')renderReport();
+  if(p==='audit')renderAudit();
+  if(p==='release')setupRelease();
+}
+document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>page(b.dataset.page));
+
+/* ---- select helpers ---- */
+function setOptions(id,arr,placeholder='All',placeholderValue='ALL'){
+  const el=document.getElementById(id), old=el.value;
+  el.innerHTML=`<option value="${esc(placeholderValue)}">${esc(placeholder)}</option>`+arr.map(x=>`<option>${esc(x)}</option>`).join('');
+  if(arr.includes(old))el.value=old;
+}
+function setOptionsById(id,items,placeholder){
+  const el=document.getElementById(id), old=el.value;
+  el.innerHTML=`<option value="">${esc(placeholder)}</option>`+
+    items.map(x=>`<option value="${esc(x._id)}">${esc(x.Description)}</option>`).join('');
+  if(items.some(x=>x._id===old))el.value=old;
+}
+
+/* ---- filters + dashboard ---- */
+function populateFilters(){
+  const acts=[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort();
+  const objs=[...new Set(db.master.map(x=>x['Object of Expenditure']).filter(Boolean))].sort();
+  const accts=[...new Set(db.master.map(x=>x['Account Code']).filter(Boolean))].sort();
+  setOptions('fActivity',acts,'All Activities');
+  setOptions('fObject',objs,'All Objects');
+  setOptions('fAccount',accts,'All Accounts');
+}
+function filteredMaster(){
+  const q=document.getElementById('fQuarter').value;
+  const a=document.getElementById('fActivity').value;
+  const o=document.getElementById('fObject').value;
+  const c=document.getElementById('fAccount').value;
+  return db.master.filter(x=>(a==='ALL'||x.Activity===a)&&(o==='ALL'||x['Object of Expenditure']===o)&&(c==='ALL'||x['Account Code']===c));
+}
+['fQuarter','fActivity','fObject','fAccount'].forEach(x=>document.getElementById(x).onchange=renderDashboard);
+
+/* ---- calculation core (pure) ---- */
+function qBudgetBase(r,q){
+  if(q==='Q1')return num(r['Q1 Est. Budget']);
+  if(q==='Q2')return num(r['Q2 Est. Budget']);
+  if(q==='Q3')return num(r['Q3 Est. Budget']);
+  if(q==='Q4')return num(r['Q4 Est. Budget']);
+  return num(r['Q1 Est. Budget'])+num(r['Q2 Est. Budget'])+num(r['Q3 Est. Budget'])+num(r['Q4 Est. Budget']);
+}
+function adjNet(masterId,q){
+  const qs=q==='ALL'?['Q1','Q2','Q3','Q4']:[q];
+  return db.adjustments.reduce((s,a)=>{
+    if(!qs.includes(a.quarter))return s;
+    return s+(a.toMasterId===masterId?num(a.amount):0)-(a.fromMasterId===masterId?num(a.amount):0);
+  },0);
+}
+function qBudget(r,q){return r2(qBudgetBase(r,q)+adjNet(r._id,q))}
+function qQty(r,q){
+  if(q==='Q1')return num(r['Q1 Total Qty.']);
+  if(q==='Q2')return num(r['Q2 Total Qty.']);
+  if(q==='Q3')return num(r['Q3 Total Qty.']);
+  if(q==='Q4')return num(r['Q4 Total Qty.']);
+  return num(r['Q1 Total Qty.'])+num(r['Q2 Total Qty.'])+num(r['Q3 Total Qty.'])+num(r['Q4 Total Qty.']);
+}
+function txFor(r,q){return db.releases.filter(t=>t.masterId===r._id&&(!q||q==='ALL'||t.quarter===q))}
+function releaseAmount(r,q){return r2(txFor(r,q).reduce((s,t)=>s+num(t.amount),0))}
+function releaseQty(r,q){return txFor(r,q).reduce((s,t)=>s+num(t.qty),0)}
+
+/* ---- dashboard ---- */
+function renderDashboard(){
+  const q=document.getElementById('fQuarter').value;
+  const ms=filteredMaster();
+  let budget=0,rel=0;
+  ms.forEach(r=>{budget+=qBudget(r,q);rel+=releaseAmount(r,q)});
+  budget=r2(budget);rel=r2(rel);
+  const balance=r2(budget-rel);
+  const overall=r2(db.master.reduce((s,r)=>s+qBudget(r,'ALL'),0)-db.releases.reduce((s,t)=>s+num(t.amount),0));
+  document.getElementById('mBudget').textContent=money(budget);
+  document.getElementById('mRelease').textContent=money(rel);
+  document.getElementById('mBalance').textContent=money(balance);
+  document.getElementById('mOverall').textContent=money(overall);
+  const rows=ms.map(r=>{
+    const b=qBudget(r,q),rr=releaseAmount(r,q);
+    return `<tr><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td><td class="num">${money(b)}</td><td class="num">${money(rr)}</td><td class="num">${money(b-rr)}</td></tr>`;
+  }).join('');
+  document.getElementById('breakdown').innerHTML=rows||'<tr><td colspan="7" class="empty">No WFP records match the selected filters.</td></tr>';
+  drawCharts(ms,q);
+}
+function upsertChart(key,canvasId,type,labels,datasets,options){
+  const c=charts[key];
+  if(c){c.data.labels=labels;c.data.datasets=datasets;c.update();return}
+  const el=document.getElementById(canvasId);
+  if(!el)return;
+  charts[key]=new Chart(el,{type,data:{labels,datasets},options});
+}
+function drawCharts(ms,q){
+  const qs=['Q1','Q2','Q3','Q4'];
+  upsertChart('q','quarterChart','bar',qs,[
+    {label:'Budget',data:qs.map(x=>ms.reduce((s,r)=>s+qBudget(r,x),0))},
+    {label:'Release',data:qs.map(x=>ms.reduce((s,r)=>s+releaseAmount(r,x),0))}
+  ],{responsive:true,maintainAspectRatio:false});
+
+  const am={};
+  ms.forEach(r=>am[r.Activity]=(am[r.Activity]||0)+releaseAmount(r,q));
+  const amKeys=Object.keys(am).slice(0,12);
+  upsertChart('a','activityChart','bar',amKeys,
+    [{label:'Release',data:amKeys.map(k=>am[k])}],
+    {indexAxis:'y',responsive:true,maintainAspectRatio:false});
+
+  const om={};
+  ms.forEach(r=>om[r['Object of Expenditure']]=(om[r['Object of Expenditure']]||0)+releaseAmount(r,q));
+  const omKeys=Object.keys(om).slice(0,10);
+  upsertChart('o','objectChart','doughnut',omKeys,
+    [{label:'Release',data:omKeys.map(k=>om[k])}],
+    {responsive:true,maintainAspectRatio:false});
+}
+function clearFilters(){['fQuarter','fActivity','fObject','fAccount'].forEach(x=>document.getElementById(x).value='ALL');renderDashboard()}
+
+/* ---- master list ---- */
+function renderMaster(){
+  const s=(document.getElementById('masterSearch')?.value||'').toLowerCase();
+  const ms=db.master.filter(r=>Object.values(r).join(' ').toLowerCase().includes(s));
+  document.getElementById('masterBody').innerHTML=ms.map(r=>
+    `<tr><td>${esc(r['AIP Code'])}</td><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td><td>${esc(r.Unit)}</td><td class="num">${money(r['Unit Price'])}</td><td class="num">${money(r['Est. Budget'])}</td><td class="num">${num(r['Q1 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q1'))}</td><td class="num">${num(r['Q2 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q2'))}</td><td class="num">${num(r['Q3 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q3'))}</td><td class="num">${num(r['Q4 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q4'))}</td><td class="num">${money(qBudget(r,'ALL'))}</td><td><button class="btn" onclick="openMasterModal('${r._id}')">Edit</button> <button class="btn danger" onclick="deleteMaster('${r._id}')">Delete</button></td></tr>`
+  ).join('')||'<tr><td colspan="18" class="empty">No records.</td></tr>';
+}
+const formFields=[['AIP Code','text'],['Activity','text'],['Account Code','text'],['Object of Expenditure','text'],['Description','text'],['Unit','text'],['Unit Price','number'],['Est. Budget','number'],['Q1 Total Qty.','number'],['Q1 Est. Budget','number'],['Q2 Total Qty.','number'],['Q2 Est. Budget','number'],['Q3 Total Qty.','number'],['Q3 Est. Budget','number'],['Q4 Total Qty.','number'],['Q4 Est. Budget','number']];
+const fldId=k=>'mf_'+k.replace(/[^a-zA-Z0-9]/g,'_');
+
+function openMasterModal(idv){
+  editingMaster=idv||null;
+  const r=idv?db.master.find(x=>x._id===idv):{};
+  document.getElementById('masterModalTitle').textContent=idv?'Edit WFP Record':'Add WFP Record';
+  document.getElementById('masterForm').innerHTML=formFields.map(([k,t])=>`<div><label>${k}</label><input id="${fldId(k)}" type="${t}" value="${esc(r[k]??'')}"></div>`).join('');
+  document.getElementById('masterModal').classList.add('show');
+}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+function saveMaster(){
+  if(!guard())return;
+  const r={};
+  formFields.forEach(([k])=>r[k]=document.getElementById(fldId(k)).value);
+  if(!r.Activity||!r.Description){alert('Activity and Description are required.');return}
+  formFields.filter(([,t])=>t==='number').forEach(([k])=>r[k]=num(r[k]));
+
+  if(editingMaster){
+    const i=db.master.findIndex(x=>x._id===editingMaster);
+    r._id=editingMaster;
+    db.master[i]=r;
+    /* cascade renames into transactions and adjustments */
+    db.releases.forEach(t=>{
+      if(t.masterId!==editingMaster)return;
+      t.activity=r.Activity; t.account=r['Account Code'];
+      t.object=r['Object of Expenditure']; t.description=r.Description; t.unit=r.Unit;
+    });
+    db.adjustments.forEach(a=>{
+      if(a.fromMasterId===editingMaster){a.fromActivity=r.Activity;a.fromAccount=r['Account Code'];a.fromObject=r['Object of Expenditure'];a.fromDescription=r.Description}
+      if(a.toMasterId===editingMaster){a.toActivity=r.Activity;a.toAccount=r['Account Code'];a.toObject=r['Object of Expenditure'];a.toDescription=r.Description}
+    });
+    log('Master edited',editingMaster,r.Description);
+  }else{
+    r._id='M-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
+    db.master.push(r);
+    log('Master created',r._id,r.Description);
+  }
+  saveDB();
+  closeModal('masterModal');
+  populateFilters();
+  renderMaster(); renderDashboard();
+  setupRelease(); setupAdjustments();
+  renderTransactions(); renderReport();
+}
+
+function deleteMaster(idv){
+  if(db.releases.some(t=>t.masterId===idv)){
+    alert('Cannot delete this WFP record because it has release transactions. Delete the transactions first.');
+    return;
+  }
+  const linked=db.adjustments.filter(a=>a.fromMasterId===idv||a.toMasterId===idv);
+  if(linked.length){
+    alert(`Cannot delete this WFP record because ${linked.length} budget adjustment(s) reference it. Delete those adjustments first.`);
+    return;
+  }
+  if(confirm('Delete this WFP master record?')){
+    db.master=db.master.filter(x=>x._id!==idv);
+    log('Master deleted',idv,'WFP record deleted');
+    saveDB();
+    populateFilters();
+    renderMaster(); renderDashboard();
+    setupRelease(); setupAdjustments();
+  }
+}
+function exportMaster(){downloadXlsx({'WFP Master':db.master.map(cleanMaster)},'WFP_Master.xlsx')}
+
+/* ---- release encoding ---- */
+function setupRelease(){
+  if(!editingTx){
+    document.getElementById('releaseMessage').innerHTML='';
+    document.getElementById('rQty').value='';
+    document.getElementById('rRef').value='';
+    document.getElementById('rPayee').value='';
+    document.getElementById('rRemarks').value='';
+  }
+  setOptions('rActivity',[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort(),'Select Activity','');
+  document.getElementById('rActivity').onchange=setupReleaseObjects;
+  document.getElementById('rObject').onchange=setupReleaseDescriptions;
+  document.getElementById('rQuarter').onchange=updateReleasePreview;
+  document.getElementById('rDescription').onchange=updateReleasePreview;
+  setupReleaseObjects();
+  const d=document.getElementById('rDate');
+  if(!d.value)d.value=todayLocal();
+}
+function setupReleaseObjects(){
+  const a=document.getElementById('rActivity').value;
+  setOptions('rObject',[...new Set(db.master.filter(x=>x.Activity===a).map(x=>x['Object of Expenditure']).filter(Boolean))].sort(),'Select Object','');
+  setupReleaseDescriptions();
+}
+function setupReleaseDescriptions(){
+  const a=document.getElementById('rActivity').value;
+  const o=document.getElementById('rObject').value;
+  setOptionsById('rDescription',db.master.filter(x=>x.Activity===a&&x['Object of Expenditure']===o),'Select Description');
+  updateReleasePreview();
+}
+function selectedRecord(){
+  return db.master.find(x=>x._id===document.getElementById('rDescription').value)||null;
+}
+function updateReleasePreview(){
+  const r=selectedRecord(), q=document.getElementById('rQuarter').value;
+  if(!r){
+    ['rUnit','rPrice'].forEach(x=>document.getElementById(x).value='');
+    ['pQty','relQty','remQty'].forEach(x=>document.getElementById(x).textContent='0');
+    document.getElementById('rAmount').value='';
+    ['pBudget','relAmt','remBudget'].forEach(x=>document.getElementById(x).textContent=money(0));
+    return;
+  }
+  const isEditOnThis=editingTx&&editingTx.masterId===r._id&&editingTx.quarter===q;
+  const oldQ=isEditOnThis?num(editingTx.qty):0;
+  const oldA=isEditOnThis?num(editingTx.amount):0;
+  const pq=qQty(r,q);
+  const rq=releaseQty(r,q)-oldQ;
+  const pb=qBudget(r,q);
+  const ra=releaseAmount(r,q)-oldA;
+  const qty=num(document.getElementById('rQty').value);
+  const price=num(r['Unit Price']);
+  const amount=r2(qty*price);
+  document.getElementById('rUnit').value=r.Unit||'';
+  document.getElementById('rPrice').value=price;
+  document.getElementById('rAmount').value=amount.toFixed(2);
+  document.getElementById('pQty').textContent=pq;
+  document.getElementById('relQty').textContent=rq;
+  document.getElementById('remQty').textContent=Math.max(0,pq-rq);
+  document.getElementById('pBudget').textContent=money(pb);
+  document.getElementById('relAmt').textContent=money(ra);
+  document.getElementById('remBudget').textContent=money(pb-ra);
+}
+function saveRelease(){
+  if(!guard())return;
+  const r=selectedRecord();
+  const q=document.getElementById('rQuarter').value;
+  const qty=num(document.getElementById('rQty').value);
+  const amount=num(document.getElementById('rAmount').value);
+  const msg=document.getElementById('releaseMessage');
+  msg.innerHTML='';
+  if(!r){msg.innerHTML='<div class="error">Select a valid Activity, Object and Description.</div>';return}
+  const isEditOnThis=editingTx&&editingTx.masterId===r._id&&editingTx.quarter===q;
+  const oldQ=isEditOnThis?num(editingTx.qty):0;
+  const oldA=isEditOnThis?num(editingTx.amount):0;
+  const rq=releaseQty(r,q)-oldQ;
+  const ra=releaseAmount(r,q)-oldA;
+  const pq=qQty(r,q);
+  const pb=qBudget(r,q);
+  if(qty<=0){msg.innerHTML='<div class="error">Quantity must be greater than zero.</div>';return}
+  if(qty>pq-rq){msg.innerHTML=`<div class="error">Release cannot be encoded. Quantity exceeds remaining planned quantity by ${qty-(pq-rq)}.</div>`;return}
+  if(amount>pb-ra+0.0001){msg.innerHTML=`<div class="error">Release cannot be encoded. Amount exceeds remaining ${q} allotted budget by ${money(amount-(pb-ra))}.</div>`;return}
+
+  const tx={...(editingTx||{}),
+    masterId:r._id,releaseDate:document.getElementById('rDate').value,
+    activity:r.Activity,account:r['Account Code'],object:r['Object of Expenditure'],
+    description:r.Description,quarter:q,qty,unit:r.Unit,unitPrice:num(r['Unit Price']),amount,
+    reference:document.getElementById('rRef').value,payee:document.getElementById('rPayee').value,
+    remarks:document.getElementById('rRemarks').value,modified:new Date().toLocaleString()
+  };
+  if(editingTx){
+    const i=db.releases.findIndex(x=>x.id===editingTx.id);
+    db.releases[i]=tx;
+    log('Release edited',tx.id,tx.description);
+  }else{
+    tx.id=id();
+    tx.created=new Date().toLocaleString();
+    db.releases.push(tx);
+    log('Release created',tx.id,tx.description);
+  }
+  saveDB();
+  msg.innerHTML='<div class="success">Release saved successfully.</div>';
+  editingTx=null;
+  resetRelease(false);
+  renderTransactions();
+  renderDashboard();
+}
+function resetRelease(clearMsg=true){
+  editingTx=null;
+  document.getElementById('rQty').value='';
+  document.getElementById('rRef').value='';
+  document.getElementById('rPayee').value='';
+  document.getElementById('rRemarks').value='';
+  if(clearMsg)document.getElementById('releaseMessage').innerHTML='';
+  updateReleasePreview();
+}
+
+/* ---- transactions ---- */
+function renderTransactions(){
+  const s=(document.getElementById('txSearch')?.value||'').toLowerCase();
+  const arr=db.releases.filter(t=>Object.values(t).join(' ').toLowerCase().includes(s));
+  document.getElementById('txBody').innerHTML=arr.map(t=>
+    `<tr><td>${esc(t.id)}</td><td>${esc(t.releaseDate)}</td><td>${esc(t.activity)}</td><td>${esc(t.account)}</td><td>${esc(t.object)}</td><td>${esc(t.description)}</td><td>${esc(t.quarter)}</td><td class="num">${t.qty}</td><td class="num">${money(t.amount)}</td><td>${esc(t.reference)}</td><td><button class="btn" onclick="editTx('${t.id}')">Edit</button> <button class="btn danger" onclick="deleteTx('${t.id}')">Delete</button></td></tr>`
+  ).join('')||'<tr><td colspan="11" class="empty">No transactions.</td></tr>';
+}
+function editTx(idv){
+  const t=db.releases.find(x=>x.id===idv);
+  if(!t)return;
+  const master=db.master.find(m=>m._id===t.masterId);
+  if(!master){
+    alert('Cannot edit: the WFP line item this transaction points to no longer exists. Restore the master record first.');
+    return;
+  }
+  editingTx={...t};
+  page('release');
+  document.getElementById('rActivity').value=t.activity;
+  setupReleaseObjects();
+  document.getElementById('rObject').value=t.object;
+  setupReleaseDescriptions();
+  document.getElementById('rDescription').value=t.masterId;
+  document.getElementById('rQuarter').value=t.quarter;
+  document.getElementById('rDate').value=t.releaseDate;
+  document.getElementById('rQty').value=t.qty;
+  document.getElementById('rRef').value=t.reference||'';
+  document.getElementById('rPayee').value=t.payee||'';
+  document.getElementById('rRemarks').value=t.remarks||'';
+  updateReleasePreview();
+  document.getElementById('releaseMessage').innerHTML='<div class="notice">Editing transaction '+esc(t.id)+'. Saving will replace the original transaction.</div>';
+}
+function deleteTx(idv){
+  const t=db.releases.find(x=>x.id===idv);
+  if(!t)return;
+  if(confirm('Are you sure you want to delete this release transaction?')){
+    db.releases=db.releases.filter(x=>x.id!==idv);
+    log('Release deleted',idv,t.description);
+    saveDB();
+    renderTransactions();
+    renderDashboard();
+  }
+}
+
+/* ---- budget adjustments ---- */
+function setupAdjustments(){
+  setupAdjSide('af');
+  setupAdjSide('at');
+  const d=document.getElementById('aDate');
+  if(!d.value)d.value=todayLocal();
+  document.getElementById('aQuarter').onchange=updateAdjPreview;
+  updateAdjPreview();
+}
+function setupAdjSide(prefix){
+  setOptions(prefix+'Activity',[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort(),'Select Activity','');
+  document.getElementById(prefix+'Activity').onchange=()=>setupAdjObjects(prefix);
+  document.getElementById(prefix+'Object').onchange=()=>setupAdjDescriptions(prefix);
+  document.getElementById(prefix+'Description').onchange=updateAdjPreview;
+  setupAdjObjects(prefix);
+}
+function setupAdjObjects(prefix){
+  const a=document.getElementById(prefix+'Activity').value;
+  setOptions(prefix+'Object',[...new Set(db.master.filter(x=>x.Activity===a).map(x=>x['Object of Expenditure']).filter(Boolean))].sort(),'Select Object','');
+  setupAdjDescriptions(prefix);
+}
+function setupAdjDescriptions(prefix){
+  const a=document.getElementById(prefix+'Activity').value;
+  const o=document.getElementById(prefix+'Object').value;
+  setOptionsById(prefix+'Description',db.master.filter(x=>x.Activity===a&&x['Object of Expenditure']===o),'Select Description');
+  updateAdjPreview();
+}
+function adjSelectedRecord(prefix){
+  return db.master.find(x=>x._id===document.getElementById(prefix+'Description').value)||null;
+}
+function updateAdjPreview(){
+  const fr=adjSelectedRecord('af'), tr=adjSelectedRecord('at');
+  const q=document.getElementById('aQuarter').value;
+  const amt=num(document.getElementById('aAmount').value);
+  document.getElementById('afAccount').value=fr?(fr['Account Code']||''):'';
+  document.getElementById('atAccount').value=tr?(tr['Account Code']||''):'';
+  const fromBox=document.getElementById('adjFromPreview'), toBox=document.getElementById('adjToPreview');
+  if(!fr){fromBox.innerHTML='Select From Activity, Object and Description.'}
+  else{
+    const qb=qBudget(fr,q), rel=releaseAmount(fr,q), avail=r2(qb-rel);
+    fromBox.innerHTML=`<div><strong>${esc(fr.Activity)} → ${esc(fr['Object of Expenditure'])} → ${esc(fr.Description)}</strong></div><div class="bad">- ${money(amt)}</div><div class="footer-note">${q} Budget: ${money(qb)} • Released: ${money(rel)} • Available: ${money(avail)} • After Adjustment: ${money(qb-amt)}</div>`;
+  }
+  if(!tr){toBox.innerHTML='Select To Activity, Object and Description.'}
+  else{
+    const qb=qBudget(tr,q);
+    toBox.innerHTML=`<div><strong>${esc(tr.Activity)} → ${esc(tr['Object of Expenditure'])} → ${esc(tr.Description)}</strong></div><div class="good">+ ${money(amt)}</div><div class="footer-note">${q} Budget: ${money(qb)} • After Adjustment: ${money(qb+amt)}</div>`;
+  }
+}
+function resetAdjustment(clearMsg=true){
+  document.getElementById('aAmount').value='';
+  document.getElementById('aRef').value='';
+  document.getElementById('aRemarks').value='';
+  if(clearMsg)document.getElementById('adjMessage').innerHTML='';
+  updateAdjPreview();
+}
+function saveAdjustment(){
+  if(!guard())return;
+  const msg=document.getElementById('adjMessage');
+  msg.innerHTML='';
+  const quarter=document.getElementById('aQuarter').value;
+  const amount=num(document.getElementById('aAmount').value);
+  const date=document.getElementById('aDate').value;
+  const reference=document.getElementById('aRef').value;
+  const remarks=document.getElementById('aRemarks').value;
+  const fr=adjSelectedRecord('af'), tr=adjSelectedRecord('at');
+  if(!fr||!tr){msg.innerHTML='<div class="error">Select a valid From (Source) and To (Recipient) Activity, Object of Expenditure and Description.</div>';return}
+  if(fr._id===tr._id){msg.innerHTML='<div class="error">The Source and Recipient must be different line items.</div>';return}
+  if(amount<=0){msg.innerHTML='<div class="error">Amount must be greater than zero.</div>';return}
+  const avail=r2(qBudget(fr,quarter)-releaseAmount(fr,quarter));
+  if(amount>avail+0.0001){msg.innerHTML=`<div class="error">Adjustment cannot be encoded. Amount exceeds the available ${quarter} budget of the Source item by ${money(amount-avail)}.</div>`;return}
+  db.adjustments.push({
+    id:id(),quarter,amount,date,reference,remarks,
+    fromMasterId:fr._id,fromActivity:fr.Activity,fromAccount:fr['Account Code'],fromObject:fr['Object of Expenditure'],fromDescription:fr.Description,
+    toMasterId:tr._id,toActivity:tr.Activity,toAccount:tr['Account Code'],toObject:tr['Object of Expenditure'],toDescription:tr.Description
+  });
+  log('Budget adjustment',fr._id,`${quarter}: ${fr.Activity} → ${tr.Activity} — ${money(amount)}`);
+  saveDB();
+  msg.innerHTML='<div class="success">Budget adjustment saved successfully.</div>';
+  resetAdjustment(false);
+  renderAdjustments();
+  renderDashboard();
+  renderMaster();
+  renderReport();
+}
+function deleteAdjustment(idv){
+  const a=db.adjustments.find(x=>x.id===idv);
+  if(!a)return;
+  const recip=db.master.find(m=>m._id===a.toMasterId);
+  if(recip){
+    const afterBudget=r2(qBudget(recip,a.quarter)-num(a.amount));
+    const alreadyReleased=releaseAmount(recip,a.quarter);
+    if(alreadyReleased>afterBudget+0.005){
+      alert(`Cannot delete this adjustment.\n\n${recip.Description} has already released ${money(alreadyReleased)} against the ${a.quarter} budget of ${money(qBudget(recip,a.quarter))}. Removing ${money(a.amount)} would leave the budget at ${money(afterBudget)} — below what has been released.\n\nDelete the recipient's release transactions first.`);
+      return;
+    }
+  }
+  if(confirm('Delete this budget adjustment? This reverses its effect on the Source and Recipient quarterly budgets.')){
+    db.adjustments=db.adjustments.filter(x=>x.id!==idv);
+    log('Budget adjustment deleted',idv,`${a.fromActivity} → ${a.toActivity} — ${money(a.amount)}`);
+    saveDB();
+    renderAdjustments();
+    renderDashboard();
+    renderMaster();
+    renderReport();
+  }
+}
+function renderAdjustments(){
+  setupAdjustments();
+  document.getElementById('adjBody').innerHTML=db.adjustments.map(a=>
+    `<tr><td>${esc(a.date)}</td><td>${esc(a.quarter)}</td><td>${esc(a.fromActivity)} → ${esc(a.fromObject)} → ${esc(a.fromDescription)}</td><td>${esc(a.toActivity)} → ${esc(a.toObject)} → ${esc(a.toDescription)}</td><td class="num">${money(a.amount)}</td><td>${esc(a.reference)}</td><td>${esc(a.remarks)}</td><td><button class="btn danger" onclick="deleteAdjustment('${a.id}')">Delete</button></td></tr>`
+  ).join('')||'<tr><td colspan="8" class="empty">No budget adjustments.</td></tr>';
+}
+
+/* ---- reports ---- */
+function renderReport(){
+  document.getElementById('reportBody').innerHTML=db.master.map(r=>{
+    const vals={};
+    ['Q1','Q2','Q3','Q4'].forEach(q=>{vals[q+'b']=qBudget(r,q);vals[q+'r']=releaseAmount(r,q)});
+    const ab=r2(vals.Q1b+vals.Q2b+vals.Q3b+vals.Q4b);
+    const ar=r2(vals.Q1r+vals.Q2r+vals.Q3r+vals.Q4r);
+    return `<tr><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td>${['Q1','Q2','Q3','Q4'].map(q=>`<td class="num">${money(vals[q+'b'])}</td><td class="num">${money(vals[q+'r'])}</td><td class="num">${money(vals[q+'b']-vals[q+'r'])}</td>`).join('')}<td class="num">${money(ab)}</td><td class="num">${money(ar)}</td><td class="num">${money(ab-ar)}</td></tr>`;
+  }).join('')||'<tr><td colspan="19" class="empty">No records.</td></tr>';
+}
+function renderAudit(){
+  document.getElementById('auditBody').innerHTML=db.audit.map(a=>
+    `<tr><td>${esc(a.date)}</td><td>${esc(a.action)}</td><td>${esc(a.record)}</td><td>${esc(a.details)}</td></tr>`
+  ).join('')||'<tr><td colspan="4" class="empty">No audit entries.</td></tr>';
+}
+
+/* ---- import / export ---- */
+function cleanMaster(r){const x={...r};delete x._id;return x}
+function downloadXlsx(sheets,filename){
+  const wb=XLSX.utils.book_new();
+  for(const [name,data] of Object.entries(sheets)){
+    const ws=XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));
+  }
+  XLSX.writeFile(wb,filename);
+}
+function exportBackup(){downloadXlsx({'WFP Master':db.master.map(cleanMaster),'Budget Adjustments':db.adjustments,'Release Transactions':db.releases,'Audit Logs':db.audit,'Summary':buildSummary()},'WFP_Monitoring_Backup.xlsx')}
+function buildSummary(){
+  return db.master.map(r=>{
+    const b=qBudget(r,'ALL'),rel=releaseAmount(r,'ALL');
+    return {Activity:r.Activity,'Account Code':r['Account Code'],Object:r['Object of Expenditure'],Description:r.Description,'Annual Budget (Adjusted)':b,'Total Release':rel,'Overall Balance':r2(b-rel)};
+  });
+}
+function exportReport(){
+  downloadXlsx({'Quarterly Report':db.master.map(r=>{
+    const o={Activity:r.Activity,'Account Code':r['Account Code'],'Object of Expenditure':r['Object of Expenditure'],Description:r.Description};
+    ['Q1','Q2','Q3','Q4'].forEach(q=>{o[q+' Budget']=qBudget(r,q);o[q+' Release']=releaseAmount(r,q);o[q+' Balance']=r2(qBudget(r,q)-releaseAmount(r,q))});
+    o['Annual Budget']=qBudget(r,'ALL');
+    o['Total Release']=releaseAmount(r,'ALL');
+    o['Overall Balance']=r2(qBudget(r,'ALL')-releaseAmount(r,'ALL'));
+    return o;
+  })},'WFP_Quarterly_Monitoring_Report.xlsx');
+}
+function downloadTemplate(){
+  const row={};cols.forEach(c=>row[c]='');
+  downloadXlsx({'WFP Template':[row]},'WFP_Upload_Template.xlsx');
+}
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='WFP_Monitoring_Backup.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importJSON(e){
+  const f=e.target.files[0];
+  if(!f)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const x=JSON.parse(rd.result);
+      if(!x.master||!x.releases)throw Error();
+      if(confirm('Restore this backup and replace current data?')){
+        db={...blank(),...x};
+        ['master','releases','adjustments','audit'].forEach(k=>{if(!Array.isArray(db[k]))db[k]=[]});
+        saveDB();
+        location.reload();
+      }
+    }catch(err){alert('Invalid backup file.')}
+  };
+  rd.readAsText(f);
+  e.target.value='';
+}
+
+function previewFile(e){
+  const f=e.target.files[0];
+  if(!f)return;
+  const rd=new FileReader();
+  rd.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const data=XLSX.utils.sheet_to_json(ws,{defval:''});
+      const headers=data.length?Object.keys(data[0]).map(h=>h.trim()):[];
+      const missing=cols.filter(c=>!headers.includes(c));
+      pendingImport={data};
+      document.getElementById('importPreview').innerHTML=
+        `<div class="${missing.length?'error':'success'}" style="margin-top:12px">${missing.length?'Missing columns: '+missing.join(', '):`Valid file detected. ${data.length} rows ready for import.`}</div>`
+        +(data.length?`<div class="table-wrap" style="margin-top:10px;max-height:250px"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${data.slice(0,10).map(r=>`<tr>${headers.map(h=>`<td>${esc(r[h])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'');
+      document.getElementById('confirmImport').disabled=missing.length>0||!data.length;
+    }catch(err){
+      document.getElementById('importPreview').innerHTML='<div class="error">Could not read the Excel file.</div>';
+      document.getElementById('confirmImport').disabled=true;
+    }
+  };
+  rd.readAsArrayBuffer(f);
+  e.target.value='';
+}
+function normalizeRow(r){
+  const x={};
+  cols.forEach(c=>x[c]=r[c]??'');
+  ['Unit Price','Est. Budget','Q1 Total Qty.','Q1 Est. Budget','Q2 Total Qty.','Q2 Est. Budget','Q3 Total Qty.','Q3 Est. Budget','Q4 Total Qty.','Q4 Est. Budget'].forEach(c=>x[c]=num(x[c]));
+  x._id='M-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
+  return x;
+}
+function confirmImport(){
+  if(!pendingImport)return;
+  if(db.master.length&&!confirm('This will REPLACE the current WFP Master List. Export a backup first. Continue?'))return;
+  if((db.releases.length||db.adjustments.length)&&!confirm('This will also DELETE all release transactions and budget adjustments. Continue?'))return;
+  db.master=pendingImport.data.map(normalizeRow);
+  db.releases=[];
+  db.adjustments=[];
+  log('WFP imported','MASTER',`${db.master.length} records imported; prior WFP/release data replaced`);
+  saveDB();
+  pendingImport=null;
+  document.getElementById('confirmImport').disabled=true;
+  document.getElementById('importPreview').innerHTML='<div class="success">WFP imported successfully.</div>';
+  populateFilters();
+  renderDashboard(); renderMaster();
+  setupRelease(); setupAdjustments();
+  renderTransactions(); renderReport(); renderAudit();
+}
+
+/* ---- init ---- */
+function init(){
+  populateFilters();
+  renderDashboard();
+  renderMaster();
+  setupRelease();
+  setupAdjustments();
+  renderTransactions();
+  renderReport();
+  renderAudit();
+  updateStatus();
+}
+init();
+</script>
+</body>
+</html>
