@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Office Budget and Budget Monitoring</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
+#cloud{position:fixed;right:10px;bottom:10px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font:600 12px/1.4 system-ui,sans-serif;color:var(--mute);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+#cloud.ok{color:#0f5c55}#cloud.bad{color:#b3261e}
+@media print{#cloud{display:none!important}}
 :root{--ink:#1d2b2a;--mute:#5c6b69;--line:#cdd6d4;--bg:#eef2f1;--card:#fff;--brand:#0f5c55;--brand2:#0b4640;--warn:#b3261e;--soft:#e4efed}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 "Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
@@ -205,12 +210,36 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
 </div>
 </main>
 
+<div id="cloud">☁ Connecting…</div>
+
 <script>
 (function(){
 var $=function(id){return document.getElementById(id)};
 var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
-function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+/* ---------- Firebase (cloud backup + sync) ---------- */
+var firebaseConfig={apiKey:"AIzaSyCAYTd5DVQsq2IWU-avueWdk39u1oTH9RU",authDomain:"tourism-office-records.firebaseapp.com",projectId:"tourism-office-records",storageBucket:"tourism-office-records.firebasestorage.app",messagingSenderId:"984337082871",appId:"1:984337082871:web:4af190490e3b2e6db526f2",measurementId:"G-QJ5SCPMYQ0"};
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1"],DIRTY="procurement_dirty_v1";
+var db=null,docRef=null,cloudReady=false,pushTimer=null,badge=document.getElementById("cloud");
+function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
+try{
+ if(typeof firebase!=="undefined"){firebase.initializeApp(firebaseConfig);db=firebase.firestore();docRef=db.collection("apps").doc("wfp_monitoring")}
+ else setBadge("☁ Offline (saved on this device only)","bad");
+}catch(e){setBadge("☁ Cloud unavailable","bad")}
+function pushCloud(){
+ if(!docRef||!cloudReady)return;
+ clearTimeout(pushTimer);setBadge("☁ Saving…");
+ pushTimer=setTimeout(function(){
+  var d={updated:firebase.firestore.FieldValue.serverTimestamp()};
+  CLOUD_KEYS.forEach(function(k){d[k]=localStorage.getItem(k)||"null"});
+  docRef.set(d).then(function(){try{localStorage.removeItem(DIRTY)}catch(e){}setBadge("☁ Synced","ok")})
+   .catch(function(){setBadge("☁ Not synced – will retry on next change","bad")});
+ },800);
+}
+function save(k,v){
+ try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
+ if(CLOUD_KEYS.indexOf(k)>=0){try{localStorage.setItem(DIRTY,"1")}catch(e){}pushCloud()}
+}
 var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)};
 var money=function(n){return Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
 var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionDigits:2})};
@@ -552,6 +581,23 @@ $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget line
 
 function renderAll(){renderOB();fillTx();renderBM();paintMeta()}
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
+
+/* ---------- load from cloud on open ---------- */
+function applyCloud(d){
+ CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);
+ items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
+ if(years.indexOf(year)<0)years.push(year);
+ Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
+ fillYear();fillObj("");clearForm();renderAll();
+}
+if(docRef){
+ docRef.get().then(function(snap){
+  var unsynced=localStorage.getItem(DIRTY)==="1";
+  if(snap.exists&&!unsynced){applyCloud(snap.data());cloudReady=true;setBadge("☁ Synced","ok")}
+  else{cloudReady=true;pushCloud()} /* first upload, or unsynced offline edits */
+ }).catch(function(){setBadge("☁ Offline (saved on this device only)","bad")});
+}
 })();
 </script>
 </body>
