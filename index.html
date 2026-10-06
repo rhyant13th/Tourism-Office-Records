@@ -78,6 +78,12 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
  .wrap{overflow:visible}
  .sign{display:flex;justify-content:space-between;margin-top:32px}
 }
+.fbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}.fbar>div{flex:1 1 190px}.fbar select{width:100%}
+.fsum{font-size:13px;color:var(--mute);margin:10px 0}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--soft);border-radius:6px;padding:10px 12px}.kpi span{display:block;font-size:12px;color:var(--mute);font-weight:600}.kpi b{font-size:18px;color:var(--brand2)}.kpi b.neg{color:var(--warn)}
+.dtw{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}.dtw h3{font-size:14px;margin:0 0 6px;color:var(--brand2)}
+table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt td{border:1px solid var(--line);padding:5px 8px;text-align:left}table.dt th{background:var(--soft)}table.dt td.n{text-align:right}table.dt tfoot td{font-weight:700;background:var(--soft)}
 </style>
 </head>
 <body>
@@ -110,13 +116,12 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
   <div class="c6"><label for="desc">Description</label><input id="desc"></div>
   <div class="c6"><label for="obj">Object of Expenditure</label><select id="obj"></select></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
-  <div class="c3"><label for="stock">Stock No.</label><input id="stock"></div>
+  <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
   <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
    <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
   <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01"></div>
   <div class="c6"><label for="mode">Mode of Procurement</label>
-   <input id="mode" list="modes">
-   <datalist id="modes"><option>Small Value Procurement</option><option>Public Bidding</option><option>Direct Contracting</option><option>Negotiated Procurement</option><option>Shopping</option><option>Repeat Order</option><option>Direct Retail Purchase of Petroleum Fuel</option></datalist></div>
+   <select id="mode"><option value="">Select…</option><option>Procurement</option><option>Non-Procurement</option></select></div>
   <div class="c12">
    <fieldset>
     <legend>Quantity and amount per quarter</legend>
@@ -139,6 +144,8 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
   <button id="btnClear">Clear form</button>
  </div>
 </section>
+
+<section class="card noprint" id="obDash"></section>
 
 <section class="card">
  <div class="bar noprint">
@@ -185,6 +192,8 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
  <div class="err" id="terr" role="alert"></div>
  <div class="btns"><button class="p" id="btnTx">Add transaction</button></div>
 </section>
+
+<section class="card noprint" id="bmDash"></section>
 
 <section class="card">
  <div class="bar noprint">
@@ -367,7 +376,7 @@ $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
 function edit(id){
  var it=byId(id);if(!it)return;editing=id;
  $("aip").value=it.aip;$("act").value=it.act||"";$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
- $("price").value=it.price;$("mode").value=it.mode;$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
+ $("price").value=it.price;modeSet(it.mode);$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
  calcForm();$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
  window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
@@ -375,8 +384,8 @@ function edit(id){
 
 /* ---------- Office Budget report ---------- */
 function renderOB(){
- var list=yi(),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
- if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="20">No items for '+year+' yet. Fill in the form above and select Add item.</td></tr>';$("obFoot").innerHTML="";return}
+ var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
+ if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="20">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML="";return}
  list.forEach(function(it){
   var t=tot(it),b=t*it.price;gq+=t;gb+=b;
   h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
@@ -430,8 +439,8 @@ function lineCalc(it){
 var lineLabel=function(it){return it?it.aip+" – "+it.act+" – "+it.obj+" – "+it.desc:"(deleted item)"};
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
 function renderBM(){
- var list=yi(),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
- if(!list.length){$("bmBody").innerHTML='<tr><td class="empty" colspan="32">No budget lines for '+year+'. Add items in Office Budget first.</td></tr>';$("bmFoot").innerHTML=""}
+ var list=fi("bm"),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
+ if(!list.length){$("bmBody").innerHTML='<tr><td class="empty" colspan="32">'+(yi().length?"No budget lines match the selected filters.":"No budget lines for "+year+". Add items in Office Budget first.")+'</td></tr>';$("bmFoot").innerHTML=""}
  else{
   list.forEach(function(it){
    var c=lineCalc(it),t=tot(it),sum=0;
@@ -448,7 +457,7 @@ function renderBM(){
  // transaction log
  var lg="";
  txs.forEach(function(x){
-  var s=byId(x.from);if(!s||+s.year!==year)return;
+  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(x.type==="rel"?"Release":"Augmentation")+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
    (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
@@ -537,7 +546,7 @@ function headMerges(nBase,lastCol,groups,groupSpan,firstGroupCol,extraCol){
 function baseCells(it){var t=tot(it);return[it.aip,it.act||"",it.desc,it.obj||"",it.acct||"",it.stock,it.unit,it.price,t,t*it.price,it.mode]}
 
 $("obXlsx").onclick=function(){
- var list=yi();if(!list.length){alert("There are no items for "+year+" to save yet.");return}
+ var list=fi("ob");if(!list.length){alert("There are no items for "+year+" to save yet.");return}
  var h1=BASE.slice(),h2=BASE.map(function(){return""}),k;
  Q.forEach(function(q){h1.push(q+" Quarter","");h2.push("Quantity","Amount")});
  var rows=[["OFFICE BUDGET "+year],[meta.office||""],[],h1,h2],gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
@@ -552,7 +561,7 @@ $("obXlsx").onclick=function(){
   money:[7,9,12,14,16,18],qty:[8,11,13,15,17],from:5,to:5+list.length}]);
 };
 $("bmXlsx").onclick=function(){
- var list=yi();if(!list.length){alert("There are no budget lines for "+year+" to save yet.");return}
+ var list=fi("bm");if(!list.length){alert("There are no budget lines for "+year+" to save yet.");return}
  var h1=BASE.slice(),h2=BASE.map(function(){return""}),k,T=[];
  Q.forEach(function(q){h1.push(q+" Quarter","","","","");SUB.forEach(function(s){h2.push(s)})});
  h1.push("Total Balance");h2.push("");
@@ -579,7 +588,53 @@ $("bmXlsx").onclick=function(){
 $("obPrint").onclick=function(){if(!yi().length){alert("There are no items for "+year+" to print yet.");return}paintMeta();window.print()};
 $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget lines for "+year+" to print yet.");return}paintMeta();window.print()};
 
-function renderAll(){renderOB();fillTx();renderBM();paintMeta()}
+/* ---------- filters + dashboards ---------- */
+var FS={ob:{act:"",obj:"",mode:"",q:""},bm:{act:"",obj:"",mode:"",q:""}},MODES=["Procurement","Non-Procurement"];
+function modeSet(v){var s=$("mode");if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}s.value=v||""}
+function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.act||it.act===f.act)&&(!f.obj||it.obj===f.obj)&&(!f.mode||(it.mode||"")===f.mode)&&(f.q===""||it.q[+f.q]>0)})}
+function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
+function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
+function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));$("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("")}
+function buildBar(w){
+ var el=$(w+"Dash");
+ el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>Activities</label><select data-f="act"></select></div><div><label>Object of Expenditure</label><select data-f="obj"></select></div><div><label>Mode of Procurement</label><select data-f="mode"></select></div><div><label>Quarter</label><select data-f="q"></select></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
+ el.addEventListener("change",function(e){var k=e.target.dataset.f;if(!k)return;FS[w][k]=e.target.value;if(k==="act"){FS[w].obj="";FS[w].mode=""}renderAll()});
+ el.addEventListener("click",function(e){if(e.target.dataset.clr){FS[w]={act:"",obj:"",mode:"",q:""};renderAll()}});
+}
+function fillFilters(w){
+ var f=FS[w],all=yi(),acts=uniq(all.map(function(i){return i.act}));
+ if(f.act&&acts.indexOf(f.act)<0)f.act="";
+ var inA=all.filter(function(i){return!f.act||i.act===f.act}),objs=uniq(inA.map(function(i){return i.obj})),ms=uniq(MODES.concat(inA.map(function(i){return i.mode})));
+ if(f.obj&&objs.indexOf(f.obj)<0)f.obj="";if(f.mode&&ms.indexOf(f.mode)<0)f.mode="";
+ var s=function(k){return $(w+"Dash").querySelector('[data-f="'+k+'"]')};
+ s("act").innerHTML=opts(acts,f.act,"All activities");s("obj").innerHTML=opts(objs,f.obj,"All objects of expenditure");s("mode").innerHTML=opts(ms,f.mode,"All modes");
+ s("q").innerHTML='<option value="">All quarters</option>'+Q.map(function(n,i){return'<option value="'+i+'"'+(String(i)===String(f.q)?" selected":"")+'>'+n+' Quarter</option>'}).join("");
+}
+function sumL(list,qs){
+ var o={n:0,qty:0,b:0,r:0,t:0,f:0,bal:0};
+ list.forEach(function(it){var c=lineCalc(it),q=0;qs.forEach(function(k){q+=it.q[k];o.b+=c.b[k];o.r+=c.r[k];o.t+=c.t[k];o.f+=c.f[k];o.bal+=c.bal[k]});o.qty+=q;if(q>0)o.n++});
+ return o;
+}
+function renderDash(w){
+ var f=FS[w],list=fi(w),qs=f.q===""?[0,1,2,3]:[+f.q],bm=w==="bm",el=$(w+"Dash"),T=sumL(list,qs),h="";
+ var card=function(l,v,c){return'<div class="kpi"><span>'+l+'</span><b'+(c?' class="'+c+'"':"")+'>'+v+'</b></div>'},p=function(v){return"₱ "+money(v)};
+ if(!bm){
+  var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
+  h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b));
+ }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented to",p(T.t))+card("Augmented from",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–");
+ var cols=bm?["Budget","Released","Balance"]:["Items","Quantity","Amount"];
+ var row=function(l,s){return"<tr><td>"+esc(l)+"</td>"+(bm?"<td class='n'>"+money(s.b)+"</td><td class='n'>"+money(s.r)+"</td><td class='n'>"+money(s.bal)+"</td>":"<td class='n'>"+s.n+"</td><td class='n'>"+qty(s.qty)+"</td><td class='n'>"+money(s.b)+"</td>")+"</tr>"};
+ var tbl=function(t,first,rows){return"<div><h3>"+t+"</h3><table class='dt'><thead><tr><th>"+first+"</th>"+cols.map(function(c){return"<th>"+c+"</th>"}).join("")+"</tr></thead><tbody>"+rows+"</tbody><tfoot>"+row("TOTAL",T)+"</tfoot></table></div>"};
+ var qr=qs.map(function(k){return row(Q[k]+" Quarter",sumL(list,[k]))}).join("");
+ var or=uniq(list.map(function(i){return i.obj})).map(function(o){return row(o,sumL(list.filter(function(i){return i.obj===o}),qs))}).join("");
+ el.querySelector(".kpis").innerHTML=h;
+ el.querySelector(".dtw").innerHTML=tbl("Per quarter","Quarter",qr||"<tr><td colspan='4' class='empty'>No data</td></tr>")+tbl("Per Object of Expenditure","Object of Expenditure",or||"<tr><td colspan='4' class='empty'>No data</td></tr>");
+ var on=[f.act,f.obj,f.mode,f.q!==""?Q[+f.q]+" Quarter":""].filter(Boolean);
+ el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
+}
+function renderAll(){fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
+buildBar("ob");buildBar("bm");
+
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
 /* ---------- load from cloud on open ---------- */
