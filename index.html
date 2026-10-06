@@ -113,13 +113,13 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
  <div class="grid">
   <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
   <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
-  <div class="c6"><label for="desc">Description</label><input id="desc"></div>
+  <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
   <div class="c6"><label for="obj">Object of Expenditure</label><select id="obj"></select></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
   <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
   <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
    <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
-  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01"></div>
+  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01" list="priceList"><datalist id="priceList"></datalist></div>
   <div class="c6"><label for="mode">Mode of Procurement</label>
    <select id="mode"><option value="">Select…</option><option>Procurement</option><option>Non-Procurement</option></select></div>
   <div class="c12">
@@ -349,7 +349,26 @@ function refreshLists(){
   if(it.act&&!st[it.act]){st[it.act]=1;t+='<option value="'+esc(it.act)+'"></option>'}
  });
  $("aipList").innerHTML=a;$("actList").innerHTML=t;
+ var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"],su={};
+ items.forEach(function(it){if(it.desc&&!sd[it.desc.toLowerCase()]){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}if(it.unit&&U.indexOf(it.unit)<0)U.push(it.unit)});
+ $("descList").innerHTML=d;$("units").innerHTML=U.map(function(u){return'<option value="'+esc(u)+'"></option>'}).join("");
+ fillPrices();
 }
+function fillPrices(){
+ var v=$("desc").value.trim().toLowerCase(),seen={},h="",mine=items.filter(function(i){return i.desc&&i.desc.toLowerCase()===v&&i.price});
+ (mine.length?mine:items).slice().reverse().forEach(function(i){if(i.price&&!seen[i.price]){seen[i.price]=1;h+='<option value="'+i.price+'"></option>'}});
+ $("priceList").innerHTML=h;
+}
+function pickDesc(){
+ var v=$("desc").value.trim().toLowerCase();fillPrices();if(!v)return;
+ for(var i=items.length-1;i>=0;i--)if(items[i].desc&&items[i].desc.toLowerCase()===v){
+  var it=items[i],ed=editing!==null;
+  if(it.unit&&(!ed||!$("unit").value))$("unit").value=it.unit;
+  if(it.price&&(!ed||!$("price").value))$("price").value=it.price;
+  calcForm();return;
+ }
+}
+$("desc").addEventListener("input",pickDesc);$("desc").addEventListener("change",pickDesc);
 function pickAip(){
  var v=$("aip").value.trim().toLowerCase();if(!v)return;
  for(var i=0;i<items.length;i++)if(String(items[i].aip).toLowerCase()===v&&items[i].act){$("act").value=items[i].act;return}
