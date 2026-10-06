@@ -2,798 +2,557 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WFP Monitoring System</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office Budget and Budget Monitoring</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root{--nav:#17365d;--nav2:#214b7a;--bg:#f4f6f9;--card:#fff;--text:#243447;--muted:#6b7280;--border:#dfe4ea;--good:#16803c;--warn:#b7791f;--bad:#c53030}
-*{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
-header{background:var(--nav);color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
-header h1{font-size:20px;margin:0} header small{opacity:.8}
-.layout{display:flex;min-height:calc(100vh - 58px)} aside{width:230px;background:#102a47;color:#fff;padding:12px;flex-shrink:0}
-nav button{display:block;width:100%;text-align:left;background:transparent;border:0;color:#dbe7f5;padding:12px;border-radius:6px;margin:3px 0;cursor:pointer;font-size:14px}
-nav button.active,nav button:hover{background:var(--nav2);color:#fff}
-main{padding:20px;flex:1;min-width:0}.page{display:none}.page.active{display:block}
-h2{margin-top:0}.card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:16px;margin-bottom:18px;box-shadow:0 1px 2px #00000008}
-.grid{display:grid;gap:14px}.grid4{grid-template-columns:repeat(4,minmax(0,1fr))}.grid3{grid-template-columns:repeat(3,minmax(0,1fr))}.grid2{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
-label{font-size:12px;font-weight:700;color:#4b5563;display:block;margin-bottom:5px}input,select,textarea{width:100%;padding:9px;border:1px solid #cbd5e1;border-radius:5px;background:#fff}button.primary,.btn{background:var(--nav2);color:white;border:0;padding:9px 13px;border-radius:5px;cursor:pointer}.btn.secondary{background:#64748b}.btn.danger{background:#b91c1c}.btn.green{background:#15803d}.btn:disabled{opacity:.5;cursor:not-allowed}
-.actions{display:flex;gap:8px;flex-wrap:wrap}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.metric{background:#fff;border:1px solid var(--border);border-radius:9px;padding:16px}.metric .title{font-size:12px;color:var(--muted);font-weight:700}.metric .value{font-size:24px;font-weight:700;margin-top:8px}.good{color:var(--good)}.warn{color:var(--warn)}.bad{color:var(--bad)}
-.table-wrap{overflow:auto;max-height:560px;border:1px solid var(--border);border-radius:7px}table{border-collapse:collapse;width:100%;font-size:12px;background:#fff}th,td{border-bottom:1px solid #e5e7eb;padding:8px;white-space:nowrap;text-align:left}th{background:#eef2f7;position:sticky;top:0;z-index:1}td.num,th.num{text-align:right}.empty{text-align:center;padding:28px;color:var(--muted)}
-.status{padding:3px 7px;border-radius:12px;font-size:11px;font-weight:700}.status.good{background:#dcfce7}.status.warn{background:#fef3c7}.status.bad{background:#fee2e2}
-.progress{height:7px;background:#e5e7eb;border-radius:10px;overflow:hidden}.progress i{display:block;height:100%;background:#356da8}
-.modal{display:none;position:fixed;inset:0;background:#0008;align-items:center;justify-content:center;z-index:30}.modal.show{display:flex}.modal-box{background:#fff;border-radius:9px;width:min(720px,95vw);max-height:90vh;overflow:auto;padding:20px}.modal-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:none;font-size:24px;cursor:pointer}
-.notice{background:#eff6ff;border:1px solid #bfdbfe;padding:12px;border-radius:6px;font-size:13px}.error{background:#fef2f2;border:1px solid #fecaca;padding:10px;border-radius:6px;color:#991b1b}.success{background:#f0fdf4;border:1px solid #bbf7d0;padding:10px;border-radius:6px;color:#166534}
-.chartbox{height:300px}.footer-note{font-size:11px;color:var(--muted);margin-top:10px}
-@media(max-width:1000px){aside{width:190px}.cards,.grid4{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:700px){.layout{display:block}aside{width:100%}nav{display:flex;overflow:auto}nav button{min-width:max-content}.cards,.grid2,.grid3,.grid4{grid-template-columns:1fr}main{padding:12px}}
+:root{--ink:#1d2b2a;--mute:#5c6b69;--line:#cdd6d4;--bg:#eef2f1;--card:#fff;--brand:#0f5c55;--brand2:#0b4640;--warn:#b3261e;--soft:#e4efed}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.45 "Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header.top{background:var(--brand2);color:#fff;padding:12px 24px;display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between}
+header.top h1{margin:0;font-size:19px;font-weight:600}
+.yr{display:flex;align-items:center;gap:8px}
+.yr label{margin:0;color:#fff}
+.yr select{width:auto;min-width:130px}
+nav.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;gap:4px}
+nav.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:11px 18px;color:var(--mute);font-size:14.5px}
+nav.tabs button[aria-selected=true]{border-bottom-color:var(--brand);color:var(--brand2)}
+main{max-width:1500px;margin:0 auto;padding:18px 24px 40px}
+.hidden{display:none!important}
+section.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px;margin-bottom:18px}
+h2{margin:0 0 12px;font-size:15px;font-weight:600}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}.c6{grid-column:span 6}.c9{grid-column:span 9}.c12{grid-column:span 12}
+label{display:block;font-size:12.5px;font-weight:600;margin-bottom:3px;color:var(--mute)}
+input,select,textarea{width:100%;padding:8px 9px;border:1px solid #aebbb8;border-radius:4px;font:inherit;background:#fff;color:var(--ink)}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+input[readonly]{background:var(--soft);font-weight:600}
+fieldset{border:1px solid var(--line);border-radius:5px;padding:10px 12px 12px;margin:0}
+legend{font-size:12.5px;font-weight:600;padding:0 6px;color:var(--brand2)}
+.qgrid{display:grid;grid-template-columns:90px 1fr 1fr;gap:8px 12px;align-items:center}
+.qgrid .h{font-size:12px;font-weight:600;color:var(--mute)}
+.qgrid .q{font-weight:600}
+.err{color:var(--warn);font-size:13px;min-height:18px;margin-top:8px}
+.info{font-size:13px;color:var(--brand2);font-weight:600;margin-top:8px}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+button{padding:9px 16px;border-radius:4px;border:1px solid var(--brand);background:#fff;color:var(--brand);font:inherit;font-weight:600;cursor:pointer}
+button.p{background:var(--brand);color:#fff}
+button.d{border-color:var(--warn);color:var(--warn)}
+button:hover{filter:brightness(.95)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+table.ob{min-width:1750px}table.bm{min-width:3300px}table.lg{min-width:900px}
+th,td{border:1px solid #9fb0ad;padding:5px 6px;vertical-align:top}
+th{background:var(--soft);text-align:center;font-weight:600}
+td.n{text-align:right;white-space:nowrap}
+td.c{text-align:center}
+td.neg{color:var(--warn);font-weight:700}
+td.bal{font-weight:700;background:#f5f8f7}
+tfoot td{font-weight:700;background:#f5f8f7}
+td.act{white-space:nowrap;text-align:center}
+td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
+.empty{text-align:center;color:var(--mute);padding:22px}
+.rhead,.sign{display:none}
+.sign div{width:30%;text-align:center;border-top:1px solid #000;padding-top:3px}
+@media (max-width:760px){.c2,.c3,.c4,.c6,.c9{grid-column:span 12}main{padding:12px}}
 @media print{
-  @page{size:A4 landscape;margin:10mm}
-  header,aside,.actions,.btn,.footer-note{display:none!important}
-  .layout{display:block}
-  main{padding:0}
-  .page{display:none!important}
-  .page.active{display:block!important}
-  .card{border:0;box-shadow:none;padding:0;margin:0 0 10px}
-  .table-wrap{max-height:none;overflow:visible;border:0}
-  table{font-size:9px}
-  th,td{white-space:normal;padding:3px 4px}
-  th{position:static;background:#eef2f7;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  body{background:#fff}
+ @page{size:legal landscape;margin:8mm}
+ body{background:#fff;font-size:11px}
+ header.top,nav.tabs,.noprint,.entry,.act{display:none!important}
+ main{padding:0;max-width:none}
+ section.card{border:0;padding:0;margin:0 0 14px}
+ .rhead{display:block;text-align:center;margin-bottom:8px}
+ .rhead h2{font-size:15px;margin:0}
+ .rhead .m{display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;text-align:left}
+ table{min-width:0!important;font-size:9.5px}
+ table.bm{font-size:7px}
+ th,td{border-color:#000;padding:2px 3px}
+ th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ .wrap{overflow:visible}
+ .sign{display:flex;justify-content:space-between;margin-top:32px}
 }
 </style>
 </head>
 <body>
-<header><div><h1>Work Financial Plan Monitoring System</h1><small>Budget • Release • Balance • Quantity Monitoring</small></div><div id="dataStatus">No WFP loaded</div></header>
-<div class="layout">
-<aside><nav id="nav">
-<button class="active" data-page="dashboard">📊 Dashboard</button>
-<button data-page="master">📋 WFP Master List</button>
-<button data-page="release">➕ Encode Release</button>
-<button data-page="transactions">🧾 Transaction Log</button>
-<button data-page="adjustments">↔ Budget Adjustments</button>
-<button data-page="reports">📑 Reports</button>
-<button data-page="import">⬆ Import / Export</button>
-<button data-page="audit">🔎 Audit Trail</button>
-</nav></aside>
+<header class="top">
+ <h1>Office Budget and Budget Monitoring</h1>
+ <div class="yr"><label for="year">Year</label><select id="year"></select></div>
+</header>
+<nav class="tabs" role="tablist">
+ <button role="tab" id="tabBtnOB" aria-selected="true">Office Budget</button>
+ <button role="tab" id="tabBtnBM" aria-selected="false">Budget Monitoring</button>
+</nav>
 <main>
-<section id="dashboard" class="page active">
-<h2>Dashboard</h2>
-<div class="card"><div class="grid4">
-<div><label>Quarter</label><select id="fQuarter"><option value="ALL">All Quarters</option><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
-<div><label>Activity</label><select id="fActivity"><option value="ALL">All Activities</option></select></div>
-<div><label>Object of Expenditure</label><select id="fObject"><option value="ALL">All Objects</option></select></div>
-<div><label>Account Code</label><select id="fAccount"><option value="ALL">All Accounts</option></select></div>
-</div><div class="actions" style="margin-top:12px"><button class="btn secondary" onclick="clearFilters()">Clear Filters</button><button class="btn" onclick="renderDashboard()">Refresh</button></div></div>
-<div class="cards">
-<div class="metric"><div class="title">QUARTERLY ALLOTTED BUDGET</div><div class="value" id="mBudget">₱0.00</div></div>
-<div class="metric"><div class="title">QUARTERLY RELEASE</div><div class="value" id="mRelease">₱0.00</div></div>
-<div class="metric"><div class="title">QUARTERLY BALANCE</div><div class="value good" id="mBalance">₱0.00</div></div>
-<div class="metric"><div class="title">OVERALL WFP BALANCE (ALL QUARTERS)</div><div class="value" id="mOverall">₱0.00</div></div>
-</div>
-<div class="card"><h3>Expenditure Breakdown</h3><div class="table-wrap"><table><thead><tr><th>Activity</th><th>Account Code</th><th>Object of Expenditure</th><th>Description</th><th class="num">Allotted Budget</th><th class="num">Release</th><th class="num">Balance</th></tr></thead><tbody id="breakdown"></tbody></table></div></div>
-<div class="grid3">
-<div class="card chartbox"><canvas id="quarterChart"></canvas></div>
-<div class="card chartbox"><canvas id="activityChart"></canvas></div>
-<div class="card chartbox"><canvas id="objectChart"></canvas></div>
-</div>
+
+<section class="card noprint">
+ <h2>Report details</h2>
+ <div class="meta">
+  <div><label for="mOffice">Office / Division</label><input id="mOffice" placeholder="e.g. Provincial Tourism, Culture and Arts Division"></div>
+  <div><label for="mBy">Prepared by</label><input id="mBy"></div>
+  <div><label for="mApp">Approved by</label><input id="mApp"></div>
+ </div>
 </section>
 
-<section id="master" class="page"><h2>WFP Master List</h2><div class="card"><div class="actions"><button class="btn" onclick="openMasterModal()">Add WFP Record</button><button class="btn green" onclick="downloadTemplate()">Download WFP Template</button><button class="btn secondary" onclick="exportMaster()">Export Master</button></div></div>
-<div class="card"><input id="masterSearch" placeholder="Search AIP Code, activity, account, object or description..." oninput="renderMaster()"></div>
-<div class="card"><div class="table-wrap"><table><thead><tr><th>AIP Code</th><th>Activity</th><th>Account Code</th><th>Object</th><th>Description</th><th>Unit</th><th class="num">Unit Price</th><th class="num">Est. Budget</th><th class="num">Q1 Qty</th><th class="num">Q1 Budget (Adj.)</th><th class="num">Q2 Qty</th><th class="num">Q2 Budget (Adj.)</th><th class="num">Q3 Qty</th><th class="num">Q3 Budget (Adj.)</th><th class="num">Q4 Qty</th><th class="num">Q4 Budget (Adj.)</th><th class="num">Annual Budget (Adj.)</th><th>Actions</th></tr></thead><tbody id="masterBody"></tbody></table></div></div></section>
+<!-- ============ OFFICE BUDGET ============ -->
+<div id="tabOB">
+<section class="card entry">
+ <h2 id="formTitle">Add item</h2>
+ <div class="grid">
+  <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
+  <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
+  <div class="c6"><label for="desc">Description</label><input id="desc"></div>
+  <div class="c6"><label for="obj">Object of Expenditure</label><select id="obj"></select></div>
+  <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
+  <div class="c3"><label for="stock">Stock No.</label><input id="stock"></div>
+  <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
+   <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
+  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01"></div>
+  <div class="c6"><label for="mode">Mode of Procurement</label>
+   <input id="mode" list="modes">
+   <datalist id="modes"><option>Small Value Procurement</option><option>Public Bidding</option><option>Direct Contracting</option><option>Negotiated Procurement</option><option>Shopping</option><option>Repeat Order</option><option>Direct Retail Purchase of Petroleum Fuel</option></datalist></div>
+  <div class="c12">
+   <fieldset>
+    <legend>Quantity and amount per quarter</legend>
+    <div class="qgrid">
+     <span class="h">Quarter</span><span class="h">Quantity</span><span class="h">Amount (quantity × unit price)</span>
+     <span class="q">1st Quarter</span><input id="q1" type="number" min="0" step="any" aria-label="1st Quarter quantity"><input id="a1" readonly aria-label="1st Quarter amount">
+     <span class="q">2nd Quarter</span><input id="q2" type="number" min="0" step="any" aria-label="2nd Quarter quantity"><input id="a2" readonly aria-label="2nd Quarter amount">
+     <span class="q">3rd Quarter</span><input id="q3" type="number" min="0" step="any" aria-label="3rd Quarter quantity"><input id="a3" readonly aria-label="3rd Quarter amount">
+     <span class="q">4th Quarter</span><input id="q4" type="number" min="0" step="any" aria-label="4th Quarter quantity"><input id="a4" readonly aria-label="4th Quarter amount">
+    </div>
+   </fieldset>
+  </div>
+  <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
+  <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
+ </div>
+ <div class="err" id="err" role="alert"></div>
+ <div class="btns">
+  <button class="p" id="btnSave">Add item</button>
+  <button id="btnCancel" class="hidden">Cancel edit</button>
+  <button id="btnClear">Clear form</button>
+ </div>
+</section>
 
-<section id="release" class="page"><h2>Encode Release</h2><div id="releaseMessage"></div><div class="card"><div class="grid3">
-<div><label>Release Date *</label><input type="date" id="rDate"></div>
-<div><label>Activity *</label><select id="rActivity"></select></div>
-<div><label>Object of Expenditure *</label><select id="rObject"></select></div>
-<div><label>Quarter *</label><select id="rQuarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
-<div><label>Description *</label><select id="rDescription"></select></div>
-<div><label>Quantity *</label><input type="number" min="0" step="0.01" id="rQty" oninput="updateReleasePreview()"></div>
-<div><label>Unit</label><input id="rUnit" readonly></div>
-<div><label>Unit Price</label><input id="rPrice" readonly></div>
-<div><label>Release Amount</label><input id="rAmount" readonly></div>
-<div><label>Reference Number</label><input id="rRef"></div>
-<div><label>Payee / Recipient</label><input id="rPayee"></div>
-<div><label>Remarks</label><input id="rRemarks"></div>
+<section class="card">
+ <div class="bar noprint">
+  <h2 style="margin:0">Office Budget report</h2>
+  <div class="btns" style="margin:0">
+   <button class="p" id="obXlsx">Save to Excel</button>
+   <button class="p" id="obPrint">Print report</button>
+   <button class="d" id="btnAll">Delete all (this year)</button>
+  </div>
+ </div>
+ <div class="rhead"><h2 id="obTitle"></h2><div class="m"><span id="obOffice"></span><span id="obYear"></span></div></div>
+ <div class="wrap">
+ <table class="ob">
+  <thead>
+   <tr>
+    <th rowspan="2">AIP Code</th><th rowspan="2">Activities</th><th rowspan="2">Description</th><th rowspan="2">Object of Expenditure</th><th rowspan="2">Account Code</th><th rowspan="2">Stock No.</th><th rowspan="2">Unit</th>
+    <th rowspan="2">Unit Price</th><th rowspan="2">Total Qty</th><th rowspan="2">Estimated Budget</th><th rowspan="2">Mode of Procurement</th>
+    <th colspan="2">1st Quarter</th><th colspan="2">2nd Quarter</th><th colspan="2">3rd Quarter</th><th colspan="2">4th Quarter</th><th rowspan="2" class="act">Actions</th>
+   </tr>
+   <tr><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th></tr>
+  </thead>
+  <tbody id="obBody"></tbody><tfoot id="obFoot"></tfoot>
+ </table>
+ </div>
+ <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
+</section>
 </div>
-<div class="card" style="margin-top:15px;background:#f8fafc"><div class="grid4"><div><label>Planned Qty</label><strong id="pQty">0</strong></div><div><label>Released Qty</label><strong id="relQty">0</strong></div><div><label>Remaining Qty</label><strong id="remQty">0</strong></div><div><label>Quarter Budget</label><strong id="pBudget">₱0.00</strong></div><div><label>Released Amount</label><strong id="relAmt">₱0.00</strong></div><div><label>Remaining Budget</label><strong id="remBudget">₱0.00</strong></div></div></div>
-<div class="actions"><button class="btn green" id="saveReleaseBtn" onclick="saveRelease()">Save Release</button><button class="btn secondary" onclick="resetRelease()">Clear</button></div></div></section>
 
-<section id="transactions" class="page"><h2>Transaction Log</h2><div class="card"><input id="txSearch" placeholder="Search transactions..." oninput="renderTransactions()"></div><div class="card"><div class="table-wrap"><table><thead><tr><th>ID</th><th>Date</th><th>Activity</th><th>Account</th><th>Object</th><th>Description</th><th>Quarter</th><th class="num">Qty</th><th class="num">Amount</th><th>Reference</th><th>Actions</th></tr></thead><tbody id="txBody"></tbody></table></div></div></section>
+<!-- ============ BUDGET MONITORING ============ -->
+<div id="tabBM" class="hidden">
+<section class="card entry">
+ <h2>Record a release or augmentation</h2>
+ <div class="grid">
+  <div class="c3"><label for="tType">Transaction</label><select id="tType"><option value="rel">Release</option><option value="aug">Augmentation (move budget)</option></select></div>
+  <div class="c9"><label for="tFrom" id="lFrom">Budget line</label><select id="tFrom"></select></div>
+  <div class="c3"><label for="tFq" id="lFq">Quarter of release</label><select id="tFq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
+  <div class="c9 augonly hidden"><label for="tTo">Augmented to (budget line)</label><select id="tTo"></select></div>
+  <div class="c3 augonly hidden"><label for="tTq">Augmented to quarter</label><select id="tTq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
+  <div class="c3"><label for="tAmt">Amount</label><input id="tAmt" type="number" min="0" step="0.01"></div>
+  <div class="c3"><label for="tDate">Date</label><input id="tDate" type="date"></div>
+  <div class="c6"><label for="tNote">Remarks</label><input id="tNote"></div>
+ </div>
+ <div class="info" id="tInfo"></div>
+ <div class="err" id="terr" role="alert"></div>
+ <div class="btns"><button class="p" id="btnTx">Add transaction</button></div>
+</section>
 
-<section id="adjustments" class="page"><h2>Budget Adjustments</h2><div class="notice">An adjustment transfers budget between two specific WFP line items (Activity → Object of Expenditure → Description) for a specific quarter. The amount is deducted from the Source item's quarterly budget and added to the Recipient item's quarterly budget — it is not simply added on top of the total. All dashboard figures, the WFP Master List, release validation, and reports reflect these adjusted quarterly budgets.</div>
-<div id="adjMessage"></div>
-<div class="card"><div class="grid2">
-<div><label>Quarter *</label><select id="aQuarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div>
-<div><label>Date</label><input type="date" id="aDate"></div>
-</div></div>
-<div class="grid2">
-<div class="card"><h3 style="margin-top:0">Source (From)</h3><div class="grid3">
-<div><label>From Activity *</label><select id="afActivity"></select></div>
-<div><label>From Object of Expenditure *</label><select id="afObject"></select></div>
-<div><label>From Description *</label><select id="afDescription"></select></div>
-<div><label>From Account Code</label><input id="afAccount" readonly></div>
-</div></div>
-<div class="card"><h3 style="margin-top:0">Recipient (To)</h3><div class="grid3">
-<div><label>To Activity *</label><select id="atActivity"></select></div>
-<div><label>To Object of Expenditure *</label><select id="atObject"></select></div>
-<div><label>To Description *</label><select id="atDescription"></select></div>
-<div><label>To Account Code</label><input id="atAccount" readonly></div>
-</div></div>
+<section class="card">
+ <div class="bar noprint">
+  <h2 style="margin:0">Budget Monitoring report</h2>
+  <div class="btns" style="margin:0">
+   <button class="p" id="bmXlsx">Save to Excel</button>
+   <button class="p" id="bmPrint">Print report</button>
+  </div>
+ </div>
+ <div class="rhead"><h2 id="bmTitle"></h2><div class="m"><span id="bmOffice"></span><span id="bmYear"></span></div></div>
+ <div class="wrap">
+ <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
+ </div>
+ <h2 style="margin:18px 0 8px">Transactions</h2>
+ <div class="wrap">
+ <table class="lg">
+  <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Amount</th><th>Remarks</th><th class="act">Action</th></tr></thead>
+  <tbody id="lgBody"></tbody>
+ </table>
+ </div>
+ <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
+</section>
 </div>
-<div class="card" style="background:#f8fafc"><div class="grid2">
-<div><label>Source</label><div id="adjFromPreview">Select From Activity, Object and Description.</div></div>
-<div><label>Recipient</label><div id="adjToPreview">Select To Activity, Object and Description.</div></div>
-</div></div>
-<div class="card"><div class="grid3">
-<div><label>Amount *</label><input type="number" min="0" step="0.01" id="aAmount" oninput="updateAdjPreview()"></div>
-<div><label>Reference No.</label><input id="aRef"></div>
-<div><label>Remarks</label><input id="aRemarks"></div>
-</div><div class="actions" style="margin-top:12px"><button class="btn green" id="saveAdjBtn" onclick="saveAdjustment()">Save Adjustment</button><button class="btn secondary" onclick="resetAdjustment()">Clear</button></div></div>
-<div class="card"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Quarter</th><th>Source (Activity → Object → Description)</th><th>Recipient (Activity → Object → Description)</th><th class="num">Amount</th><th>Reference</th><th>Remarks</th><th>Actions</th></tr></thead><tbody id="adjBody"></tbody></table></div></div></section>
-
-<section id="reports" class="page"><h2>Reports</h2><div class="card"><p>Generate the consolidated quarterly financial monitoring report from the current WFP master and release transactions.</p><div class="actions"><button class="btn green" onclick="exportReport()">Export Quarterly Monitoring Report</button><button class="btn" onclick="window.print()">Print Current Page</button></div></div><div class="card"><div class="table-wrap"><table><thead><tr><th>Activity</th><th>Account</th><th>Object</th><th>Description</th><th>Q1 Budget</th><th>Q1 Release</th><th>Q1 Balance</th><th>Q2 Budget</th><th>Q2 Release</th><th>Q2 Balance</th><th>Q3 Budget</th><th>Q3 Release</th><th>Q3 Balance</th><th>Q4 Budget</th><th>Q4 Release</th><th>Q4 Balance</th><th>Annual Budget</th><th>Total Release</th><th>Overall Balance</th></tr></thead><tbody id="reportBody"></tbody></table></div></div></section>
-
-<section id="import" class="page"><h2>Import / Export</h2><div class="card"><h3>Import WFP Excel File</h3><p class="notice">Expected columns are exactly the WFP fields used by this application. Review the preview before importing.</p><input type="file" id="fileInput" accept=".xlsx,.xls" onchange="previewFile(event)"><div id="importPreview"></div><div class="actions" style="margin-top:10px"><button class="btn green" id="confirmImport" disabled onclick="confirmImport()">Import / Replace WFP</button><button class="btn" onclick="downloadTemplate()">Download WFP Template</button></div></div>
-<div class="card"><h3>Backup</h3><p>Export all current application data to an Excel backup containing separate sheets.</p><div class="actions"><button class="btn green" onclick="exportBackup()">Export Full Backup</button><button class="btn secondary" onclick="exportJSON()">Export JSON Backup</button><input type="file" id="jsonInput" accept=".json" onchange="importJSON(event)"></div></div></section>
-
-<section id="audit" class="page"><h2>Audit Trail</h2><div class="card"><div class="table-wrap"><table><thead><tr><th>Date/Time</th><th>Action</th><th>Record</th><th>Details</th></tr></thead><tbody id="auditBody"></tbody></table></div></div></section>
-</main></div>
-
-<div class="modal" id="masterModal"><div class="modal-box"><div class="modal-head"><h3 id="masterModalTitle">Add WFP Record</h3><button class="close" onclick="closeModal('masterModal')">×</button></div><div class="grid3" id="masterForm"></div><div class="actions" style="margin-top:14px"><button class="btn green" id="saveMasterBtn" onclick="saveMaster()">Save</button><button class="btn secondary" onclick="closeModal('masterModal')">Cancel</button></div></div></div>
+</main>
 
 <script>
-/* ============================================================
-   WFP Monitoring System — corrected single-file build
-   ============================================================ */
-const KEY='wfp_monitor_v1';
-const cols=['AIP Code','Activity','Account Code','Object of Expenditure','Description','Unit','Unit Price','Est. Budget','Q1 Total Qty.','Q1 Est. Budget','Q2 Total Qty.','Q2 Est. Budget','Q3 Total Qty.','Q3 Est. Budget','Q4 Total Qty.','Q4 Est. Budget'];
+(function(){
+var $=function(id){return document.getElementById(id)};
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1";
+function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)};
+var money=function(n){return Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
+var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionDigits:2})};
+var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var Q=["1st","2nd","3rd","4th"];
 
-let db=loadDB(), editingMaster=null, editingTx=null, pendingImport=null, charts={}, saving=false;
+var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]);
+var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
+items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
+if(years.indexOf(year)<0)years.push(year);
+save(KEY,items);save(YK,years);
+var yi=function(){return items.filter(function(i){return +i.year===year})};
+var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
+var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
 
-/* ---- shared helpers ---- */
-const todayLocal=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)};
-const r2=n=>Math.round((Number(n)||0)*100)/100;
-const PHP=new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'});
-
-function blank(){return {master:[],releases:[],adjustments:[],audit:[]}}
-
-function loadDB(){
-  try{
-    const raw=JSON.parse(localStorage.getItem(KEY));
-    if(!raw||typeof raw!=='object')return blank();
-    const d={...blank(),...raw};
-    ['master','releases','adjustments','audit'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[]});
-    return d;
-  }catch(e){return blank()}
+/* ---------- year ---------- */
+function fillYear(){
+ years.sort(function(a,b){return b-a});
+ var h="";years.forEach(function(y){h+='<option value="'+y+'">'+y+'</option>'});
+ $("year").innerHTML=h+'<option value="__add__">+ Add year…</option>';$("year").value=year;
 }
-function saveDB(){
-  try{
-    localStorage.setItem(KEY,JSON.stringify(db));
-  }catch(e){
-    alert('Could not save: browser storage is full or unavailable. Export a backup and clear old audit logs.');
-    return;
+$("year").onchange=function(){
+ var v=$("year").value;
+ if(v==="__add__"){
+  var y=parseInt(prompt("Enter the year to add (for example 2028):"),10);
+  if(!(y>=2000&&y<=2100)){$("year").value=year;return}
+  if(years.indexOf(y)<0){years.push(y);save(YK,years)}
+  v=y;
+ }
+ year=+v;save(CY,year);fillYear();clearForm();renderAll();
+};
+
+/* ---------- tabs ---------- */
+function tab(w){
+ $("tabOB").classList.toggle("hidden",w!=="OB");$("tabBM").classList.toggle("hidden",w!=="BM");
+ $("tabBtnOB").setAttribute("aria-selected",w==="OB");$("tabBtnBM").setAttribute("aria-selected",w==="BM");
+}
+$("tabBtnOB").onclick=function(){tab("OB")};
+$("tabBtnBM").onclick=function(){tab("BM")};
+
+/* ---------- Object of Expenditure ---------- */
+var OBJ=[
+["5 01 01 010 00","Salaries and Wages – Regular"],["5 01 01 020 00","Salaries and Wages – Casual/Contractual"],
+["5 01 02 010 00","Personal Economic Relief Allowance (PERA)"],["5 01 02 020 00","Representation Allowance (RA)"],["5 01 02 030 00","Transportation Allowance (TA)"],
+["5 01 02 040 00","Clothing/Uniform Allowance"],["5 01 02 050 00","Subsistence Allowance"],["5 01 02 060 00","Laundry Allowance"],["5 01 02 070 00","Quarters Allowance"],
+["5 01 02 080 00","Productivity Incentive Allowance"],["5 01 02 100 00","Honoraria"],["5 01 02 110 00","Hazard Pay"],["5 01 02 120 00","Longevity Pay"],
+["5 01 02 130 00","Overtime and Night Pay"],["5 01 02 140 00","Year-End Bonus"],["5 01 02 150 00","Cash Gift"],["5 01 02 990 00","Other Bonuses and Allowances"],
+["5 01 03 010 00","Retirement and Life Insurance Premiums (GSIS)"],["5 01 03 020 00","PAG-IBIG Contributions"],["5 01 03 030 00","PhilHealth Contributions"],
+["5 01 03 040 00","Employees Compensation Insurance Premiums (ECIP)"],["5 01 04 020 00","Terminal Leave Benefits"],["5 01 04 030 00","Pension Benefits"],["5 01 04 990 00","Other Personnel Benefits"],
+["5 02 01 010 00","Traveling Expenses – Local"],["5 02 01 020 00","Traveling Expenses – Foreign"],["5 02 02 010 00","Training Expenses"],["5 02 02 020 00","Scholarship Grants/Expenses"],
+["5 02 03 010 00","Office Supplies Expenses"],["5 02 03 020 00","Accountable Forms Expenses"],["5 02 03 070 00","Drugs and Medicines Expenses"],
+["5 02 03 080 00","Medical, Dental, and Laboratory Supplies Expenses"],["5 02 03 090 00","Fuel, Oil, and Lubricants Expenses"],
+["5 02 03 210 00","Semi-Expendable Machinery and Equipment Expenses"],["5 02 03 220 00","Semi-Expendable Furniture, Fixtures, and Books Expenses"],["5 02 03 990 00","Other Supplies and Materials Expenses"],
+["5 02 04 010 00","Water Expenses"],["5 02 04 020 00","Electricity Expenses"],["5 02 05 010 00","Postage and Courier Services"],["5 02 05 020 00","Telephone Expenses"],
+["5 02 05 030 00","Internet Subscription Expenses"],["5 02 05 040 00","Cable, Satellite, Telegraph, and Radio Expenses"],
+["5 02 11 010 00","Legal Services"],["5 02 11 020 00","Auditing Services"],["5 02 11 030 00","Consultancy Services"],["5 02 11 990 00","Other Professional Services"],
+["5 02 12 010 00","Environment/Sanitary Services"],["5 02 12 020 00","Janitorial Services"],["5 02 12 030 00","Security Services"],["5 02 12 990 00","Other General Services"],
+["5 02 13 040 00","Repairs and Maintenance – Buildings and Other Structures"],["5 02 13 050 00","Repairs and Maintenance – Machinery and Equipment"],
+["5 02 13 060 00","Repairs and Maintenance – Transportation Equipment"],["5 02 13 070 00","Repairs and Maintenance – Furniture and Fixtures"],
+["5 02 15 010 00","Taxes, Duties, and Licenses"],["5 02 15 020 00","Fidelity Bond Premiums"],["5 02 15 030 00","Insurance Expenses"],
+["5 02 99 010 00","Advertising Expenses"],["5 02 99 020 00","Printing and Publication Expenses"],["5 02 99 030 00","Representation Expenses"],["5 02 99 050 00","Rent/Lease Expenses"],
+["5 02 99 060 00","Membership Dues and Contributions to Organizations"],["5 02 99 070 00","Subscription Expenses"],["5 02 99 990 00","Other Maintenance and Operating Expenses"],
+["5 03 01 010 00","Management Supervision/Contingency Fees"],["5 03 01 020 00","Bank Charges"],["5 03 01 040 00","Interest Expenses"],["5 03 01 990 00","Other Financial Charges"],
+["1 06 04 010 00","Buildings"],["1 06 05 020 00","Office Equipment"],["1 06 05 030 00","Information and Communication Technology Equipment"],
+["1 06 05 070 00","Communication Equipment"],["1 06 06 010 00","Motor Vehicles"],["1 06 07 010 00","Furniture and Fixtures"]];
+var allObj=function(){return OBJ.concat(custom)};
+function codeOf(n){var a=allObj();for(var i=0;i<a.length;i++)if(a[i][1]===n)return a[i][0];return""}
+function fillObj(sel){
+ var h='<option value="">Select object of expenditure…</option>';
+ allObj().forEach(function(o){h+='<option value="'+esc(o[1])+'">'+esc(o[1])+'</option>'});
+ $("obj").innerHTML=h+'<option value="__add__">+ Add item…</option>';$("obj").value=sel||"";
+}
+$("obj").addEventListener("change",function(){
+ var v=$("obj").value;
+ if(v==="__add__"){
+  var name=(prompt("Name of the new Object of Expenditure:")||"").trim();
+  var code=name?(prompt("Account Code for \""+name+"\":")||"").trim():"";
+  if(!name||!code||codeOf(name)){
+   if(name&&codeOf(name))alert("\""+name+"\" is already in the list.");
+   $("obj").value=prevObj;$("acct").value=codeOf(prevObj);return;
   }
-  updateStatus();
-}
-function money(n){return PHP.format(Number(n)||0)}
-function num(v){return Number(v)||0}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function id(){return 'TX-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,7).toUpperCase()}
-function log(action,record,details){db.audit.unshift({date:new Date().toLocaleString(),action,record,details});db.audit=db.audit.slice(0,1000)}
-function updateStatus(){document.getElementById('dataStatus').textContent=db.master.length?`${db.master.length} WFP records • ${db.releases.length} releases`:'No WFP loaded'}
-function guard(){ if(saving) return false; saving=true; setTimeout(()=>saving=false,500); return true; }
+  custom.push([code,name]);save(OBJKEY,custom);fillObj(name);v=name;
+ }
+ prevObj=v;$("acct").value=codeOf(v);
+});
 
-/* ---- navigation ---- */
-function page(p){
-  if(p!=='release')editingTx=null;
-  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
-  document.getElementById(p).classList.add('active');
-  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
-  if(p==='dashboard')renderDashboard();
-  if(p==='master')renderMaster();
-  if(p==='transactions')renderTransactions();
-  if(p==='adjustments')renderAdjustments();
-  if(p==='reports')renderReport();
-  if(p==='audit')renderAudit();
-  if(p==='release')setupRelease();
+/* ---------- Office Budget form ---------- */
+function calcForm(){
+ var p=parseFloat($("price").value)||0,t=0;
+ for(var i=1;i<=4;i++){var q=parseFloat($("q"+i).value)||0;t+=q;$("a"+i).value=money(q*p)}
+ $("tq").value=qty(t);$("eb").value=money(t*p);
 }
-document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>page(b.dataset.page));
-
-/* ---- select helpers ---- */
-function setOptions(id,arr,placeholder='All',placeholderValue='ALL'){
-  const el=document.getElementById(id), old=el.value;
-  el.innerHTML=`<option value="${esc(placeholderValue)}">${esc(placeholder)}</option>`+arr.map(x=>`<option>${esc(x)}</option>`).join('');
-  if(arr.includes(old))el.value=old;
+["price","q1","q2","q3","q4"].forEach(function(id){$(id).addEventListener("input",calcForm)});
+function refreshLists(){
+ var sa={},st={},a="",t="";
+ items.forEach(function(it){
+  if(it.aip&&!sa[it.aip]){sa[it.aip]=1;a+='<option value="'+esc(it.aip)+'" label="'+esc(it.act||"")+'"></option>'}
+  if(it.act&&!st[it.act]){st[it.act]=1;t+='<option value="'+esc(it.act)+'"></option>'}
+ });
+ $("aipList").innerHTML=a;$("actList").innerHTML=t;
 }
-function setOptionsById(id,items,placeholder){
-  const el=document.getElementById(id), old=el.value;
-  el.innerHTML=`<option value="">${esc(placeholder)}</option>`+
-    items.map(x=>`<option value="${esc(x._id)}">${esc(x.Description)}</option>`).join('');
-  if(items.some(x=>x._id===old))el.value=old;
+function pickAip(){
+ var v=$("aip").value.trim().toLowerCase();if(!v)return;
+ for(var i=0;i<items.length;i++)if(String(items[i].aip).toLowerCase()===v&&items[i].act){$("act").value=items[i].act;return}
 }
-
-/* ---- filters + dashboard ---- */
-function populateFilters(){
-  const acts=[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort();
-  const objs=[...new Set(db.master.map(x=>x['Object of Expenditure']).filter(Boolean))].sort();
-  const accts=[...new Set(db.master.map(x=>x['Account Code']).filter(Boolean))].sort();
-  setOptions('fActivity',acts,'All Activities');
-  setOptions('fObject',objs,'All Objects');
-  setOptions('fAccount',accts,'All Accounts');
+$("aip").addEventListener("input",pickAip);$("aip").addEventListener("change",pickAip);
+function clearForm(){
+ ["aip","act","desc","stock","unit","price","mode","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
+ $("obj").value="";$("acct").value="";prevObj="";editing=null;
+ $("formTitle").textContent="Add item";$("btnSave").textContent="Add item";$("btnCancel").classList.add("hidden");$("err").textContent="";calcForm();
 }
-function filteredMaster(){
-  const q=document.getElementById('fQuarter').value;
-  const a=document.getElementById('fActivity').value;
-  const o=document.getElementById('fObject').value;
-  const c=document.getElementById('fAccount').value;
-  return db.master.filter(x=>(a==='ALL'||x.Activity===a)&&(o==='ALL'||x['Object of Expenditure']===o)&&(c==='ALL'||x['Account Code']===c));
-}
-['fQuarter','fActivity','fObject','fAccount'].forEach(x=>document.getElementById(x).onchange=renderDashboard);
-
-/* ---- calculation core (pure) ---- */
-function qBudgetBase(r,q){
-  if(q==='Q1')return num(r['Q1 Est. Budget']);
-  if(q==='Q2')return num(r['Q2 Est. Budget']);
-  if(q==='Q3')return num(r['Q3 Est. Budget']);
-  if(q==='Q4')return num(r['Q4 Est. Budget']);
-  return num(r['Q1 Est. Budget'])+num(r['Q2 Est. Budget'])+num(r['Q3 Est. Budget'])+num(r['Q4 Est. Budget']);
-}
-function adjNet(masterId,q){
-  const qs=q==='ALL'?['Q1','Q2','Q3','Q4']:[q];
-  return db.adjustments.reduce((s,a)=>{
-    if(!qs.includes(a.quarter))return s;
-    return s+(a.toMasterId===masterId?num(a.amount):0)-(a.fromMasterId===masterId?num(a.amount):0);
-  },0);
-}
-function qBudget(r,q){return r2(qBudgetBase(r,q)+adjNet(r._id,q))}
-function qQty(r,q){
-  if(q==='Q1')return num(r['Q1 Total Qty.']);
-  if(q==='Q2')return num(r['Q2 Total Qty.']);
-  if(q==='Q3')return num(r['Q3 Total Qty.']);
-  if(q==='Q4')return num(r['Q4 Total Qty.']);
-  return num(r['Q1 Total Qty.'])+num(r['Q2 Total Qty.'])+num(r['Q3 Total Qty.'])+num(r['Q4 Total Qty.']);
-}
-function txFor(r,q){return db.releases.filter(t=>t.masterId===r._id&&(!q||q==='ALL'||t.quarter===q))}
-function releaseAmount(r,q){return r2(txFor(r,q).reduce((s,t)=>s+num(t.amount),0))}
-function releaseQty(r,q){return txFor(r,q).reduce((s,t)=>s+num(t.qty),0)}
-
-/* ---- dashboard ---- */
-function renderDashboard(){
-  const q=document.getElementById('fQuarter').value;
-  const ms=filteredMaster();
-  let budget=0,rel=0;
-  ms.forEach(r=>{budget+=qBudget(r,q);rel+=releaseAmount(r,q)});
-  budget=r2(budget);rel=r2(rel);
-  const balance=r2(budget-rel);
-  const overall=r2(db.master.reduce((s,r)=>s+qBudget(r,'ALL'),0)-db.releases.reduce((s,t)=>s+num(t.amount),0));
-  document.getElementById('mBudget').textContent=money(budget);
-  document.getElementById('mRelease').textContent=money(rel);
-  document.getElementById('mBalance').textContent=money(balance);
-  document.getElementById('mOverall').textContent=money(overall);
-  const rows=ms.map(r=>{
-    const b=qBudget(r,q),rr=releaseAmount(r,q);
-    return `<tr><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td><td class="num">${money(b)}</td><td class="num">${money(rr)}</td><td class="num">${money(b-rr)}</td></tr>`;
-  }).join('');
-  document.getElementById('breakdown').innerHTML=rows||'<tr><td colspan="7" class="empty">No WFP records match the selected filters.</td></tr>';
-  drawCharts(ms,q);
-}
-function upsertChart(key,canvasId,type,labels,datasets,options){
-  const c=charts[key];
-  if(c){c.data.labels=labels;c.data.datasets=datasets;c.update();return}
-  const el=document.getElementById(canvasId);
-  if(!el)return;
-  charts[key]=new Chart(el,{type,data:{labels,datasets},options});
-}
-function drawCharts(ms,q){
-  const qs=['Q1','Q2','Q3','Q4'];
-  upsertChart('q','quarterChart','bar',qs,[
-    {label:'Budget',data:qs.map(x=>ms.reduce((s,r)=>s+qBudget(r,x),0))},
-    {label:'Release',data:qs.map(x=>ms.reduce((s,r)=>s+releaseAmount(r,x),0))}
-  ],{responsive:true,maintainAspectRatio:false});
-
-  const am={};
-  ms.forEach(r=>am[r.Activity]=(am[r.Activity]||0)+releaseAmount(r,q));
-  const amKeys=Object.keys(am).slice(0,12);
-  upsertChart('a','activityChart','bar',amKeys,
-    [{label:'Release',data:amKeys.map(k=>am[k])}],
-    {indexAxis:'y',responsive:true,maintainAspectRatio:false});
-
-  const om={};
-  ms.forEach(r=>om[r['Object of Expenditure']]=(om[r['Object of Expenditure']]||0)+releaseAmount(r,q));
-  const omKeys=Object.keys(om).slice(0,10);
-  upsertChart('o','objectChart','doughnut',omKeys,
-    [{label:'Release',data:omKeys.map(k=>om[k])}],
-    {responsive:true,maintainAspectRatio:false});
-}
-function clearFilters(){['fQuarter','fActivity','fObject','fAccount'].forEach(x=>document.getElementById(x).value='ALL');renderDashboard()}
-
-/* ---- master list ---- */
-function renderMaster(){
-  const s=(document.getElementById('masterSearch')?.value||'').toLowerCase();
-  const ms=db.master.filter(r=>Object.values(r).join(' ').toLowerCase().includes(s));
-  document.getElementById('masterBody').innerHTML=ms.map(r=>
-    `<tr><td>${esc(r['AIP Code'])}</td><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td><td>${esc(r.Unit)}</td><td class="num">${money(r['Unit Price'])}</td><td class="num">${money(r['Est. Budget'])}</td><td class="num">${num(r['Q1 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q1'))}</td><td class="num">${num(r['Q2 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q2'))}</td><td class="num">${num(r['Q3 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q3'))}</td><td class="num">${num(r['Q4 Total Qty.'])}</td><td class="num">${money(qBudget(r,'Q4'))}</td><td class="num">${money(qBudget(r,'ALL'))}</td><td><button class="btn" onclick="openMasterModal('${r._id}')">Edit</button> <button class="btn danger" onclick="deleteMaster('${r._id}')">Delete</button></td></tr>`
-  ).join('')||'<tr><td colspan="18" class="empty">No records.</td></tr>';
-}
-const formFields=[['AIP Code','text'],['Activity','text'],['Account Code','text'],['Object of Expenditure','text'],['Description','text'],['Unit','text'],['Unit Price','number'],['Est. Budget','number'],['Q1 Total Qty.','number'],['Q1 Est. Budget','number'],['Q2 Total Qty.','number'],['Q2 Est. Budget','number'],['Q3 Total Qty.','number'],['Q3 Est. Budget','number'],['Q4 Total Qty.','number'],['Q4 Est. Budget','number']];
-const fldId=k=>'mf_'+k.replace(/[^a-zA-Z0-9]/g,'_');
-
-function openMasterModal(idv){
-  editingMaster=idv||null;
-  const r=idv?db.master.find(x=>x._id===idv):{};
-  document.getElementById('masterModalTitle').textContent=idv?'Edit WFP Record':'Add WFP Record';
-  document.getElementById('masterForm').innerHTML=formFields.map(([k,t])=>`<div><label>${k}</label><input id="${fldId(k)}" type="${t}" value="${esc(r[k]??'')}"></div>`).join('');
-  document.getElementById('masterModal').classList.add('show');
-}
-function closeModal(id){document.getElementById(id).classList.remove('show')}
-
-function saveMaster(){
-  if(!guard())return;
-  const r={};
-  formFields.forEach(([k])=>r[k]=document.getElementById(fldId(k)).value);
-  if(!r.Activity||!r.Description){alert('Activity and Description are required.');return}
-  formFields.filter(([,t])=>t==='number').forEach(([k])=>r[k]=num(r[k]));
-
-  if(editingMaster){
-    const i=db.master.findIndex(x=>x._id===editingMaster);
-    r._id=editingMaster;
-    db.master[i]=r;
-    /* cascade renames into transactions and adjustments */
-    db.releases.forEach(t=>{
-      if(t.masterId!==editingMaster)return;
-      t.activity=r.Activity; t.account=r['Account Code'];
-      t.object=r['Object of Expenditure']; t.description=r.Description; t.unit=r.Unit;
-    });
-    db.adjustments.forEach(a=>{
-      if(a.fromMasterId===editingMaster){a.fromActivity=r.Activity;a.fromAccount=r['Account Code'];a.fromObject=r['Object of Expenditure'];a.fromDescription=r.Description}
-      if(a.toMasterId===editingMaster){a.toActivity=r.Activity;a.toAccount=r['Account Code'];a.toObject=r['Object of Expenditure'];a.toDescription=r.Description}
-    });
-    log('Master edited',editingMaster,r.Description);
-  }else{
-    r._id='M-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,6);
-    db.master.push(r);
-    log('Master created',r._id,r.Description);
-  }
-  saveDB();
-  closeModal('masterModal');
-  populateFilters();
-  renderMaster(); renderDashboard();
-  setupRelease(); setupAdjustments();
-  renderTransactions(); renderReport();
+$("btnSave").onclick=function(){
+ var it={aip:$("aip").value.trim(),act:$("act").value.trim(),desc:$("desc").value.trim(),obj:$("obj").value,acct:$("acct").value,stock:$("stock").value.trim(),
+  unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),
+  q:[1,2,3,4].map(function(i){return parseFloat($("q"+i).value)||0})},e=$("err");
+ if(!it.aip||!it.act||!it.desc){e.textContent="Enter the AIP Code, Activities and Description.";return}
+ if(!it.obj||it.obj==="__add__"){e.textContent="Select an Object of Expenditure.";return}
+ if(!(it.price>0)){e.textContent="Enter a Unit Price greater than zero.";return}
+ if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
+ if(editing===null){it.id=uid();it.year=year;items.push(it)}
+ else{var o=byId(editing);it.id=o.id;it.year=o.year;items[items.indexOf(o)]=it}
+ save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
+};
+$("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
+function edit(id){
+ var it=byId(id);if(!it)return;editing=id;
+ $("aip").value=it.aip;$("act").value=it.act||"";$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
+ $("price").value=it.price;$("mode").value=it.mode;$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
+ for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
+ calcForm();$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
+ window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
-function deleteMaster(idv){
-  if(db.releases.some(t=>t.masterId===idv)){
-    alert('Cannot delete this WFP record because it has release transactions. Delete the transactions first.');
-    return;
-  }
-  const linked=db.adjustments.filter(a=>a.fromMasterId===idv||a.toMasterId===idv);
-  if(linked.length){
-    alert(`Cannot delete this WFP record because ${linked.length} budget adjustment(s) reference it. Delete those adjustments first.`);
-    return;
-  }
-  if(confirm('Delete this WFP master record?')){
-    db.master=db.master.filter(x=>x._id!==idv);
-    log('Master deleted',idv,'WFP record deleted');
-    saveDB();
-    populateFilters();
-    renderMaster(); renderDashboard();
-    setupRelease(); setupAdjustments();
-  }
+/* ---------- Office Budget report ---------- */
+function renderOB(){
+ var list=yi(),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
+ if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="20">No items for '+year+' yet. Fill in the form above and select Add item.</td></tr>';$("obFoot").innerHTML="";return}
+ list.forEach(function(it){
+  var t=tot(it),b=t*it.price;gq+=t;gb+=b;
+  h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
+  for(var k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"}
+  h+="<td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
+ });
+ $("obBody").innerHTML=h;
+ $("obFoot").innerHTML="<tr><td colspan='8' style='text-align:right'>TOTAL</td><td class='n'>"+qty(gq)+"</td><td class='n'>"+money(gb)+"</td><td></td>"+
+  gqq.map(function(v,k){return"<td class='n'>"+qty(v)+"</td><td class='n'>"+money(ga[k])+"</td>"}).join("")+"<td class='act'></td></tr>";
 }
-function exportMaster(){downloadXlsx({'WFP Master':db.master.map(cleanMaster)},'WFP_Master.xlsx')}
+function delItem(id){
+ var it=byId(id),n=txs.filter(function(x){return x.from===id||x.to===id}).length;
+ if(!confirm("Delete \""+it.desc+"\" from the report?"+(n?"\n\nIts "+n+" release/augmentation record(s) will also be deleted.":"")))return;
+ items.splice(items.indexOf(it),1);txs=txs.filter(function(x){return x.from!==id&&x.to!==id});
+ if(editing===id)clearForm();save(KEY,items);save(TXK,txs);renderAll();refreshLists();
+}
+$("obBody").addEventListener("click",function(e){
+ var b=e.target.closest("button");if(!b)return;
+ if(b.dataset.e)edit(b.dataset.e);else if(b.dataset.d)delItem(b.dataset.d);
+});
+$("btnAll").onclick=function(){
+ var l=yi();
+ if(l.length&&confirm("Delete all "+l.length+" items for "+year+" (and their releases/augmentations)? This cannot be undone.")){
+  var ids=l.map(function(i){return i.id});
+  items=items.filter(function(i){return +i.year!==year});
+  txs=txs.filter(function(x){return ids.indexOf(x.from)<0&&ids.indexOf(x.to)<0});
+  save(KEY,items);save(TXK,txs);clearForm();renderAll();refreshLists();
+ }
+};
 
-/* ---- release encoding ---- */
-function setupRelease(){
-  if(!editingTx){
-    document.getElementById('releaseMessage').innerHTML='';
-    document.getElementById('rQty').value='';
-    document.getElementById('rRef').value='';
-    document.getElementById('rPayee').value='';
-    document.getElementById('rRemarks').value='';
-  }
-  setOptions('rActivity',[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort(),'Select Activity','');
-  document.getElementById('rActivity').onchange=setupReleaseObjects;
-  document.getElementById('rObject').onchange=setupReleaseDescriptions;
-  document.getElementById('rQuarter').onchange=updateReleasePreview;
-  document.getElementById('rDescription').onchange=updateReleasePreview;
-  setupReleaseObjects();
-  const d=document.getElementById('rDate');
-  if(!d.value)d.value=todayLocal();
+/* ---------- Budget Monitoring ---------- */
+var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement"];
+var SUB=["Amount","Release","Augmented To","Augmented From","Balance"];
+(function(){
+ var h="<tr>";BASE.forEach(function(b){h+='<th rowspan="2">'+b+'</th>'});
+ Q.forEach(function(q){h+='<th colspan="5">'+q+' Quarter</th>'});
+ h+='<th rowspan="2">Total Balance</th></tr><tr>';
+ for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th>"+s+"</th>"});
+ $("bmHead").innerHTML=h+"</tr>";
+})();
+function lineCalc(it){
+ var b=[],r=[0,0,0,0],t=[0,0,0,0],f=[0,0,0,0],bal=[],k;
+ for(k=0;k<4;k++)b[k]=it.q[k]*it.price;
+ txs.forEach(function(x){
+  if(x.type==="rel"){if(x.from===it.id)r[x.fq]+=x.amt}
+  else{if(x.from===it.id)t[x.fq]+=x.amt;if(x.to===it.id)f[x.tq]+=x.amt}
+ });
+ for(k=0;k<4;k++)bal[k]=b[k]-r[k]-t[k]+f[k];
+ return{b:b,r:r,t:t,f:f,bal:bal};
 }
-function setupReleaseObjects(){
-  const a=document.getElementById('rActivity').value;
-  setOptions('rObject',[...new Set(db.master.filter(x=>x.Activity===a).map(x=>x['Object of Expenditure']).filter(Boolean))].sort(),'Select Object','');
-  setupReleaseDescriptions();
-}
-function setupReleaseDescriptions(){
-  const a=document.getElementById('rActivity').value;
-  const o=document.getElementById('rObject').value;
-  setOptionsById('rDescription',db.master.filter(x=>x.Activity===a&&x['Object of Expenditure']===o),'Select Description');
-  updateReleasePreview();
-}
-function selectedRecord(){
-  return db.master.find(x=>x._id===document.getElementById('rDescription').value)||null;
-}
-function updateReleasePreview(){
-  const r=selectedRecord(), q=document.getElementById('rQuarter').value;
-  if(!r){
-    ['rUnit','rPrice'].forEach(x=>document.getElementById(x).value='');
-    ['pQty','relQty','remQty'].forEach(x=>document.getElementById(x).textContent='0');
-    document.getElementById('rAmount').value='';
-    ['pBudget','relAmt','remBudget'].forEach(x=>document.getElementById(x).textContent=money(0));
-    return;
-  }
-  const isEditOnThis=editingTx&&editingTx.masterId===r._id&&editingTx.quarter===q;
-  const oldQ=isEditOnThis?num(editingTx.qty):0;
-  const oldA=isEditOnThis?num(editingTx.amount):0;
-  const pq=qQty(r,q);
-  const rq=releaseQty(r,q)-oldQ;
-  const pb=qBudget(r,q);
-  const ra=releaseAmount(r,q)-oldA;
-  const qty=num(document.getElementById('rQty').value);
-  const price=num(r['Unit Price']);
-  const amount=r2(qty*price);
-  document.getElementById('rUnit').value=r.Unit||'';
-  document.getElementById('rPrice').value=price;
-  document.getElementById('rAmount').value=amount.toFixed(2);
-  document.getElementById('pQty').textContent=pq;
-  document.getElementById('relQty').textContent=rq;
-  document.getElementById('remQty').textContent=Math.max(0,pq-rq);
-  document.getElementById('pBudget').textContent=money(pb);
-  document.getElementById('relAmt').textContent=money(ra);
-  document.getElementById('remBudget').textContent=money(pb-ra);
-}
-function saveRelease(){
-  if(!guard())return;
-  const r=selectedRecord();
-  const q=document.getElementById('rQuarter').value;
-  const qty=num(document.getElementById('rQty').value);
-  const amount=num(document.getElementById('rAmount').value);
-  const msg=document.getElementById('releaseMessage');
-  msg.innerHTML='';
-  if(!r){msg.innerHTML='<div class="error">Select a valid Activity, Object and Description.</div>';return}
-  const isEditOnThis=editingTx&&editingTx.masterId===r._id&&editingTx.quarter===q;
-  const oldQ=isEditOnThis?num(editingTx.qty):0;
-  const oldA=isEditOnThis?num(editingTx.amount):0;
-  const rq=releaseQty(r,q)-oldQ;
-  const ra=releaseAmount(r,q)-oldA;
-  const pq=qQty(r,q);
-  const pb=qBudget(r,q);
-  if(qty<=0){msg.innerHTML='<div class="error">Quantity must be greater than zero.</div>';return}
-  if(qty>pq-rq){msg.innerHTML=`<div class="error">Release cannot be encoded. Quantity exceeds remaining planned quantity by ${qty-(pq-rq)}.</div>`;return}
-  if(amount>pb-ra+0.0001){msg.innerHTML=`<div class="error">Release cannot be encoded. Amount exceeds remaining ${q} allotted budget by ${money(amount-(pb-ra))}.</div>`;return}
-
-  const tx={...(editingTx||{}),
-    masterId:r._id,releaseDate:document.getElementById('rDate').value,
-    activity:r.Activity,account:r['Account Code'],object:r['Object of Expenditure'],
-    description:r.Description,quarter:q,qty,unit:r.Unit,unitPrice:num(r['Unit Price']),amount,
-    reference:document.getElementById('rRef').value,payee:document.getElementById('rPayee').value,
-    remarks:document.getElementById('rRemarks').value,modified:new Date().toLocaleString()
-  };
-  if(editingTx){
-    const i=db.releases.findIndex(x=>x.id===editingTx.id);
-    db.releases[i]=tx;
-    log('Release edited',tx.id,tx.description);
-  }else{
-    tx.id=id();
-    tx.created=new Date().toLocaleString();
-    db.releases.push(tx);
-    log('Release created',tx.id,tx.description);
-  }
-  saveDB();
-  msg.innerHTML='<div class="success">Release saved successfully.</div>';
-  editingTx=null;
-  resetRelease(false);
-  renderTransactions();
-  renderDashboard();
-}
-function resetRelease(clearMsg=true){
-  editingTx=null;
-  document.getElementById('rQty').value='';
-  document.getElementById('rRef').value='';
-  document.getElementById('rPayee').value='';
-  document.getElementById('rRemarks').value='';
-  if(clearMsg)document.getElementById('releaseMessage').innerHTML='';
-  updateReleasePreview();
-}
-
-/* ---- transactions ---- */
-function renderTransactions(){
-  const s=(document.getElementById('txSearch')?.value||'').toLowerCase();
-  const arr=db.releases.filter(t=>Object.values(t).join(' ').toLowerCase().includes(s));
-  document.getElementById('txBody').innerHTML=arr.map(t=>
-    `<tr><td>${esc(t.id)}</td><td>${esc(t.releaseDate)}</td><td>${esc(t.activity)}</td><td>${esc(t.account)}</td><td>${esc(t.object)}</td><td>${esc(t.description)}</td><td>${esc(t.quarter)}</td><td class="num">${t.qty}</td><td class="num">${money(t.amount)}</td><td>${esc(t.reference)}</td><td><button class="btn" onclick="editTx('${t.id}')">Edit</button> <button class="btn danger" onclick="deleteTx('${t.id}')">Delete</button></td></tr>`
-  ).join('')||'<tr><td colspan="11" class="empty">No transactions.</td></tr>';
-}
-function editTx(idv){
-  const t=db.releases.find(x=>x.id===idv);
-  if(!t)return;
-  const master=db.master.find(m=>m._id===t.masterId);
-  if(!master){
-    alert('Cannot edit: the WFP line item this transaction points to no longer exists. Restore the master record first.');
-    return;
-  }
-  editingTx={...t};
-  page('release');
-  document.getElementById('rActivity').value=t.activity;
-  setupReleaseObjects();
-  document.getElementById('rObject').value=t.object;
-  setupReleaseDescriptions();
-  document.getElementById('rDescription').value=t.masterId;
-  document.getElementById('rQuarter').value=t.quarter;
-  document.getElementById('rDate').value=t.releaseDate;
-  document.getElementById('rQty').value=t.qty;
-  document.getElementById('rRef').value=t.reference||'';
-  document.getElementById('rPayee').value=t.payee||'';
-  document.getElementById('rRemarks').value=t.remarks||'';
-  updateReleasePreview();
-  document.getElementById('releaseMessage').innerHTML='<div class="notice">Editing transaction '+esc(t.id)+'. Saving will replace the original transaction.</div>';
-}
-function deleteTx(idv){
-  const t=db.releases.find(x=>x.id===idv);
-  if(!t)return;
-  if(confirm('Are you sure you want to delete this release transaction?')){
-    db.releases=db.releases.filter(x=>x.id!==idv);
-    log('Release deleted',idv,t.description);
-    saveDB();
-    renderTransactions();
-    renderDashboard();
-  }
-}
-
-/* ---- budget adjustments ---- */
-function setupAdjustments(){
-  setupAdjSide('af');
-  setupAdjSide('at');
-  const d=document.getElementById('aDate');
-  if(!d.value)d.value=todayLocal();
-  document.getElementById('aQuarter').onchange=updateAdjPreview;
-  updateAdjPreview();
-}
-function setupAdjSide(prefix){
-  setOptions(prefix+'Activity',[...new Set(db.master.map(x=>x.Activity).filter(Boolean))].sort(),'Select Activity','');
-  document.getElementById(prefix+'Activity').onchange=()=>setupAdjObjects(prefix);
-  document.getElementById(prefix+'Object').onchange=()=>setupAdjDescriptions(prefix);
-  document.getElementById(prefix+'Description').onchange=updateAdjPreview;
-  setupAdjObjects(prefix);
-}
-function setupAdjObjects(prefix){
-  const a=document.getElementById(prefix+'Activity').value;
-  setOptions(prefix+'Object',[...new Set(db.master.filter(x=>x.Activity===a).map(x=>x['Object of Expenditure']).filter(Boolean))].sort(),'Select Object','');
-  setupAdjDescriptions(prefix);
-}
-function setupAdjDescriptions(prefix){
-  const a=document.getElementById(prefix+'Activity').value;
-  const o=document.getElementById(prefix+'Object').value;
-  setOptionsById(prefix+'Description',db.master.filter(x=>x.Activity===a&&x['Object of Expenditure']===o),'Select Description');
-  updateAdjPreview();
-}
-function adjSelectedRecord(prefix){
-  return db.master.find(x=>x._id===document.getElementById(prefix+'Description').value)||null;
-}
-function updateAdjPreview(){
-  const fr=adjSelectedRecord('af'), tr=adjSelectedRecord('at');
-  const q=document.getElementById('aQuarter').value;
-  const amt=num(document.getElementById('aAmount').value);
-  document.getElementById('afAccount').value=fr?(fr['Account Code']||''):'';
-  document.getElementById('atAccount').value=tr?(tr['Account Code']||''):'';
-  const fromBox=document.getElementById('adjFromPreview'), toBox=document.getElementById('adjToPreview');
-  if(!fr){fromBox.innerHTML='Select From Activity, Object and Description.'}
-  else{
-    const qb=qBudget(fr,q), rel=releaseAmount(fr,q), avail=r2(qb-rel);
-    fromBox.innerHTML=`<div><strong>${esc(fr.Activity)} → ${esc(fr['Object of Expenditure'])} → ${esc(fr.Description)}</strong></div><div class="bad">- ${money(amt)}</div><div class="footer-note">${q} Budget: ${money(qb)} • Released: ${money(rel)} • Available: ${money(avail)} • After Adjustment: ${money(qb-amt)}</div>`;
-  }
-  if(!tr){toBox.innerHTML='Select To Activity, Object and Description.'}
-  else{
-    const qb=qBudget(tr,q);
-    toBox.innerHTML=`<div><strong>${esc(tr.Activity)} → ${esc(tr['Object of Expenditure'])} → ${esc(tr.Description)}</strong></div><div class="good">+ ${money(amt)}</div><div class="footer-note">${q} Budget: ${money(qb)} • After Adjustment: ${money(qb+amt)}</div>`;
-  }
-}
-function resetAdjustment(clearMsg=true){
-  document.getElementById('aAmount').value='';
-  document.getElementById('aRef').value='';
-  document.getElementById('aRemarks').value='';
-  if(clearMsg)document.getElementById('adjMessage').innerHTML='';
-  updateAdjPreview();
-}
-function saveAdjustment(){
-  if(!guard())return;
-  const msg=document.getElementById('adjMessage');
-  msg.innerHTML='';
-  const quarter=document.getElementById('aQuarter').value;
-  const amount=num(document.getElementById('aAmount').value);
-  const date=document.getElementById('aDate').value;
-  const reference=document.getElementById('aRef').value;
-  const remarks=document.getElementById('aRemarks').value;
-  const fr=adjSelectedRecord('af'), tr=adjSelectedRecord('at');
-  if(!fr||!tr){msg.innerHTML='<div class="error">Select a valid From (Source) and To (Recipient) Activity, Object of Expenditure and Description.</div>';return}
-  if(fr._id===tr._id){msg.innerHTML='<div class="error">The Source and Recipient must be different line items.</div>';return}
-  if(amount<=0){msg.innerHTML='<div class="error">Amount must be greater than zero.</div>';return}
-  const avail=r2(qBudget(fr,quarter)-releaseAmount(fr,quarter));
-  if(amount>avail+0.0001){msg.innerHTML=`<div class="error">Adjustment cannot be encoded. Amount exceeds the available ${quarter} budget of the Source item by ${money(amount-avail)}.</div>`;return}
-  db.adjustments.push({
-    id:id(),quarter,amount,date,reference,remarks,
-    fromMasterId:fr._id,fromActivity:fr.Activity,fromAccount:fr['Account Code'],fromObject:fr['Object of Expenditure'],fromDescription:fr.Description,
-    toMasterId:tr._id,toActivity:tr.Activity,toAccount:tr['Account Code'],toObject:tr['Object of Expenditure'],toDescription:tr.Description
+var lineLabel=function(it){return it?it.aip+" – "+it.act+" – "+it.obj+" – "+it.desc:"(deleted item)"};
+var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
+function renderBM(){
+ var list=yi(),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
+ if(!list.length){$("bmBody").innerHTML='<tr><td class="empty" colspan="32">No budget lines for '+year+'. Add items in Office Budget first.</td></tr>';$("bmFoot").innerHTML=""}
+ else{
+  list.forEach(function(it){
+   var c=lineCalc(it),t=tot(it),sum=0;
+   h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(t*it.price)+"</td><td>"+esc(it.mode)+"</td>";
+   for(var k=0;k<4;k++){
+    h+=cell(c.b[k])+cell(c.r[k])+cell(c.t[k])+cell(c.f[k])+"<td class='n bal"+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td>";
+    T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];sum+=c.bal[k];
+   }
+   tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
-  log('Budget adjustment',fr._id,`${quarter}: ${fr.Activity} → ${tr.Activity} — ${money(amount)}`);
-  saveDB();
-  msg.innerHTML='<div class="success">Budget adjustment saved successfully.</div>';
-  resetAdjustment(false);
-  renderAdjustments();
-  renderDashboard();
-  renderMaster();
-  renderReport();
+  $("bmBody").innerHTML=h;
+  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
+ }
+ // transaction log
+ var lg="";
+ txs.forEach(function(x){
+  var s=byId(x.from);if(!s||+s.year!==year)return;
+  lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(x.type==="rel"?"Release":"Augmentation")+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
+   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
+ });
+ $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="7">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
-function deleteAdjustment(idv){
-  const a=db.adjustments.find(x=>x.id===idv);
-  if(!a)return;
-  const recip=db.master.find(m=>m._id===a.toMasterId);
-  if(recip){
-    const afterBudget=r2(qBudget(recip,a.quarter)-num(a.amount));
-    const alreadyReleased=releaseAmount(recip,a.quarter);
-    if(alreadyReleased>afterBudget+0.005){
-      alert(`Cannot delete this adjustment.\n\n${recip.Description} has already released ${money(alreadyReleased)} against the ${a.quarter} budget of ${money(qBudget(recip,a.quarter))}. Removing ${money(a.amount)} would leave the budget at ${money(afterBudget)} — below what has been released.\n\nDelete the recipient's release transactions first.`);
-      return;
-    }
+$("lgBody").addEventListener("click",function(e){
+ var b=e.target.closest("button");if(!b||!b.dataset.t)return;
+ if(confirm("Delete this transaction? The balances will be restored.")){txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderBM();info()}
+});
+
+/* transaction form */
+function fillTx(){
+ var ov=[$("tFrom").value,$("tTo").value],h="";
+ yi().forEach(function(it){h+='<option value="'+it.id+'">'+esc(lineLabel(it))+'</option>'});
+ if(!h)h='<option value="">No budget lines for '+year+'</option>';
+ $("tFrom").innerHTML=h;$("tTo").innerHTML=h;
+ if(byId(ov[0]))$("tFrom").value=ov[0];if(byId(ov[1]))$("tTo").value=ov[1];
+ info();
+}
+function info(){
+ var it=byId($("tFrom").value),q=+$("tFq").value;
+ $("tInfo").textContent=it?"Available balance in "+Q[q]+" Quarter: "+money(lineCalc(it).bal[q]):"";
+}
+function typeUi(){
+ var aug=$("tType").value==="aug";
+ [].forEach.call(document.querySelectorAll(".augonly"),function(el){el.classList.toggle("hidden",!aug)});
+ $("lFrom").textContent=aug?"Augmented from (budget line)":"Budget line";$("lFq").textContent=aug?"Augmented from quarter":"Quarter of release";
+}
+$("tType").onchange=typeUi;$("tFrom").onchange=info;$("tFq").onchange=info;
+$("tDate").value=new Date().toISOString().slice(0,10);
+$("btnTx").onclick=function(){
+ var type=$("tType").value,from=$("tFrom").value,fq=+$("tFq").value,to=$("tTo").value,tq=+$("tTq").value,amt=parseFloat($("tAmt").value)||0,e=$("terr"),src=byId(from);
+ if(!src){e.textContent="Select a budget line.";return}
+ if(!(amt>0)){e.textContent="Enter an amount greater than zero.";return}
+ var av=lineCalc(src).bal[fq];
+ if(amt>av+0.005){e.textContent="The amount is more than the "+Q[fq]+" Quarter balance of "+money(av)+".";return}
+ if(type==="aug"){
+  if(!byId(to)){e.textContent="Select the budget line it is augmented to.";return}
+  if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
+ }
+ txs.push({id:uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,amt:amt,date:$("tDate").value,note:$("tNote").value.trim()});
+ save(TXK,txs);$("tAmt").value="";$("tNote").value="";e.textContent="";renderBM();info();
+};
+
+/* ---------- report details ---------- */
+var mm={mOffice:"office",mBy:"by",mApp:"app"};
+function paintMeta(){
+ ["ob","bm"].forEach(function(p){
+  $(p+"Title").textContent=(p==="ob"?"OFFICE BUDGET ":"BUDGET MONITORING ")+year;
+  $(p+"Office").textContent=meta.office||"";$(p+"Year").textContent="Fiscal Year "+year;
+ });
+ [].forEach.call(document.querySelectorAll(".sBy"),function(e){e.textContent="Prepared by: "+(meta.by||"")});
+ [].forEach.call(document.querySelectorAll(".sApp"),function(e){e.textContent="Approved by: "+(meta.app||"")});
+}
+Object.keys(mm).forEach(function(id){
+ $(id).value=meta[mm[id]]||"";
+ $(id).addEventListener("input",function(){meta[mm[id]]=$(id).value;save(META,meta);paintMeta()});
+});
+
+/* ---------- Excel ---------- */
+function toXlsx(name,sheets){
+ if(typeof XLSX==="undefined"){
+  var csv=sheets[0].rows.map(function(r){return r.map(function(c){return'"'+String(c==null?"":c).replace(/"/g,'""')+'"'}).join(",")}).join("\r\n");
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob(["\ufeff"+csv],{type:"text/csv"}));a.download=name.replace(".xlsx",".csv");a.click();
+  alert("The Excel library could not load (no internet), so a CSV file was saved instead. It opens in Excel.");return;
+ }
+ var wb=XLSX.utils.book_new();
+ sheets.forEach(function(s){
+  var ws=XLSX.utils.aoa_to_sheet(s.rows);ws["!merges"]=s.merges||[];ws["!cols"]=(s.cols||[]).map(function(w){return{wch:w}});
+  for(var r=s.from;r<=s.to;r++){
+   (s.money||[]).forEach(function(c){var x=ws[XLSX.utils.encode_cell({r:r,c:c})];if(x)x.z="#,##0.00"});
+   (s.qty||[]).forEach(function(c){var x=ws[XLSX.utils.encode_cell({r:r,c:c})];if(x)x.z="#,##0.##"});
   }
-  if(confirm('Delete this budget adjustment? This reverses its effect on the Source and Recipient quarterly budgets.')){
-    db.adjustments=db.adjustments.filter(x=>x.id!==idv);
-    log('Budget adjustment deleted',idv,`${a.fromActivity} → ${a.toActivity} — ${money(a.amount)}`);
-    saveDB();
-    renderAdjustments();
-    renderDashboard();
-    renderMaster();
-    renderReport();
-  }
+  XLSX.utils.book_append_sheet(wb,ws,s.n);
+ });
+ XLSX.writeFile(wb,name);
 }
-function renderAdjustments(){
-  setupAdjustments();
-  document.getElementById('adjBody').innerHTML=db.adjustments.map(a=>
-    `<tr><td>${esc(a.date)}</td><td>${esc(a.quarter)}</td><td>${esc(a.fromActivity)} → ${esc(a.fromObject)} → ${esc(a.fromDescription)}</td><td>${esc(a.toActivity)} → ${esc(a.toObject)} → ${esc(a.toDescription)}</td><td class="num">${money(a.amount)}</td><td>${esc(a.reference)}</td><td>${esc(a.remarks)}</td><td><button class="btn danger" onclick="deleteAdjustment('${a.id}')">Delete</button></td></tr>`
-  ).join('')||'<tr><td colspan="8" class="empty">No budget adjustments.</td></tr>';
+function headMerges(nBase,lastCol,groups,groupSpan,firstGroupCol,extraCol){
+ var m=[],c;
+ for(c=0;c<nBase;c++)m.push({s:{r:3,c:c},e:{r:4,c:c}});
+ if(extraCol!=null)m.push({s:{r:3,c:extraCol},e:{r:4,c:extraCol}});
+ for(var g=0;g<groups;g++)m.push({s:{r:3,c:firstGroupCol+g*groupSpan},e:{r:3,c:firstGroupCol+g*groupSpan+groupSpan-1}});
+ m.push({s:{r:0,c:0},e:{r:0,c:lastCol}},{s:{r:1,c:0},e:{r:1,c:lastCol}});
+ return m;
 }
+function baseCells(it){var t=tot(it);return[it.aip,it.act||"",it.desc,it.obj||"",it.acct||"",it.stock,it.unit,it.price,t,t*it.price,it.mode]}
 
-/* ---- reports ---- */
-function renderReport(){
-  document.getElementById('reportBody').innerHTML=db.master.map(r=>{
-    const vals={};
-    ['Q1','Q2','Q3','Q4'].forEach(q=>{vals[q+'b']=qBudget(r,q);vals[q+'r']=releaseAmount(r,q)});
-    const ab=r2(vals.Q1b+vals.Q2b+vals.Q3b+vals.Q4b);
-    const ar=r2(vals.Q1r+vals.Q2r+vals.Q3r+vals.Q4r);
-    return `<tr><td>${esc(r.Activity)}</td><td>${esc(r['Account Code'])}</td><td>${esc(r['Object of Expenditure'])}</td><td>${esc(r.Description)}</td>${['Q1','Q2','Q3','Q4'].map(q=>`<td class="num">${money(vals[q+'b'])}</td><td class="num">${money(vals[q+'r'])}</td><td class="num">${money(vals[q+'b']-vals[q+'r'])}</td>`).join('')}<td class="num">${money(ab)}</td><td class="num">${money(ar)}</td><td class="num">${money(ab-ar)}</td></tr>`;
-  }).join('')||'<tr><td colspan="19" class="empty">No records.</td></tr>';
-}
-function renderAudit(){
-  document.getElementById('auditBody').innerHTML=db.audit.map(a=>
-    `<tr><td>${esc(a.date)}</td><td>${esc(a.action)}</td><td>${esc(a.record)}</td><td>${esc(a.details)}</td></tr>`
-  ).join('')||'<tr><td colspan="4" class="empty">No audit entries.</td></tr>';
-}
+$("obXlsx").onclick=function(){
+ var list=yi();if(!list.length){alert("There are no items for "+year+" to save yet.");return}
+ var h1=BASE.slice(),h2=BASE.map(function(){return""}),k;
+ Q.forEach(function(q){h1.push(q+" Quarter","");h2.push("Quantity","Amount")});
+ var rows=[["OFFICE BUDGET "+year],[meta.office||""],[],h1,h2],gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
+ list.forEach(function(it){
+  var r=baseCells(it);gq+=tot(it);gb+=tot(it)*it.price;
+  for(k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;r.push(it.q[k],a)}
+  rows.push(r);
+ });
+ var tr=["TOTAL","","","","","","","",gq,gb,""];for(k=0;k<4;k++)tr.push(gqq[k],ga[k]);rows.push(tr,[]);
+ rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
+ toXlsx("Office_Budget_"+year+".xlsx",[{n:"Office Budget",rows:rows,merges:headMerges(11,18,4,2,11),cols:[14,30,38,34,16,12,8,12,12,16,26,10,14,10,14,10,14,10,14],
+  money:[7,9,12,14,16,18],qty:[8,11,13,15,17],from:5,to:5+list.length}]);
+};
+$("bmXlsx").onclick=function(){
+ var list=yi();if(!list.length){alert("There are no budget lines for "+year+" to save yet.");return}
+ var h1=BASE.slice(),h2=BASE.map(function(){return""}),k,T=[];
+ Q.forEach(function(q){h1.push(q+" Quarter","","","","");SUB.forEach(function(s){h2.push(s)})});
+ h1.push("Total Balance");h2.push("");
+ var rows=[["BUDGET MONITORING "+year],[meta.office||""],[],h1,h2],tb=0;for(k=0;k<20;k++)T[k]=0;
+ list.forEach(function(it){
+  var c=lineCalc(it),r=baseCells(it),s=0;
+  for(k=0;k<4;k++){r.push(c.b[k],c.r[k],c.t[k],c.f[k],c.bal[k]);T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];s+=c.bal[k]}
+  tb+=s;r.push(s);rows.push(r);
+ });
+ rows.push(["TOTAL","","","","","","","","","",""].concat(T,[tb]),[]);
+ rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
+ var cols=[14,30,38,34,16,12,8,12,12,16,26];for(k=0;k<21;k++)cols.push(14);
+ var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Amount","Remarks"]];
+ txs.forEach(function(x){
+  var s=byId(x.from);if(!s||+s.year!==year)return;
+  lg.push([x.date||"",x.type==="rel"?"Release":"Augmentation",lineLabel(s),Q[x.fq]+" Quarter",x.type==="aug"?lineLabel(byId(x.to)):"",x.type==="aug"?Q[x.tq]+" Quarter":"",x.amt,x.note||""]);
+ });
+ toXlsx("Budget_Monitoring_"+year+".xlsx",[
+  {n:"Budget Monitoring",rows:rows,merges:headMerges(11,31,4,5,11,31),cols:cols,money:[7,9].concat(Array.apply(null,Array(21)).map(function(_,i){return 11+i})),qty:[8],from:5,to:5+list.length},
+  {n:"Transactions",rows:lg,cols:[12,14,70,14,70,14,14,30],money:[6],from:1,to:lg.length}
+ ]);
+};
 
-/* ---- import / export ---- */
-function cleanMaster(r){const x={...r};delete x._id;return x}
-function downloadXlsx(sheets,filename){
-  const wb=XLSX.utils.book_new();
-  for(const [name,data] of Object.entries(sheets)){
-    const ws=XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));
-  }
-  XLSX.writeFile(wb,filename);
-}
-function exportBackup(){downloadXlsx({'WFP Master':db.master.map(cleanMaster),'Budget Adjustments':db.adjustments,'Release Transactions':db.releases,'Audit Logs':db.audit,'Summary':buildSummary()},'WFP_Monitoring_Backup.xlsx')}
-function buildSummary(){
-  return db.master.map(r=>{
-    const b=qBudget(r,'ALL'),rel=releaseAmount(r,'ALL');
-    return {Activity:r.Activity,'Account Code':r['Account Code'],Object:r['Object of Expenditure'],Description:r.Description,'Annual Budget (Adjusted)':b,'Total Release':rel,'Overall Balance':r2(b-rel)};
-  });
-}
-function exportReport(){
-  downloadXlsx({'Quarterly Report':db.master.map(r=>{
-    const o={Activity:r.Activity,'Account Code':r['Account Code'],'Object of Expenditure':r['Object of Expenditure'],Description:r.Description};
-    ['Q1','Q2','Q3','Q4'].forEach(q=>{o[q+' Budget']=qBudget(r,q);o[q+' Release']=releaseAmount(r,q);o[q+' Balance']=r2(qBudget(r,q)-releaseAmount(r,q))});
-    o['Annual Budget']=qBudget(r,'ALL');
-    o['Total Release']=releaseAmount(r,'ALL');
-    o['Overall Balance']=r2(qBudget(r,'ALL')-releaseAmount(r,'ALL'));
-    return o;
-  })},'WFP_Quarterly_Monitoring_Report.xlsx');
-}
-function downloadTemplate(){
-  const row={};cols.forEach(c=>row[c]='');
-  downloadXlsx({'WFP Template':[row]},'WFP_Upload_Template.xlsx');
-}
-function exportJSON(){
-  const blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='WFP_Monitoring_Backup.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-function importJSON(e){
-  const f=e.target.files[0];
-  if(!f)return;
-  const rd=new FileReader();
-  rd.onload=()=>{
-    try{
-      const x=JSON.parse(rd.result);
-      if(!x.master||!x.releases)throw Error();
-      if(confirm('Restore this backup and replace current data?')){
-        db={...blank(),...x};
-        ['master','releases','adjustments','audit'].forEach(k=>{if(!Array.isArray(db[k]))db[k]=[]});
-        saveDB();
-        location.reload();
-      }
-    }catch(err){alert('Invalid backup file.')}
-  };
-  rd.readAsText(f);
-  e.target.value='';
-}
+$("obPrint").onclick=function(){if(!yi().length){alert("There are no items for "+year+" to print yet.");return}paintMeta();window.print()};
+$("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget lines for "+year+" to print yet.");return}paintMeta();window.print()};
 
-function previewFile(e){
-  const f=e.target.files[0];
-  if(!f)return;
-  const rd=new FileReader();
-  rd.onload=ev=>{
-    try{
-      const wb=XLSX.read(ev.target.result,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      const data=XLSX.utils.sheet_to_json(ws,{defval:''});
-      const headers=data.length?Object.keys(data[0]).map(h=>h.trim()):[];
-      const missing=cols.filter(c=>!headers.includes(c));
-      pendingImport={data};
-      document.getElementById('importPreview').innerHTML=
-        `<div class="${missing.length?'error':'success'}" style="margin-top:12px">${missing.length?'Missing columns: '+missing.join(', '):`Valid file detected. ${data.length} rows ready for import.`}</div>`
-        +(data.length?`<div class="table-wrap" style="margin-top:10px;max-height:250px"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${data.slice(0,10).map(r=>`<tr>${headers.map(h=>`<td>${esc(r[h])}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`:'');
-      document.getElementById('confirmImport').disabled=missing.length>0||!data.length;
-    }catch(err){
-      document.getElementById('importPreview').innerHTML='<div class="error">Could not read the Excel file.</div>';
-      document.getElementById('confirmImport').disabled=true;
-    }
-  };
-  rd.readAsArrayBuffer(f);
-  e.target.value='';
-}
-function normalizeRow(r){
-  const x={};
-  cols.forEach(c=>x[c]=r[c]??'');
-  ['Unit Price','Est. Budget','Q1 Total Qty.','Q1 Est. Budget','Q2 Total Qty.','Q2 Est. Budget','Q3 Total Qty.','Q3 Est. Budget','Q4 Total Qty.','Q4 Est. Budget'].forEach(c=>x[c]=num(x[c]));
-  x._id='M-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8);
-  return x;
-}
-function confirmImport(){
-  if(!pendingImport)return;
-  if(db.master.length&&!confirm('This will REPLACE the current WFP Master List. Export a backup first. Continue?'))return;
-  if((db.releases.length||db.adjustments.length)&&!confirm('This will also DELETE all release transactions and budget adjustments. Continue?'))return;
-  db.master=pendingImport.data.map(normalizeRow);
-  db.releases=[];
-  db.adjustments=[];
-  log('WFP imported','MASTER',`${db.master.length} records imported; prior WFP/release data replaced`);
-  saveDB();
-  pendingImport=null;
-  document.getElementById('confirmImport').disabled=true;
-  document.getElementById('importPreview').innerHTML='<div class="success">WFP imported successfully.</div>';
-  populateFilters();
-  renderDashboard(); renderMaster();
-  setupRelease(); setupAdjustments();
-  renderTransactions(); renderReport(); renderAudit();
-}
-
-/* ---- init ---- */
-function init(){
-  populateFilters();
-  renderDashboard();
-  renderMaster();
-  setupRelease();
-  setupAdjustments();
-  renderTransactions();
-  renderReport();
-  renderAudit();
-  updateStatus();
-}
-init();
+function renderAll(){renderOB();fillTx();renderBM();paintMeta()}
+fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
+})();
 </script>
 </body>
 </html>
