@@ -220,6 +220,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
 </main>
 
 <div id="cloud">☁ Connecting…</div>
+<div id="bk" class="noprint" style="position:fixed;left:10px;bottom:10px;z-index:50;display:flex;gap:6px"><button id="bkDown" type="button">⬇ Backup</button><button id="bkUp" type="button">⬆ Restore</button><input id="bkFile" type="file" accept=".json" style="display:none"></div>
 
 <script>
 (function(){
@@ -228,7 +229,7 @@ var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_t
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig={apiKey:"AIzaSyCAYTd5DVQsq2IWU-avueWdk39u1oTH9RU",authDomain:"tourism-office-records.firebaseapp.com",projectId:"tourism-office-records",storageBucket:"tourism-office-records.firebasestorage.app",messagingSenderId:"984337082871",appId:"1:984337082871:web:4af190490e3b2e6db526f2",measurementId:"G-QJ5SCPMYQ0"};
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1"],DIRTY="procurement_dirty_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -665,13 +666,23 @@ function applyCloud(d){
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
  fillYear();fillObj("");clearForm();renderAll();
 }
+$("bkDown").onclick=function(){var o={};CLOUD_KEYS.forEach(function(k){o[k]=localStorage.getItem(k)});var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:"application/json"}));a.download="wfp-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()};
+$("bkUp").onclick=function(){$("bkFile").click()};
+$("bkFile").onchange=function(){var f=this.files[0];if(!f)return;var r=new FileReader();r.onload=function(){try{var o=JSON.parse(r.result);if(!confirm("Replace the data on this device with this backup and upload it to the cloud?"))return;CLOUD_KEYS.forEach(function(k){if(o[k])localStorage.setItem(k,o[k])});localStorage.setItem(DIRTY,"1");localStorage.setItem(MERGED,"1");location.reload()}catch(e){alert("That file is not a valid backup.")}};r.readAsText(f)};
 booted=true;
 if(docRef){
  docRef.get().then(function(snap){
-  var d=snap.exists?snap.data():null,cloudEmpty=!d||!d[KEY]||d[KEY]==="null"||d[KEY]==="[]";
-  var unsynced=localStorage.getItem(DIRTY)==="1"||(cloudEmpty&&items.length>0);
-  if(d&&!unsynced){applyCloud(d);cloudReady=true;setBadge("☁ Synced","ok")}
-  else{cloudReady=true;pushCloud()} /* first upload, or unsynced offline edits */
+  var d=snap.exists?snap.data():null,first=localStorage.getItem(MERGED)!=="1",dirty=localStorage.getItem(DIRTY)==="1";
+  var cloudEmpty=!d||!d[KEY]||d[KEY]==="null"||d[KEY]==="[]";
+  if(d&&first&&!cloudEmpty){ /* first open of this version on this device: combine, never discard */
+   var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
+   var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
+   var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
+   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));
+   var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
+   applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
+  }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
+  else{localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud()} /* cloud empty, or unsynced edits on this device */
  }).catch(function(){setBadge("☁ Offline (saved on this device only)","bad")});
 }
 })();
