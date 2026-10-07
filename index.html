@@ -84,6 +84,7 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
 .kpi{background:var(--soft);border-radius:6px;padding:10px 12px}.kpi span{display:block;font-size:12px;color:var(--mute);font-weight:600}.kpi b{font-size:18px;color:var(--brand2)}.kpi b.neg{color:var(--warn)}
 .dtw{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}.dtw h3{font-size:14px;margin:0 0 6px;color:var(--brand2)}
 table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt td{border:1px solid var(--line);padding:5px 8px;text-align:left}table.dt th{background:var(--soft)}table.dt td.n{text-align:right}table.dt tfoot td{font-weight:700;background:var(--soft)}
+dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);padding:16px}dialog input{width:100%}dialog::backdrop{background:rgba(0,0,0,.35)}.neg{color:var(--warn)!important}
 </style>
 </head>
 <body>
@@ -94,6 +95,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
 <nav class="tabs" role="tablist">
  <button role="tab" id="tabBtnOB" aria-selected="true">Office Budget</button>
  <button role="tab" id="tabBtnBM" aria-selected="false">Budget Monitoring</button>
+ <button role="tab" id="tabBtnAL" aria-selected="false">Allocation vs Budget</button>
 </nav>
 <main>
 
@@ -114,7 +116,7 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
   <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
   <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
   <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
-  <div class="c6"><label for="obj">Object of Expenditure</label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
+  <div class="c6"><label for="obj">Object of Expenditure <a href="#" id="objEdit" style="font-size:12px;font-weight:400">Edit list</a></label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
   <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
   <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
@@ -221,7 +223,19 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
  <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
 </section>
 </div>
+<div id="tabAL" class="hidden">
+<section class="card noprint"><h2 id="alTitle" style="margin-top:0">Add allocation</h2>
+<p class="fsum" style="margin-top:0">Enter the budget given by the Provincial Government for the selected year, per activity and object of expenditure, for each quarter.</p>
+<div class="fbar"><div style="flex:2 1 260px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div>
+<div style="flex:2 1 260px"><label for="alObj">Object of Expenditure</label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select…"></div>
+<div><label for="al1">1st Quarter</label><input id="al1" type="number" min="0" step="0.01"></div><div><label for="al2">2nd Quarter</label><input id="al2" type="number" min="0" step="0.01"></div>
+<div><label for="al3">3rd Quarter</label><input id="al3" type="number" min="0" step="0.01"></div><div><label for="al4">4th Quarter</label><input id="al4" type="number" min="0" step="0.01"></div>
+<div><label for="alTot">Total</label><input id="alTot" readonly></div></div>
+<div class="btns"><button class="p" id="alSave">Add allocation</button><button id="alCancel" class="hidden">Cancel</button></div><div class="err" id="alErr"></div></section>
+<section class="card" id="alDash"></section>
+</div>
 </main>
+<dialog id="objDlg"></dialog>
 
 <div id="cloud">☁ Connecting…</div>
 <div id="bk" class="noprint" style="position:fixed;left:10px;bottom:10px;z-index:50;display:flex;gap:6px"><button id="bkDown" type="button">⬇ Backup</button><button id="bkUp" type="button">⬆ Restore</button><input id="bkFile" type="file" accept=".json" style="display:none"></div>
@@ -229,11 +243,11 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
 <script>
 (function(){
 var $=function(id){return document.getElementById(id)};
-var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1";
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig={apiKey:"AIzaSyCAYTd5DVQsq2IWU-avueWdk39u1oTH9RU",authDomain:"tourism-office-records.firebaseapp.com",projectId:"tourism-office-records",storageBucket:"tourism-office-records.firebasestorage.app",messagingSenderId:"984337082871",appId:"1:984337082871:web:4af190490e3b2e6db526f2",measurementId:"G-QJ5SCPMYQ0"};
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -260,12 +274,12 @@ var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionD
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var Q=["1st","2nd","3rd","4th"];
 
-var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]);
+var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
 if(years.indexOf(year)<0)years.push(year);
 save(KEY,items);save(YK,years);
-var yi=function(){return items.filter(function(i){return +i.year===year})};
+var yi=function(){return items.filter(function(i){return +i.year===year}).sort(function(a,b){return(a.acct||"~").localeCompare(b.acct||"~",undefined,{numeric:true})})};
 var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
 var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
 
@@ -289,10 +303,12 @@ $("year").onchange=function(){
 /* ---------- tabs ---------- */
 function tab(w){
  $("tabOB").classList.toggle("hidden",w!=="OB");$("tabBM").classList.toggle("hidden",w!=="BM");
+ $("tabAL").classList.toggle("hidden",w!=="AL");$("tabBtnAL").setAttribute("aria-selected",w==="AL");
  $("tabBtnOB").setAttribute("aria-selected",w==="OB");$("tabBtnBM").setAttribute("aria-selected",w==="BM");
 }
 $("tabBtnOB").onclick=function(){tab("OB")};
 $("tabBtnBM").onclick=function(){tab("BM")};
+$("tabBtnAL").onclick=function(){tab("AL")};
 
 /* ---------- Object of Expenditure ---------- */
 var OBJ=[
@@ -319,7 +335,9 @@ var OBJ=[
 ["5 03 01 010 00","Management Supervision/Contingency Fees"],["5 03 01 020 00","Bank Charges"],["5 03 01 040 00","Interest Expenses"],["5 03 01 990 00","Other Financial Charges"],
 ["1 06 04 010 00","Buildings"],["1 06 05 020 00","Office Equipment"],["1 06 05 030 00","Information and Communication Technology Equipment"],
 ["1 06 05 070 00","Communication Equipment"],["1 06 06 010 00","Motor Vehicles"],["1 06 07 010 00","Furniture and Fixtures"]];
-var allObj=function(){return OBJ.concat(custom)};
+function objInit(){if(custom.some(function(o){return o[0]==="#full"}))return;var m={};custom.forEach(function(o){m[o[0]]=o});OBJ.forEach(function(o){if(!m[o[0]])m[o[0]]=o});custom=Object.keys(m).map(function(k){return m[k]});custom.push(["#full","1"]);save(OBJKEY,custom)}
+var allObj=function(){return custom.filter(function(o){return o[0]!=="#full"}).sort(function(a,b){return a[0].localeCompare(b[0],undefined,{numeric:true})})};
+objInit();
 function codeOf(n){var a=allObj();for(var i=0;i<a.length;i++)if(a[i][1]===n)return a[i][0];return""}
 function fillObj(sel){
  var h="";allObj().forEach(function(o){h+='<option value="'+esc(o[1])+'"></option>'});
@@ -689,7 +707,7 @@ function buildBar(w){
 function fillFilters(w){
  var f=FS[w],all=yi(),acts=uniq(all.map(function(i){return i.act}));
  if(f.act&&acts.indexOf(f.act)<0)f.act="";
- var inA=all.filter(function(i){return!f.act||i.act===f.act}),objs=uniq(inA.map(function(i){return i.obj})),ms=uniq(MODES.concat(inA.map(function(i){return i.mode})));
+ var inA=all.filter(function(i){return!f.act||i.act===f.act}),objs=uniq(inA.map(function(i){return i.obj})).sort(byObj),ms=uniq(MODES.concat(inA.map(function(i){return i.mode})));
  if(f.obj&&objs.indexOf(f.obj)<0)f.obj="";if(f.mode&&ms.indexOf(f.mode)<0)f.mode="";
  var s=function(k){return $(w+"Dash").querySelector('[data-f="'+k+'"]')};
  s("act").innerHTML=opts(acts,f.act,"All activities");s("obj").innerHTML=opts(objs,f.obj,"All objects of expenditure");s("mode").innerHTML=opts(ms,f.mode,"All modes");
@@ -711,21 +729,127 @@ function renderDash(w){
  var row=function(l,s){return"<tr><td>"+esc(l)+"</td>"+(bm?"<td class='n'>"+money(s.b)+"</td><td class='n'>"+money(s.r)+"</td><td class='n'>"+money(s.bal)+"</td>":"<td class='n'>"+s.n+"</td><td class='n'>"+qty(s.qty)+"</td><td class='n'>"+money(s.b)+"</td>")+"</tr>"};
  var tbl=function(t,first,rows){return"<div><h3>"+t+"</h3><table class='dt'><thead><tr><th>"+first+"</th>"+cols.map(function(c){return"<th>"+c+"</th>"}).join("")+"</tr></thead><tbody>"+rows+"</tbody><tfoot>"+row("TOTAL",T)+"</tfoot></table></div>"};
  var qr=qs.map(function(k){return row(Q[k]+" Quarter",sumL(list,[k]))}).join("");
- var or=uniq(list.map(function(i){return i.obj})).map(function(o){return row(o,sumL(list.filter(function(i){return i.obj===o}),qs))}).join("");
+ var or=uniq(list.map(function(i){return i.obj})).sort(byObj).map(function(o){return row(o,sumL(list.filter(function(i){return i.obj===o}),qs))}).join("");
  el.querySelector(".kpis").innerHTML=h;
  el.querySelector(".dtw").innerHTML=tbl("Per quarter","Quarter",qr||"<tr><td colspan='4' class='empty'>No data</td></tr>")+tbl("Per Object of Expenditure","Object of Expenditure",or||"<tr><td colspan='4' class='empty'>No data</td></tr>");
  var on=[f.act,f.obj,f.mode,f.q!==""?Q[+f.q]+" Quarter":""].filter(Boolean);
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
+function renderAll(){if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
 buildBar("ob");buildBar("bm");
+/* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
+function oc(n){return codeOf(n)||"~"}
+function byObj(a,b){return oc(a).localeCompare(oc(b),undefined,{numeric:true})||(a<b?-1:1)}
+function afterObjChange(){fillObj($("obj").value);renderAll()}
+function objMgr(){
+ var h='<h3 style="margin-top:0">Objects of Expenditure</h3><p class="fsum">Change the account code or name, then press Save on that row. Renaming also updates your existing items and allocations. The list is sorted by account code.</p><div style="max-height:60vh;overflow:auto"><table class="dt"><thead><tr><th>Account Code</th><th>Object of Expenditure</th><th></th></tr></thead><tbody><tr><td><input data-n="c" placeholder="New code"></td><td><input data-n="n" placeholder="New object name"></td><td><button data-a="add">Add</button></td></tr>';
+ allObj().forEach(function(o){h+='<tr data-o="'+esc(o[0])+'"><td><input data-f="c" value="'+esc(o[0])+'"></td><td><input data-f="n" value="'+esc(o[1])+'"></td><td style="white-space:nowrap"><button data-a="save">Save</button> <button class="d" data-a="del">Delete</button></td></tr>'});
+ $("objDlg").innerHTML=h+'</tbody></table></div><div style="margin-top:10px;text-align:right"><button data-a="close">Close</button></div>';
+}
+$("objDlg").addEventListener("close",afterObjChange);
+$("objEdit").onclick=function(e){e.preventDefault();objMgr();$("objDlg").showModal()};
+$("objDlg").addEventListener("click",function(e){
+ var a=e.target.dataset.a;if(!a)return;
+ if(a==="close"){$("objDlg").close();return}
+ var tr=e.target.closest("tr"),val=function(k){return tr.querySelector('[data-'+(tr.dataset.o?"f":"n")+'="'+k+'"]').value.trim()};
+ var used=function(n){return items.some(function(i){return i.obj===n})||alloc.some(function(r){return r.obj===n})};
+ if(a==="add"){
+  var c=val("c"),n=val("n");if(!c||!n){alert("Enter both the account code and the name.");return}
+  if(allObj().some(function(o){return o[0]===c||o[1].toLowerCase()===n.toLowerCase()})){alert("That account code or name already exists.");return}
+  custom.push([c,n]);save(OBJKEY,custom);objMgr();return;
+ }
+ var oldC=tr.dataset.o,ent=custom.filter(function(o){return o[0]===oldC})[0];if(!ent)return;
+ if(a==="del"){
+  if(used(ent[1])){alert("\""+ent[1]+"\" is used by existing items or allocations, so it can't be deleted. Rename it instead.");return}
+  if(!confirm("Delete \""+ent[1]+"\" from the list?"))return;
+  custom.splice(custom.indexOf(ent),1);save(OBJKEY,custom);tr.remove();return;
+ }
+ var nc=val("c"),nn=val("n");if(!nc||!nn){alert("The account code and name can't be empty.");return}
+ if(allObj().some(function(o){return o!==ent&&(o[0]===nc||o[1].toLowerCase()===nn.toLowerCase())})){alert("Another object already uses that account code or name.");return}
+ var oldN=ent[1];ent[0]=nc;ent[1]=nn;save(OBJKEY,custom);
+ items.forEach(function(i){if(i.obj===oldN){i.obj=nn;i.acct=nc}});alloc.forEach(function(r){if(r.obj===oldN)r.obj=nn});
+ save(KEY,items);save(ALK,alloc);tr.dataset.o=nc;e.target.textContent="Saved ✓";setTimeout(function(){e.target.textContent="Save"},1200);
+});
+
+/* ---------- Allocation vs Budget ---------- */
+var AF={act:"",obj:"",q:""},alEdit=null,ALR=[];
+function buildAL(){
+ $("alDash").innerHTML='<div class="bar"><h2 style="margin:0">Allocation vs Budget — comparison</h2><button class="p" id="alXls">Save to Excel</button></div><div class="fbar" style="margin-top:10px"><div><label>Activities</label><select data-f="act"></select></div><div><label>Object of Expenditure</label><select data-f="obj"></select></div><div><label>Quarter</label><select data-f="q"></select></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div><h3 style="margin:16px 0 6px;color:var(--brand2)">Per activity and object of expenditure</h3><div style="overflow-x:auto"><table class="dt" id="alDet"></table></div>';
+ var el=$("alDash");
+ el.addEventListener("change",function(e){var k=e.target.dataset.f;if(!k)return;AF[k]=e.target.value;if(k==="act")AF.obj="";renderAL()});
+ el.addEventListener("click",function(e){
+  var t=e.target;
+  if(t.dataset.clr){AF={act:"",obj:"",q:""};renderAL();return}
+  if(t.id==="alXls"){alXls();return}
+  var r=ALR[t.dataset.i];if(!r)return;
+  if(t.dataset.k==="d"){if(confirm("Delete this allocation?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);renderAL()}return}
+  alEdit=t.dataset.k==="e"?r.id:null;$("alAct").value=r.act;$("alObj").value=r.obj;
+  [0,1,2,3].forEach(function(k){$("al"+(k+1)).value=(t.dataset.k==="e"&&r.a[k])?r.a[k]:""});
+  $("alTitle").textContent=alEdit?"Edit allocation":"Add allocation";$("alSave").textContent=alEdit?"Save changes":"Add allocation";$("alCancel").classList.toggle("hidden",!alEdit);alCalc();window.scrollTo(0,0);
+ });
+}
+function alCalc(){var s=0;[1,2,3,4].forEach(function(i){s+=parseFloat($("al"+i).value)||0});$("alTot").value=money(s)}
+function alClear(){["alAct","alObj","al1","al2","al3","al4"].forEach(function(i){$(i).value=""});alEdit=null;$("alTitle").textContent="Add allocation";$("alSave").textContent="Add allocation";$("alCancel").classList.add("hidden");$("alErr").textContent="";alCalc()}
+[1,2,3,4].forEach(function(i){$("al"+i).addEventListener("input",alCalc)});$("alCancel").onclick=alClear;
+$("alSave").onclick=function(){
+ var act=$("alAct").value.trim(),on=$("alObj").value.trim(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on.toLowerCase()})[0],q=[1,2,3,4].map(function(i){return parseFloat($("al"+i).value)||0}),e=$("alErr");
+ if(!act){e.textContent="Enter the Activity.";return}
+ if(!hit){e.textContent="Select an Object of Expenditure from the list.";return}
+ if(q.some(function(x){return x<0})||!q.some(function(x){return x>0})){e.textContent="Enter an allocation amount for at least one quarter.";return}
+ var same=alloc.filter(function(r){return +r.year===year&&r.act===act&&r.obj===hit[1]&&r.id!==alEdit})[0];
+ if(same){if(!confirm("An allocation for this activity and object already exists. Replace it?"))return;alloc=alloc.filter(function(r){return r!==same})}
+ if(alEdit){var o=alloc.filter(function(r){return r.id===alEdit})[0];if(o){o.act=act;o.obj=hit[1];o.q=q}}else alloc.push({id:uid(),year:year,act:act,obj:hit[1],q:q});
+ save(ALK,alloc);alClear();renderAL();
+};
+function alRows(){
+ var m={},f=AF;
+ var g=function(a,o){var k=a+"\u0001"+o;return m[k]||(m[k]={act:a,obj:o,a:[0,0,0,0],b:[0,0,0,0],id:""})};
+ alloc.filter(function(r){return +r.year===year}).forEach(function(r){var x=g(r.act,r.obj);x.id=r.id;for(var k=0;k<4;k++)x.a[k]+=r.q[k]});
+ yi().forEach(function(it){var x=g(it.act,it.obj);for(var k=0;k<4;k++)x.b[k]+=it.q[k]*it.price});
+ return Object.keys(m).map(function(k){return m[k]}).filter(function(r){return(!f.act||r.act===f.act)&&(!f.obj||r.obj===f.obj)}).sort(function(x,y){return x.act.localeCompare(y.act)||byObj(x.obj,y.obj)});
+}
+function renderAL(){
+ var el=$("alDash"),f=AF,rows=alRows(),qs=f.q===""?[0,1,2,3]:[+f.q];ALR=rows;
+ var sum=function(arr,k){return(k||qs).reduce(function(s,i){return s+arr[i]},0)};
+ var acts=uniq(alloc.filter(function(r){return+r.year===year}).map(function(r){return r.act}).concat(yi().map(function(i){return i.act})));
+ var inA=rows.length||f.act?alRows.call(null):[],all=(function(){var s=AF;AF={act:f.act,obj:"",q:""};var r=alRows();AF=s;return r})();
+ var objs=uniq(all.map(function(r){return r.obj})).sort(byObj);if(f.obj&&objs.indexOf(f.obj)<0)f.obj="";
+ var s=function(k){return el.querySelector('[data-f="'+k+'"]')};
+ s("act").innerHTML=opts(acts,f.act,"All activities");s("obj").innerHTML=opts(objs,f.obj,"All objects of expenditure");
+ s("q").innerHTML='<option value="">All quarters</option>'+Q.map(function(n,i){return'<option value="'+i+'"'+(String(i)===String(f.q)?" selected":"")+'>'+n+' Quarter</option>'}).join("");
+ var A=0,B=0;rows.forEach(function(r){A+=sum(r.a);B+=sum(r.b)});var bal=A-B,p=function(v){return"₱ "+money(v)},bc=function(v){return v<-0.005?" neg":""};
+ var card=function(l,v,c){return'<div class="kpi"><span>'+l+'</span><b class="'+(c||"")+'">'+v+'</b></div>'};
+ el.querySelector(".kpis").innerHTML=card("Allocated (Provincial Govt.)",p(A))+card("Budgeted (encoded items)",p(B))+card("Balance",p(bal),bc(bal).trim())+card("% of allocation used",A?(B/A*100).toFixed(1)+"%":"–");
+ var row=function(l,a,b,bold){var d=a-b;return"<tr"+(bold?" style='font-weight:700;background:var(--soft)'":"")+"><td>"+esc(l)+"</td><td class='n'>"+money(a)+"</td><td class='n'>"+money(b)+"</td><td class='n"+bc(d)+"'>"+money(d)+"</td></tr>"};
+ var tb=function(t,first,body){return"<div><h3>"+t+"</h3><table class='dt'><thead><tr><th>"+first+"</th><th>Allocated</th><th>Budgeted</th><th>Balance</th></tr></thead><tbody>"+body+"</tbody><tfoot>"+row("TOTAL",A,B,1)+"</tfoot></table></div>"};
+ var qr=qs.map(function(k){var a=0,b=0;rows.forEach(function(r){a+=r.a[k];b+=r.b[k]});return row(Q[k]+" Quarter",a,b)}).join("");
+ var grp=function(key,keys){return keys.map(function(v){var a=0,b=0;rows.forEach(function(r){if(r[key]===v){a+=sum(r.a);b+=sum(r.b)}});return row(v,a,b)}).join("")};
+ el.querySelector(".dtw").innerHTML=tb("Per quarter","Quarter",qr)+tb("Per Object of Expenditure","Object of Expenditure",grp("obj",uniq(rows.map(function(r){return r.obj})).sort(byObj)))+tb("Per activity","Activity",grp("act",uniq(rows.map(function(r){return r.act}))));
+ var H="<thead><tr><th rowspan='2'>Activity</th><th rowspan='2'>Object of Expenditure</th>"+["Allocated","Budgeted","Balance"].map(function(x){return"<th colspan='5' style='text-align:center'>"+x+"</th>"}).join("")+"<th rowspan='2'></th></tr><tr>"+[0,1,2].map(function(){return"<th>1st</th><th>2nd</th><th>3rd</th><th>4th</th><th>Total</th>"}).join("")+"</tr></thead>";
+ var cells=function(v,neg){return v.concat([v.reduce(function(x,y){return x+y},0)]).map(function(n){return"<td class='n"+(neg&&n<-0.005?" neg":"")+"'>"+(n||neg?money(n):"")+"</td>"}).join("")},TA=[0,0,0,0],TB=[0,0,0,0],bd="";
+ rows.forEach(function(r,i){var d=r.a.map(function(x,k){return x-r.b[k]});for(var k=0;k<4;k++){TA[k]+=r.a[k];TB[k]+=r.b[k]}
+  bd+="<tr><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td>"+cells(r.a)+cells(r.b)+cells(d,1)+"<td style='white-space:nowrap'>"+(r.id?"<button data-k='e' data-i='"+i+"'>Edit</button><button class='d' data-k='d' data-i='"+i+"'>Delete</button>":"<button data-k='n' data-i='"+i+"'>Set allocation</button>")+"</td></tr>"});
+ var TD=TA.map(function(x,k){return x-TB[k]});
+ $("alDet").innerHTML=H+"<tbody>"+(bd||"<tr><td colspan='19' class='empty'>No allocations or items for "+year+" yet.</td></tr>")+"</tbody>"+(bd?"<tfoot><tr style='font-weight:700;background:var(--soft)'><td colspan='2'>TOTAL</td>"+cells(TA)+cells(TB)+cells(TD,1)+"<td></td></tr></tfoot>":"");
+ var on=[f.act,f.obj,f.q!==""?Q[+f.q]+" Quarter":""].filter(Boolean);el.querySelector(".fsum").textContent="Year "+year+" — balance = allocation minus budgeted (encoded) amount; a red balance means the budget exceeds the allocation"+(on.length?". Filtered by: "+on.join(" › "):"");
+ var dl="";acts.forEach(function(a){dl+='<option value="'+esc(a)+'"></option>'});$("alActList").innerHTML=dl;
+}
+function alXls(){
+ if(!needX())return;var r=alRows();if(!r.length){alert("Nothing to export.");return}
+ var a=[["Activity","Object of Expenditure"].concat(["Allocated","Budgeted","Balance"].reduce(function(x,t){return x.concat(["1st","2nd","3rd","4th","Total"].map(function(q){return t+" "+q}))},[]))];
+ r.forEach(function(x){var d=x.a.map(function(v,k){return v-x.b[k]}),t=function(v){return v.concat([v.reduce(function(p,c){return p+c},0)])};a.push([x.act,x.obj].concat(t(x.a),t(x.b),t(d)))});
+ var ws=XLSX.utils.aoa_to_sheet(a);ws["!cols"]=[{wch:40},{wch:36}].concat(a[0].slice(2).map(function(){return{wch:14}}));
+ var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Allocation vs Budget "+year);XLSX.writeFile(wb,"allocation-vs-budget-"+year+".xlsx");
+}
+buildAL();
+
 
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
@@ -743,7 +867,7 @@ if(docRef){
    var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
    var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
-   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));
+   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
