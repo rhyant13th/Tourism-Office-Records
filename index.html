@@ -187,9 +187,15 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  <h2>Record a release or augmentation</h2>
  <div class="grid">
   <div class="c3"><label for="tType">Transaction</label><select id="tType"><option value="rel">Release</option><option value="aug">Augmentation (move budget)</option></select></div>
-  <div class="c9"><label for="tFrom" id="lFrom">Budget line</label><select id="tFrom"></select></div>
+  <div class="c9"><label for="fAct" id="lFa">Activities</label><select id="fAct"></select></div>
+  <div class="c9"><label for="fObj" id="lFo">Object of Expenditure</label><select id="fObj"></select></div>
+  <div class="c3"><label for="fAcct" id="lFc">Account Code</label><input id="fAcct" readonly></div>
+  <div class="c9"><label for="tFrom" id="lFrom">Item (budget line)</label><select id="tFrom"></select></div>
   <div class="c3"><label for="tFq" id="lFq">Quarter of release</label><select id="tFq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
-  <div class="c9 augonly hidden"><label for="tTo">Augmented to (budget line)</label><select id="tTo"></select></div>
+  <div class="c9 augonly hidden"><label for="tAct">Augmented to – Activities</label><select id="tAct"></select></div>
+  <div class="c9 augonly hidden"><label for="tObj">Augmented to – Object of Expenditure</label><select id="tObj"></select></div>
+  <div class="c3 augonly hidden"><label for="tAcct">Augmented to – Account Code</label><input id="tAcct" readonly></div>
+  <div class="c9 augonly hidden"><label for="tTo">Augmented to – Item (budget line)</label><select id="tTo"></select></div>
   <div class="c3 augonly hidden"><label for="tTq">Augmented to quarter</label><select id="tTq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
   <div class="c3"><label for="tAmt">Amount</label><input id="tAmt" type="number" min="0" step="0.01"></div>
   <div class="c3"><label for="tDate">Date</label><input id="tDate" type="date"></div>
@@ -481,7 +487,7 @@ function lineCalc(it){
  for(k=0;k<4;k++)bal[k]=b[k]-r[k]-t[k]+f[k];
  return{b:b,r:r,t:t,f:f,bal:bal};
 }
-var lineLabel=function(it){return it?it.aip+" – "+it.act+" – "+it.obj+" – "+it.desc:"(deleted item)"};
+var lineLabel=function(it){return it?it.act+" – "+it.obj+" ("+it.acct+") – "+it.aip+" – "+it.desc:"(deleted item)"};
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
 function renderBM(){
  var list=fi("bm"),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
@@ -515,13 +521,20 @@ $("lgBody").addEventListener("click",function(e){
 
 /* transaction form */
 function fillTx(){
- var ov=[$("tFrom").value,$("tTo").value],h="";
- yi().forEach(function(it){h+='<option value="'+it.id+'">'+esc(lineLabel(it))+'</option>'});
- if(!h)h='<option value="">No budget lines for '+year+'</option>';
- $("tFrom").innerHTML=h;$("tTo").innerHTML=h;
- if(byId(ov[0]))$("tFrom").value=ov[0];if(byId(ov[1]))$("tTo").value=ov[1];
+ ["f","t"].forEach(function(p){
+  var L=$(p==="f"?"tFrom":"tTo"),A=$(p+"Act"),O=$(p+"Obj"),it=byId(L.value),act=A.value,obj=O.value;
+  if(it&&!act){act=it.act;obj=it.obj}
+  var acts=uniq(yi().map(function(i){return i.act}));if(acts.indexOf(act)<0){act="";obj=""}
+  A.innerHTML=opts(acts,act,"Select activity…");
+  var objs=uniq(yi().filter(function(i){return i.act===act}).map(function(i){return i.obj})).sort(byObj);if(objs.indexOf(obj)<0)obj="";
+  O.innerHTML=opts(objs,obj,"Select object of expenditure…");$(p+"Acct").value=obj?codeOf(obj):"";
+  var lines=yi().filter(function(i){return i.act===act&&i.obj===obj}),prev=L.value;
+  L.innerHTML=lines.length?lines.map(function(i){return'<option value="'+i.id+'">'+esc(i.aip+" – "+i.desc+" (₱"+money(i.price)+")")+'</option>'}).join(""):'<option value="">Select the activity and object first</option>';
+  if(prev&&lines.some(function(i){return i.id===prev}))L.value=prev;
+ });
  info();
 }
+["f","t"].forEach(function(p){$(p+"Act").onchange=function(){$(p+"Obj").value="";fillTx()};$(p+"Obj").onchange=fillTx});
 function info(){
  var it=byId($("tFrom").value),q=+$("tFq").value;
  $("tInfo").textContent=it?"Available balance in "+Q[q]+" Quarter: "+money(lineCalc(it).bal[q]):"";
@@ -529,18 +542,18 @@ function info(){
 function typeUi(){
  var aug=$("tType").value==="aug";
  [].forEach.call(document.querySelectorAll(".augonly"),function(el){el.classList.toggle("hidden",!aug)});
- $("lFrom").textContent=aug?"Augmented from (budget line)":"Budget line";$("lFq").textContent=aug?"Augmented from quarter":"Quarter of release";
+ var pre=aug?"Augmented from – ":"";$("lFa").textContent=pre+"Activities";$("lFo").textContent=pre+"Object of Expenditure";$("lFc").textContent=pre+"Account Code";$("lFrom").textContent=pre+"Item (budget line)";$("lFq").textContent=aug?"Augmented from quarter":"Quarter of release";
 }
 $("tType").onchange=typeUi;$("tFrom").onchange=info;$("tFq").onchange=info;
 $("tDate").value=new Date().toISOString().slice(0,10);
 $("btnTx").onclick=function(){
  var type=$("tType").value,from=$("tFrom").value,fq=+$("tFq").value,to=$("tTo").value,tq=+$("tTq").value,amt=parseFloat($("tAmt").value)||0,e=$("terr"),src=byId(from);
- if(!src){e.textContent="Select a budget line.";return}
+ if(!src){e.textContent="Select the Activity, Object of Expenditure and the item.";return}
  if(!(amt>0)){e.textContent="Enter an amount greater than zero.";return}
  var av=lineCalc(src).bal[fq];
  if(amt>av+0.005){e.textContent="The amount is more than the "+Q[fq]+" Quarter balance of "+money(av)+".";return}
  if(type==="aug"){
-  if(!byId(to)){e.textContent="Select the budget line it is augmented to.";return}
+  if(!byId(to)){e.textContent="Select the Activity, Object of Expenditure and item it is augmented to.";return}
   if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
  }
  txs.push({id:uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,amt:amt,date:$("tDate").value,note:$("tNote").value.trim()});
