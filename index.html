@@ -114,14 +114,14 @@ table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt
   <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
   <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
   <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
-  <div class="c6"><label for="obj">Object of Expenditure</label><select id="obj"></select></div>
+  <div class="c6"><label for="obj">Object of Expenditure</label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
   <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
   <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
    <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
   <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01" list="priceList"><datalist id="priceList"></datalist></div>
   <div class="c6"><label for="mode">Mode of Procurement</label>
-   <select id="mode"><option value="">Select…</option><option>Procurement</option><option>Non-Procurement</option></select></div>
+   <input id="mode" list="modeList" autocomplete="off" placeholder="Procurement or Non-Procurement"><datalist id="modeList"><option value="Procurement"><option value="Non-Procurement"></datalist></div>
   <div class="c12">
    <fieldset>
     <legend>Quantity and amount per quarter</legend>
@@ -318,23 +318,25 @@ var OBJ=[
 var allObj=function(){return OBJ.concat(custom)};
 function codeOf(n){var a=allObj();for(var i=0;i<a.length;i++)if(a[i][1]===n)return a[i][0];return""}
 function fillObj(sel){
- var h='<option value="">Select object of expenditure…</option>';
- allObj().forEach(function(o){h+='<option value="'+esc(o[1])+'">'+esc(o[1])+'</option>'});
- $("obj").innerHTML=h+'<option value="__add__">+ Add item…</option>';$("obj").value=sel||"";
+ var h="";allObj().forEach(function(o){h+='<option value="'+esc(o[1])+'"></option>'});
+ $("objList").innerHTML=h;$("obj").value=sel||"";
 }
 $("obj").addEventListener("change",function(){
- var v=$("obj").value;
- if(v==="__add__"){
-  var name=(prompt("Name of the new Object of Expenditure:")||"").trim();
-  var code=name?(prompt("Account Code for \""+name+"\":")||"").trim():"";
-  if(!name||!code||codeOf(name)){
-   if(name&&codeOf(name))alert("\""+name+"\" is already in the list.");
-   $("obj").value=prevObj;$("acct").value=codeOf(prevObj);return;
-  }
-  custom.push([code,name]);save(OBJKEY,custom);fillObj(name);v=name;
+ var v=$("obj").value.trim(),hit=allObj().filter(function(o){return o[1].toLowerCase()===v.toLowerCase()})[0];
+ if(!v){prevObj="";$("acct").value="";return}
+ if(hit){v=hit[1];$("obj").value=v;prevObj=v;$("acct").value=hit[0];return}
+ if(confirm("\""+v+"\" is not in the list. Add it as a new Object of Expenditure?")){
+  var code=(prompt("Account Code for \""+v+"\":")||"").trim();
+  if(code){custom.push([code,v]);save(OBJKEY,custom);fillObj(v);prevObj=v;$("acct").value=code;return}
  }
- prevObj=v;$("acct").value=codeOf(v);
+ $("obj").value=prevObj;$("acct").value=codeOf(prevObj);
 });
+$("mode").addEventListener("change",function(){
+ var v=$("mode").value.trim().toLowerCase();if(!v){return}
+ var ok=uniq(MODES.concat(items.map(function(i){return i.mode}))).filter(function(m){return m.toLowerCase()===v})[0];
+ if(ok)$("mode").value=ok;else{alert("Mode of Procurement must be Procurement or Non-Procurement.");$("mode").value=""}
+});
+[].forEach.call(document.querySelectorAll("input[list]"),function(i){i.addEventListener("focus",function(){try{this.select()}catch(e){}})});
 
 /* ---------- Office Budget form ---------- */
 function calcForm(){
@@ -610,7 +612,7 @@ $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget line
 
 /* ---------- filters + dashboards ---------- */
 var FS={ob:{act:"",obj:"",mode:"",q:""},bm:{act:"",obj:"",mode:"",q:""}},MODES=["Procurement","Non-Procurement"];
-function modeSet(v){var s=$("mode");if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}s.value=v||""}
+function modeSet(v){$("mode").value=v||"";return;var s=$("mode");if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}s.value=v||""}
 function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.act||it.act===f.act)&&(!f.obj||it.obj===f.obj)&&(!f.mode||(it.mode||"")===f.mode)&&(f.q===""||it.q[+f.q]>0)})}
 function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
 function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
