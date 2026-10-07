@@ -548,7 +548,7 @@ $("lgBody").addEventListener("click",function(e){var b=e.target.closest("button"
 $("btnTxCancel").onclick=txReset;
 $("lgBody").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b||!b.dataset.t)return;
- if(confirm("Delete this transaction? The balances will be restored.")){if(txEdit===b.dataset.t)txReset();txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderBM();info()}
+ if(confirm("Delete this transaction? The balances will be restored.")){if(txEdit===b.dataset.t)txReset();txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderAll();info()}
 });
 
 /* transaction form */
@@ -594,7 +594,7 @@ $("btnTx").onclick=function(){
  }
  var rec={id:txEdit||uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim(),status:$("tStat").value};
  if(txEdit){txs=txs.map(function(t){return t.id===txEdit?rec:t})}else txs.push(rec);
- save(TXK,txs);txReset();renderBM();info();
+ save(TXK,txs);txReset();renderAll();info();
 };
 
 /* ---------- report details ---------- */
