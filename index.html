@@ -204,7 +204,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  </div>
  <div class="info" id="tInfo"></div>
  <div class="err" id="terr" role="alert"></div>
- <div class="btns"><button class="p" id="btnTx">Add transaction</button></div>
+ <div class="btns"><button class="p" id="btnTx">Add transaction</button><button id="btnTxCancel" class="hidden">Cancel edit</button></div>
 </section>
 
 <section class="card noprint" id="bmDash"></section>
@@ -222,6 +222,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
  <h2 style="margin:18px 0 8px">Transactions</h2>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><button data-lclr="1">Clear filters</button></div>
  <div class="wrap">
  <table class="lg">
   <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th class="act">Action</th></tr></thead>
@@ -509,19 +510,43 @@ function renderBM(){
  // transaction log
  var lg="";
  txs.forEach(function(x){
-  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;
+  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!lgOk(x,s))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(x.type==="rel"?"Release":"Augmentation")+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
-   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+(x.qty?x.qty:"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
+   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+(x.qty?x.qty:"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="8">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
+var TF={act:"",type:"",q:""},txEdit=null;
+function lgOn(){return TF.act||TF.type||TF.q!==""}
+function lgOk(x,s){var d=byId(x.to);
+ if(TF.type&&x.type!==TF.type)return false;
+ if(TF.act&&s.act!==TF.act&&!(x.type==="aug"&&d&&d.act===TF.act))return false;
+ if(TF.q!==""&&x.fq!==+TF.q&&!(x.type==="aug"&&x.tq===+TF.q))return false;
+ return true}
+function fillLgFilt(){var a=uniq(yi().map(function(i){return i.act}));if(TF.act&&a.indexOf(TF.act)<0)TF.act="";var el=$("lgFilt").querySelector('[data-lf="act"]');el.innerHTML=opts(a,TF.act,"All activities")}
+$("lgFilt").addEventListener("change",function(e){var k=e.target.dataset.lf;if(!k)return;TF[k]=e.target.value;renderBM()});
+$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
+function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("terr").textContent=""}
+function txLoad(x){
+ var s=byId(x.from),d=byId(x.to);if(!s)return;
+ $("tType").value=x.type;typeUi();
+ $("fAct").value=s.act;fillTx();$("fObj").value=s.obj;
+ if(d){$("tAct").value=d.act;fillTx();$("tObj").value=d.obj}
+ fillTx();$("tFrom").value=s.id;if(d)$("tTo").value=d.id;
+ $("tFq").value=x.fq;$("tTq").value=x.tq||0;$("tQty").value=x.qty||Math.round(x.amt/s.price*10000)/10000;$("tDate").value=x.date||"";$("tNote").value=x.note||"";
+ txEdit=x.id;$("btnTx").textContent="Save changes";$("btnTxCancel").classList.remove("hidden");$("terr").textContent="";info();
+ $("btnTx").scrollIntoView({behavior:"smooth",block:"center"});
+}
+$("lgBody").addEventListener("click",function(e){var b=e.target.closest("button");if(b&&b.dataset.e){var x=txs.filter(function(t){return t.id===b.dataset.e})[0];if(x)txLoad(x)}});
+$("btnTxCancel").onclick=txReset;
 $("lgBody").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b||!b.dataset.t)return;
- if(confirm("Delete this transaction? The balances will be restored.")){txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderBM();info()}
+ if(confirm("Delete this transaction? The balances will be restored.")){if(txEdit===b.dataset.t)txReset();txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderBM();info()}
 });
 
 /* transaction form */
 function fillTx(){
+ fillLgFilt();
  ["f","t"].forEach(function(p){
   var L=$(p==="f"?"tFrom":"tTo"),A=$(p+"Act"),O=$(p+"Obj"),it=byId(L.value),act=A.value,obj=O.value;
   if(it&&!act){act=it.act;obj=it.obj}
@@ -554,14 +579,15 @@ $("btnTx").onclick=function(){
  var type=$("tType").value,from=$("tFrom").value,fq=+$("tFq").value,to=$("tTo").value,tq=+$("tTq").value,qty=parseFloat($("tQty").value)||0,e=$("terr"),src=byId(from),amt=src?Math.round(qty*src.price*100)/100:0;
  if(!src){e.textContent="Select the Activity, Object of Expenditure and the item.";return}
  if(!(amt>0)){e.textContent="Enter a quantity greater than zero.";return}
- var av=lineCalc(src).bal[fq];
+ var keep=txs;if(txEdit)txs=txs.filter(function(t){return t.id!==txEdit});var av=lineCalc(src).bal[fq];txs=keep;
  if(amt>av+0.005){e.textContent="The amount of "+money(amt)+" ("+qty+" × "+money(src.price)+") is more than the "+Q[fq]+" Quarter balance of "+money(av)+".";return}
  if(type==="aug"){
   if(!byId(to)){e.textContent="Select the Activity, Object of Expenditure and item it is augmented to.";return}
   if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
  }
- txs.push({id:uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim()});
- save(TXK,txs);$("tQty").value="";$("tAmt").value="";$("tNote").value="";e.textContent="";renderBM();info();
+ var rec={id:txEdit||uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim()};
+ if(txEdit){txs=txs.map(function(t){return t.id===txEdit?rec:t})}else txs.push(rec);
+ save(TXK,txs);txReset();renderBM();info();
 };
 
 /* ---------- report details ---------- */
