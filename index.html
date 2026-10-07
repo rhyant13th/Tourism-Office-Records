@@ -222,7 +222,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
  <h2 style="margin:18px 0 8px">Transactions</h2>
- <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><button data-lclr="1">Clear filters</button></div>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><div><label>Remarks</label><select data-lf="rem"></select></div><button data-lclr="1">Clear filters</button></div>
  <div class="wrap">
  <table class="lg">
   <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th class="act">Action</th></tr></thead>
@@ -516,16 +516,20 @@ function renderBM(){
  });
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="8">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
-var TF={act:"",type:"",q:""},txEdit=null;
+var TF={act:"",type:"",q:"",rem:""},txEdit=null;
 function lgOn(){return TF.act||TF.type||TF.q!==""}
 function lgOk(x,s){var d=byId(x.to);
  if(TF.type&&x.type!==TF.type)return false;
  if(TF.act&&s.act!==TF.act&&!(x.type==="aug"&&d&&d.act===TF.act))return false;
+ if(TF.rem){var n=(x.note||"").trim().toLowerCase();if(TF.rem==="__none__"?n!=="":n!==TF.rem.toLowerCase())return false}
  if(TF.q!==""&&x.fq!==+TF.q&&!(x.type==="aug"&&x.tq===+TF.q))return false;
  return true}
-function fillLgFilt(){var a=uniq(yi().map(function(i){return i.act}));if(TF.act&&a.indexOf(TF.act)<0)TF.act="";var el=$("lgFilt").querySelector('[data-lf="act"]');el.innerHTML=opts(a,TF.act,"All activities")}
+function fillLgFilt(){var a=uniq(yi().map(function(i){return i.act}));if(TF.act&&a.indexOf(TF.act)<0)TF.act="";var el=$("lgFilt").querySelector('[data-lf="act"]');el.innerHTML=opts(a,TF.act,"All activities");
+ var seen={},rm=[];txs.forEach(function(x){var n=(x.note||"").trim(),k=n.toLowerCase();if(n&&!seen[k]){seen[k]=1;rm.push(n)}});rm.sort(function(x,y){return x.localeCompare(y)});
+ if(TF.rem&&TF.rem!=="__none__"&&!seen[TF.rem.toLowerCase()])TF.rem="";
+ $("lgFilt").querySelector('[data-lf="rem"]').innerHTML='<option value="">All remarks</option><option value="__none__"'+(TF.rem==="__none__"?" selected":"")+'>(No remarks)</option>'+rm.map(function(n){return'<option value="'+esc(n)+'"'+(n.toLowerCase()===TF.rem.toLowerCase()?" selected":"")+'>'+esc(n)+'</option>'}).join("")}
 $("lgFilt").addEventListener("change",function(e){var k=e.target.dataset.lf;if(!k)return;TF[k]=e.target.value;renderBM()});
-$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
+$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:"",rem:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
 function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("terr").textContent=""}
 function txLoad(x){
  var s=byId(x.from),d=byId(x.to);if(!s)return;
@@ -768,7 +772,7 @@ function renderDash(w){
  if(!bm){
   var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
   h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b));
- }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–");
+ }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&/cancel/i.test(x.note||"")});return card("Cancelled (remarks)",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length+" transaction"+(cn.length===1?"":"s"))})();
  var cols=bm?["Budget","Released","Balance"]:["Items","Quantity","Amount"];
  var row=function(l,s){return"<tr><td>"+esc(l)+"</td>"+(bm?"<td class='n'>"+money(s.b)+"</td><td class='n'>"+money(s.r)+"</td><td class='n'>"+money(s.bal)+"</td>":"<td class='n'>"+s.n+"</td><td class='n'>"+qty(s.qty)+"</td><td class='n'>"+money(s.b)+"</td>")+"</tr>"};
  var tbl=function(t,first,rows){return"<div><h3>"+t+"</h3><table class='dt'><thead><tr><th>"+first+"</th>"+cols.map(function(c){return"<th>"+c+"</th>"}).join("")+"</tr></thead><tbody>"+rows+"</tbody><tfoot>"+row("TOTAL",T)+"</tfoot></table></div>"};
