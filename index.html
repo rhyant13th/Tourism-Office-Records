@@ -201,6 +201,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
   <div class="c3"><label for="tAmt">Amount (computed)</label><input id="tAmt" readonly placeholder="Quantity × unit price"></div>
   <div class="c3"><label for="tDate">Date</label><input id="tDate" type="date"></div>
   <div class="c3"><label for="tNote">Remarks</label><input id="tNote"></div>
+  <div class="c3"><label for="tStat">Status</label><select id="tStat"><option value="">Active</option><option value="Cancelled">Cancelled</option></select></div>
  </div>
  <div class="info" id="tInfo"></div>
  <div class="err" id="terr" role="alert"></div>
@@ -222,10 +223,10 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
  <h2 style="margin:18px 0 8px">Transactions</h2>
- <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><div><label>Remarks</label><select data-lf="rem"></select></div><button data-lclr="1">Clear filters</button></div>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><div><label>Remarks</label><select data-lf="rem"></select></div><div><label>Status</label><select data-lf="stat"><option value="">All</option><option value="act">Active</option><option value="can">Cancelled</option></select></div><button data-lclr="1">Clear filters</button></div>
  <div class="wrap">
  <table class="lg">
-  <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th class="act">Action</th></tr></thead>
+  <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th>Status</th><th class="act">Action</th></tr></thead>
   <tbody id="lgBody"></tbody>
  </table>
  </div>
@@ -512,15 +513,17 @@ function renderBM(){
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!lgOk(x,s))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(x.type==="rel"?"Release":"Augmentation")+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
-   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+(x.qty?x.qty:"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
+   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+(x.qty?x.qty:"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
- $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="8">No releases or augmentations recorded for '+year+'.</td></tr>';
+ $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="9">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
-var TF={act:"",type:"",q:"",rem:""},txEdit=null;
+var TF={act:"",type:"",q:"",rem:"",stat:""},txEdit=null;
+function isCan(x){return x.status?x.status==="Cancelled":/cancel/i.test(x.note||"")}
 function lgOn(){return TF.act||TF.type||TF.q!==""}
 function lgOk(x,s){var d=byId(x.to);
  if(TF.type&&x.type!==TF.type)return false;
  if(TF.act&&s.act!==TF.act&&!(x.type==="aug"&&d&&d.act===TF.act))return false;
+ if(TF.stat&&(TF.stat==="can")!==isCan(x))return false;
  if(TF.rem){var n=(x.note||"").trim().toLowerCase();if(TF.rem==="__none__"?n!=="":n!==TF.rem.toLowerCase())return false}
  if(TF.q!==""&&x.fq!==+TF.q&&!(x.type==="aug"&&x.tq===+TF.q))return false;
  return true}
@@ -529,15 +532,15 @@ function fillLgFilt(){var a=uniq(yi().map(function(i){return i.act}));if(TF.act&
  if(TF.rem&&TF.rem!=="__none__"&&!seen[TF.rem.toLowerCase()])TF.rem="";
  $("lgFilt").querySelector('[data-lf="rem"]').innerHTML='<option value="">All remarks</option><option value="__none__"'+(TF.rem==="__none__"?" selected":"")+'>(No remarks)</option>'+rm.map(function(n){return'<option value="'+esc(n)+'"'+(n.toLowerCase()===TF.rem.toLowerCase()?" selected":"")+'>'+esc(n)+'</option>'}).join("")}
 $("lgFilt").addEventListener("change",function(e){var k=e.target.dataset.lf;if(!k)return;TF[k]=e.target.value;renderBM()});
-$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:"",rem:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
-function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("terr").textContent=""}
+$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:"",rem:"",stat:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
+function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("tStat").value="";$("terr").textContent=""}
 function txLoad(x){
  var s=byId(x.from),d=byId(x.to);if(!s)return;
  $("tType").value=x.type;typeUi();
  $("fAct").value=s.act;fillTx();$("fObj").value=s.obj;
  if(d){$("tAct").value=d.act;fillTx();$("tObj").value=d.obj}
  fillTx();$("tFrom").value=s.id;if(d)$("tTo").value=d.id;
- $("tFq").value=x.fq;$("tTq").value=x.tq||0;$("tQty").value=x.qty||Math.round(x.amt/s.price*10000)/10000;$("tDate").value=x.date||"";$("tNote").value=x.note||"";
+ $("tFq").value=x.fq;$("tTq").value=x.tq||0;$("tQty").value=x.qty||Math.round(x.amt/s.price*10000)/10000;$("tDate").value=x.date||"";$("tNote").value=x.note||"";$("tStat").value=isCan(x)?"Cancelled":"";
  txEdit=x.id;$("btnTx").textContent="Save changes";$("btnTxCancel").classList.remove("hidden");$("terr").textContent="";info();
  $("btnTx").scrollIntoView({behavior:"smooth",block:"center"});
 }
@@ -589,7 +592,7 @@ $("btnTx").onclick=function(){
   if(!byId(to)){e.textContent="Select the Activity, Object of Expenditure and item it is augmented to.";return}
   if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
  }
- var rec={id:txEdit||uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim()};
+ var rec={id:txEdit||uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim(),status:$("tStat").value};
  if(txEdit){txs=txs.map(function(t){return t.id===txEdit?rec:t})}else txs.push(rec);
  save(TXK,txs);txReset();renderBM();info();
 };
@@ -725,10 +728,10 @@ $("bmXlsx").onclick=function(){
  rows.push(["TOTAL","","","","","","","","","",""].concat(T,[tb]),[]);
  rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
  var cols=[14,30,38,34,16,12,8,12,12,16,26];for(k=0;k<21;k++)cols.push(14);
- var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Quantity","Amount","Remarks"]];
+ var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Quantity","Amount","Remarks","Status"]];
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;
-  lg.push([x.date||"",x.type==="rel"?"Release":"Augmentation",lineLabel(s),Q[x.fq]+" Quarter",x.type==="aug"?lineLabel(byId(x.to)):"",x.type==="aug"?Q[x.tq]+" Quarter":"",x.qty||"",x.amt,x.note||""]);
+  lg.push([x.date||"",x.type==="rel"?"Release":"Augmentation",lineLabel(s),Q[x.fq]+" Quarter",x.type==="aug"?lineLabel(byId(x.to)):"",x.type==="aug"?Q[x.tq]+" Quarter":"",x.qty||"",x.amt,x.note||"",isCan(x)?"Cancelled":""]);
  });
  toXlsx("Budget_Monitoring_"+year+".xlsx",[
   {n:"Budget Monitoring",rows:rows,merges:headMerges(11,31,4,5,11,31),cols:cols,money:[7,9].concat(Array.apply(null,Array(21)).map(function(_,i){return 11+i})),qty:[8],from:5,to:5+list.length},
@@ -772,7 +775,7 @@ function renderDash(w){
  if(!bm){
   var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
   h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b));
- }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&/cancel/i.test(x.note||"")});return card("Cancelled (remarks)",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length+" transaction"+(cn.length===1?"":"s"))})();
+ }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&isCan(x)});return card("Cancelled transactions",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length,cn.length?"neg":"")})();
  var cols=bm?["Budget","Released","Balance"]:["Items","Quantity","Amount"];
  var row=function(l,s){return"<tr><td>"+esc(l)+"</td>"+(bm?"<td class='n'>"+money(s.b)+"</td><td class='n'>"+money(s.r)+"</td><td class='n'>"+money(s.bal)+"</td>":"<td class='n'>"+s.n+"</td><td class='n'>"+qty(s.qty)+"</td><td class='n'>"+money(s.b)+"</td>")+"</tr>"};
  var tbl=function(t,first,rows){return"<div><h3>"+t+"</h3><table class='dt'><thead><tr><th>"+first+"</th>"+cols.map(function(c){return"<th>"+c+"</th>"}).join("")+"</tr></thead><tbody>"+rows+"</tbody><tfoot>"+row("TOTAL",T)+"</tfoot></table></div>"};
