@@ -141,6 +141,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
   <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
   <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
  </div>
+ <div class="info" id="wfpMsg" style="font-weight:600"></div>
  <div class="err" id="err" role="alert"></div>
  <div class="btns">
   <button class="p" id="btnSave">Add item</button>
@@ -205,7 +206,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
   <div class="c3"><label for="tStat">Status</label><select id="tStat"><option value="">Active</option><option value="Cancelled">Cancelled</option></select></div>
  </div>
  <div class="info" id="tInfo"></div>
- <div class="info" id="tWfp" style="font-weight:600"></div>
+ 
  <div class="err" id="terr" role="alert"></div>
  <div class="btns"><button class="p" id="btnTx">Add transaction</button><button id="btnTxCancel" class="hidden">Cancel edit</button></div>
 </section>
@@ -244,9 +245,11 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
 <div><label for="al3">3rd Quarter</label><input id="al3" type="number" min="0" step="0.01"></div><div><label for="al4">4th Quarter</label><input id="al4" type="number" min="0" step="0.01"></div>
 <div><label for="alTot">Total</label><input id="alTot" readonly></div></div>
 <div class="btns"><button class="p" id="alSave">Add WFP entry</button><button id="alCancel" class="hidden">Cancel</button></div><div class="err" id="alErr"></div></section>
-<section class="card"><h2 style="margin-top:0">Work Financial Plan entries</h2>
+<section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
+<div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
 <div class="fbar noprint" id="wfFilt"><div><label>Activities</label><select data-wf="act"></select></div><div><label>Object of Expenditure</label><select data-wf="obj"></select></div><div><label>Quarter</label><select data-wf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><button data-wclr="1">Clear filters</button></div>
-<div class="fsum" id="wfSum"></div><div style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div></section>
+<div class="fsum" id="wfSum"></div><div class="wrap" style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div>
+<div class="sign"><div class="sBy"></div><div class="sApp"></div></div></section>
 </div>
 <div id="tabAL" class="hidden">
 
@@ -385,8 +388,22 @@ function calcForm(){
  var p=parseFloat($("price").value)||0,t=0;
  for(var i=1;i<=4;i++){var q=parseFloat($("q"+i).value)||0;t+=q;$("a"+i).value=money(q*p)}
  $("tq").value=qty(t);$("eb").value=money(t*p);
+ if(typeof wfpForm==="function")wfpForm();
 }
 ["price","q1","q2","q3","q4"].forEach(function(id){$(id).addEventListener("input",calcForm)});
+function itemTotals(ex){var m={};yi().forEach(function(it){if(ex&&it.id===ex)return;for(var k=0;k<4;k++){var key=it.act+"|"+it.obj+"|"+k;m[key]=(m[key]||0)+it.q[k]*it.price}});return m}
+function wfpOf(act,obj,k){var w=0;alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj===obj)w+=r.q[k]});return w}
+function overWfp(list,qs){var T=itemTotals(),seen={},amt=0,n=0;list.forEach(function(it){qs.forEach(function(k){var key=it.act+"|"+it.obj+"|"+k;if(seen[key])return;seen[key]=1;var d=(T[key]||0)-wfpOf(it.act,it.obj,k);if(d>0.005){amt+=d;n++}})});return{amt:amt,n:n}}
+function wfpForm(){
+ var el=$("wfpMsg");el.innerHTML="";var act=$("act").value.trim(),on=$("obj").value.trim().toLowerCase(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];
+ if(!act||!hit)return;
+ var T=itemTotals(typeof editing!=="undefined"?editing:null),pr=parseFloat($("price").value)||0,h="";
+ for(var k=0;k<4;k++){var add=(parseFloat($("q"+(k+1)).value)||0)*pr;if(!(add>0))continue;
+  var w=wfpOf(act,hit[1],k),sofar=T[act+"|"+hit[1]+"|"+k]||0,after=sofar+add,over=after-w;
+  h+="<div style='color:"+(over>0.005?"#b3261e":"inherit")+"'>"+Q[k]+" Quarter — WFP: "+money(w)+" · other items: "+money(sofar)+" · with this item: "+money(after)+(over>0.005?" — OVER the WFP by "+money(over)+(w?"":" (no WFP entered for this activity and object)"):" — within WFP")+"</div>"}
+ el.innerHTML=h;
+}
+$("act").addEventListener("input",wfpForm);$("obj").addEventListener("input",wfpForm);$("obj").addEventListener("change",wfpForm);
 function refreshLists(){
  var sa={},st={},a="",t="";
  items.forEach(function(it){
@@ -582,10 +599,7 @@ function info(){
  var it=byId($("tFrom").value),q=+$("tFq").value,bal=it?lineCalc(it).bal[q]:0;
  $("tInfo").textContent=it?"Unit price: "+money(it.price)+" — available in "+Q[q]+" Quarter: "+money(bal)+" (about "+(Math.floor(bal/it.price*100)/100)+" "+(it.unit||"units")+")":"";
  txAmt();
- var wl=$("tWfp");wl.textContent="";wl.style.color="";
- if(it&&$("tType").value==="rel"){var add=Math.round((parseFloat($("tQty").value)||0)*it.price*100)/100,c=wfpChk(it.act,it.obj,q,txEdit),after=c.sp+add,over=after>c.w+0.005;
-  wl.textContent="WFP for "+it.act+" \u2013 "+it.obj+" ("+Q[q]+" Quarter): "+money(c.w)+" \u00b7 released so far: "+money(c.sp)+(add?" \u00b7 after this release: "+money(after):"")+(over?" \u2014 OVER the WFP by "+money(after-c.w)+(c.w?"":" (no WFP entered for this quarter)"):"");
-  if(over)wl.style.color="#b3261e"}
+
 }
 
 function txAmt(){var it=byId($("tFrom").value),q=parseFloat($("tQty").value)||0;$("tAmt").value=(it&&q>0)?money(Math.round(q*it.price*100)/100):""}
@@ -615,8 +629,8 @@ $("btnTx").onclick=function(){
 /* ---------- report details ---------- */
 var mm={mOffice:"office",mBy:"by",mApp:"app"};
 function paintMeta(){
- ["ob","bm"].forEach(function(p){
-  $(p+"Title").textContent=(p==="ob"?"OFFICE BUDGET ":"BUDGET MONITORING ")+year;
+ ["ob","bm","wf"].forEach(function(p){
+  $(p+"Title").textContent=({ob:"OFFICE BUDGET ",bm:"BUDGET MONITORING ",wf:"WORK FINANCIAL PLAN "})[p]+year;
   $(p+"Office").textContent=meta.office||"";$(p+"Year").textContent="Fiscal Year "+year;
  });
  [].forEach.call(document.querySelectorAll(".sBy"),function(e){e.textContent="Prepared by: "+(meta.by||"")});
@@ -789,8 +803,8 @@ function renderDash(w){
  var card=function(l,v,c){return'<div class="kpi"><span>'+l+'</span><b'+(c?' class="'+c+'"':"")+'>'+v+'</b></div>'},p=function(v){return"₱ "+money(v)};
  if(!bm){
   var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
-  h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b));
- }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&isCan(x)});return card("Cancelled transactions",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length,cn.length?"neg":"")})()+(function(){var g={};list.forEach(function(it){var c=lineCalc(it);qs.forEach(function(k){var key=it.act+"|"+it.obj+"|"+k;g[key]=g[key]||{a:it.act,o:it.obj,k:k,sp:0};g[key].sp+=c.r[k]})});var amt=0,n=0;Object.keys(g).forEach(function(key){var x=g[key],w=0;alloc.forEach(function(r){if(+r.year===year&&r.act===x.a&&r.obj===x.o)w+=r.q[x.k]});if(x.sp>w+0.005){amt+=x.sp-w;n++}});return card("Releases over WFP",p(amt)+" \u00b7 "+n+(n===1?" case":" cases"),n?"neg":"")})();
+  h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b))+(function(){var o=overWfp(list,qs);return card("Items over WFP",p(o.amt)+" \u00b7 "+o.n+(o.n===1?" case":" cases"),o.n?"neg":"")})();
+ }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&isCan(x)});return card("Cancelled transactions",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length,cn.length?"neg":"")})()+(function(){var o=overWfp(list,qs);return card("Items over WFP",p(o.amt)+" \u00b7 "+o.n+(o.n===1?" case":" cases"),o.n?"neg":"")})();
 
  var cols=bm?["Budget","Released","Balance"]:["Items","Quantity","Amount"];
  var row=function(l,s){return"<tr><td>"+esc(l)+"</td>"+(bm?"<td class='n'>"+money(s.b)+"</td><td class='n'>"+money(s.r)+"</td><td class='n'>"+money(s.bal)+"</td>":"<td class='n'>"+s.n+"</td><td class='n'>"+qty(s.qty)+"</td><td class='n'>"+money(s.b)+"</td>")+"</tr>"};
@@ -854,21 +868,22 @@ $("alSave").onclick=function(){
  save(ALK,alloc);alClear();renderAll();
 };
 function wfLoad(r){alEdit=r.id;$("alAct").value=r.act;$("alObj").value=r.obj;[0,1,2,3].forEach(function(k){$("al"+(k+1)).value=r.q[k]||""});$("alTitle").textContent="Edit WFP entry";$("alSave").textContent="Save changes";$("alCancel").classList.remove("hidden");alCalc();window.scrollTo(0,0)}
-var WFF={act:"",obj:"",q:""};
+var WFF={act:"",obj:"",q:""},WFN=0;
 function wfFill(all){
  var acts=uniq(all.map(function(r){return r.act}));if(WFF.act&&acts.indexOf(WFF.act)<0)WFF.act="";
  var objs=uniq(all.filter(function(r){return!WFF.act||r.act===WFF.act}).map(function(r){return r.obj})).sort(byObj);if(WFF.obj&&objs.indexOf(WFF.obj)<0)WFF.obj="";
  var f=$("wfFilt");f.querySelector('[data-wf="act"]').innerHTML=opts(acts,WFF.act,"All activities");f.querySelector('[data-wf="obj"]').innerHTML=opts(objs,WFF.obj,"All objects of expenditure");f.querySelector('[data-wf="q"]').value=WFF.q;
 }
 $("wfFilt").addEventListener("change",function(e){var k=e.target.dataset.wf;if(!k)return;WFF[k]=e.target.value;if(k==="act")WFF.obj="";renderWF()});
+$("wfPrint").onclick=function(){if(!WFN){alert("There are no WFP entries to print. Check your filters.");return}paintMeta();window.print()};
 $("wfFilt").addEventListener("click",function(e){if(e.target.dataset.wclr){WFF={act:"",obj:"",q:""};renderWF()}});
 function renderWF(){
  var all=alloc.filter(function(r){return+r.year===year});wfFill(all);
  var rows=all.filter(function(r){return(!WFF.act||r.act===WFF.act)&&(!WFF.obj||r.obj===WFF.obj)&&(WFF.q===""||r.q[+WFF.q]>0)}).sort(function(a,b){return a.act.localeCompare(b.act)||byObj(a.obj,b.obj)}),T=[0,0,0,0],sm=function(v){return v.reduce(function(a,b){return a+b},0)};
- var h="<thead><tr><th>Activity</th><th>Object of Expenditure</th><th>Account Code</th><th>1st Quarter</th><th>2nd Quarter</th><th>3rd Quarter</th><th>4th Quarter</th><th>Total</th><th></th></tr></thead><tbody>";
- rows.forEach(function(r){r.q.forEach(function(v,k){T[k]+=v});h+="<tr><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td><td>"+esc(codeOf(r.obj))+"</td>"+r.q.map(function(v){return"<td class='n'>"+(v?money(v):"")+"</td>"}).join("")+"<td class='n'><b>"+money(sm(r.q))+"</b></td><td style='white-space:nowrap'><button data-w='e' data-id='"+r.id+"'>Edit</button><button class='d' data-w='d' data-id='"+r.id+"'>Delete</button></td></tr>"});
- h+=rows.length?"</tbody><tfoot><tr style='font-weight:700;background:var(--soft)'><td colspan='3'>TOTAL</td>"+T.map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(sm(T))+"</td><td></td></tr></tfoot>":"<tr><td colspan='9' class='empty'>"+(all.length?"No WFP entries match the filters.":"No WFP entries for "+year+" yet.")+"</td></tr></tbody>";
- $("wfTbl").innerHTML=h;$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year;
+ var h="<thead><tr><th>Activity</th><th>Object of Expenditure</th><th>Account Code</th><th>1st Quarter</th><th>2nd Quarter</th><th>3rd Quarter</th><th>4th Quarter</th><th>Total</th><th class='act'></th></tr></thead><tbody>";
+ rows.forEach(function(r){r.q.forEach(function(v,k){T[k]+=v});h+="<tr><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td><td>"+esc(codeOf(r.obj))+"</td>"+r.q.map(function(v){return"<td class='n'>"+(v?money(v):"")+"</td>"}).join("")+"<td class='n'><b>"+money(sm(r.q))+"</b></td><td class='act' style='white-space:nowrap'><button data-w='e' data-id='"+r.id+"'>Edit</button><button class='d' data-w='d' data-id='"+r.id+"'>Delete</button></td></tr>"});
+ h+=rows.length?"</tbody><tfoot><tr style='font-weight:700;background:var(--soft)'><td colspan='3'>TOTAL</td>"+T.map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(sm(T))+"</td><td class='act'></td></tr></tfoot>":"<tr><td colspan='9' class='empty'>"+(all.length?"No WFP entries match the filters.":"No WFP entries for "+year+" yet.")+"</td></tr></tbody>";
+ $("wfTbl").innerHTML=h;WFN=rows.length;var on=[WFF.act,WFF.obj,WFF.q!==""?Q[+WFF.q]+" Quarter":""].filter(Boolean);$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year+(on.length?" — filtered by: "+on.join(" › "):"");
 }
 $("wfTbl").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||!b.dataset.w)return;var r=alloc.filter(function(x){return x.id===b.dataset.id})[0];if(!r)return;
  if(b.dataset.w==="e")wfLoad(r);else if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);if(alEdit===r.id)alClear();renderAll()}});
