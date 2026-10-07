@@ -229,7 +229,7 @@ function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig={apiKey:"AIzaSyCAYTd5DVQsq2IWU-avueWdk39u1oTH9RU",authDomain:"tourism-office-records.firebaseapp.com",projectId:"tourism-office-records",storageBucket:"tourism-office-records.firebasestorage.app",messagingSenderId:"984337082871",appId:"1:984337082871:web:4af190490e3b2e6db526f2",measurementId:"G-QJ5SCPMYQ0"};
 var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1"],DIRTY="procurement_dirty_v1";
-var db=null,docRef=null,cloudReady=false,pushTimer=null,badge=document.getElementById("cloud");
+var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
  if(typeof firebase!=="undefined"){firebase.initializeApp(firebaseConfig);db=firebase.firestore();docRef=db.collection("apps").doc("wfp_monitoring")}
@@ -247,7 +247,7 @@ function pushCloud(){
 }
 function save(k,v){
  try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
- if(CLOUD_KEYS.indexOf(k)>=0){try{localStorage.setItem(DIRTY,"1")}catch(e){}pushCloud()}
+ if(booted&&CLOUD_KEYS.indexOf(k)>=0){try{localStorage.setItem(DIRTY,"1")}catch(e){}pushCloud()}
 }
 var uid=function(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)};
 var money=function(n){return Number(n||0).toLocaleString("en-PH",{minimumFractionDigits:2,maximumFractionDigits:2})};
@@ -665,10 +665,12 @@ function applyCloud(d){
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
  fillYear();fillObj("");clearForm();renderAll();
 }
+booted=true;
 if(docRef){
  docRef.get().then(function(snap){
-  var unsynced=localStorage.getItem(DIRTY)==="1";
-  if(snap.exists&&!unsynced){applyCloud(snap.data());cloudReady=true;setBadge("☁ Synced","ok")}
+  var d=snap.exists?snap.data():null,cloudEmpty=!d||!d[KEY]||d[KEY]==="null"||d[KEY]==="[]";
+  var unsynced=localStorage.getItem(DIRTY)==="1"||(cloudEmpty&&items.length>0);
+  if(d&&!unsynced){applyCloud(d);cloudReady=true;setBadge("☁ Synced","ok")}
   else{cloudReady=true;pushCloud()} /* first upload, or unsynced offline edits */
  }).catch(function(){setBadge("☁ Offline (saved on this device only)","bad")});
 }
