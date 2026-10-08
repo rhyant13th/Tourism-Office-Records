@@ -115,7 +115,8 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
 <!-- ============ OFFICE BUDGET ============ -->
 <div id="tabOB">
 <section class="card entry">
- <h2 id="formTitle">Add item</h2>
+ <div class="bar" style="margin-bottom:6px"><h2 id="formTitle" style="margin:0">Add item</h2><button type="button" id="entryToggle">Hide form</button></div>
+ <div id="entryBody">
  <div class="grid">
   <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
   <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
@@ -149,6 +150,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
   <button class="p" id="btnSave">Add item</button>
   <button id="btnCancel" class="hidden">Cancel edit</button>
   <button id="btnClear">Clear form</button>
+ </div>
  </div>
 </section>
 
@@ -386,6 +388,9 @@ $("mode").addEventListener("change",function(){
 [].forEach.call(document.querySelectorAll("input[list]"),function(i){i.addEventListener("focus",function(){try{this.select()}catch(e){}})});
 
 /* ---------- Office Budget form ---------- */
+function entryShow(on,np){$("entryBody").classList.toggle("hidden",!on);$("entryToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_entry_hidden",on?"0":"1")}catch(e){}}
+$("entryToggle").onclick=function(){entryShow($("entryBody").classList.contains("hidden"))};
+try{if(localStorage.getItem("wfp_entry_hidden")==="1")entryShow(false)}catch(e){}
 function calcForm(){
  var p=parseFloat($("price").value)||0,t=0;
  for(var i=1;i<=4;i++){var q=parseFloat($("q"+i).value)||0;t+=q;$("a"+i).value=money(q*p)}
@@ -461,7 +466,7 @@ function edit(id){
  $("aip").value=it.aip;$("act").value=it.act||"";$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
  $("price").value=it.price;modeSet(it.mode);$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
- calcForm();$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
+ calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
  window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
