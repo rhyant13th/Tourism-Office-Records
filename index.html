@@ -509,15 +509,12 @@ var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"]
  for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th>"+s+"</th>"});
  $("bmHead").innerHTML=h+"</tr>";
 })();
+var LCm=null,LCt=null,LCn=-1;
 function lineCalc(it){
- var b=[],r=[0,0,0,0],t=[0,0,0,0],f=[0,0,0,0],bal=[],k;
- for(k=0;k<4;k++)b[k]=it.q[k]*it.price;
- txs.forEach(function(x){
-  if(x.type==="rel"){if(x.from===it.id)r[x.fq]+=x.amt}
-  else{if(x.from===it.id)t[x.fq]+=x.amt;if(x.to===it.id)f[x.tq]+=x.amt}
- });
- for(k=0;k<4;k++)bal[k]=b[k]-r[k]-t[k]+f[k];
- return{b:b,r:r,t:t,f:f,bal:bal};
+ if(LCt!==txs||LCn!==txs.length){LCm={};var Z=function(id){return LCm[id]||(LCm[id]={r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]})};txs.forEach(function(x){if(x.type==="rel")Z(x.from).r[x.fq]+=x.amt;else{Z(x.from).t[x.fq]+=x.amt;Z(x.to).f[x.tq]+=x.amt}});LCt=txs;LCn=txs.length}
+ var a=LCm[it.id]||{r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]},b=[],bal=[],k;
+ for(k=0;k<4;k++){b[k]=it.q[k]*it.price;bal[k]=b[k]-a.r[k]-a.t[k]+a.f[k]}
+ return{b:b,r:a.r,t:a.t,f:a.f,bal:bal};
 }
 var lineLabel=function(it){return it?it.act+" – "+it.obj+" ("+it.acct+") – "+it.aip+" – "+it.desc:"(deleted item)"};
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
@@ -564,7 +561,7 @@ function fillLgFilt(){
  msFill(g("act"),L1(a),TF.act,"All activities");msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"}],TF.type,"All transactions");msFill(g("q"),QO(),TF.q,"All quarters");
  msFill(g("rem"),[{v:"__none__",t:"(No remarks)"}].concat(L1(rm)),TF.rem,"All remarks");msFill(g("stat"),[{v:"act",t:"Active"},{v:"can",t:"Cancelled"}],TF.stat,"All");
 }
-$("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);fillLgFilt();renderBM()});
+$("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
 $("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
 function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("tStat").value="";$("terr").textContent=""}
 function txLoad(x){
@@ -779,11 +776,15 @@ $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget line
 
 /* ---------- filters + dashboards ---------- */
 function msFill(el,o,sel,all){
- var d=el.querySelector("details"),op=d&&d.open,b0=el.querySelector(".msb"),sc=b0?b0.scrollTop:0;
+ var sig=o.map(function(x){return x.v+"\u0001"+x.t}).join("\u0002"),d=el.querySelector("details");el.dataset.all=all;
  var txt=!sel.length?all:(sel.length===1?(o.filter(function(x){return x.v===sel[0]})[0]||{t:sel[0]}).t:sel.length+" selected");
+ if(d&&el._sig===sig){[].forEach.call(el.querySelectorAll("input"),function(i){i.checked=sel.indexOf(i.value)>=0});el.querySelector("summary").textContent=txt;return}
+ var op=d&&d.open,b0=el.querySelector(".msb"),sc=b0?b0.scrollTop:0;el._sig=sig;
  el.innerHTML='<details'+(op?" open":"")+'><summary>'+esc(txt)+'</summary><div class="msb"><a href="#" data-msclr="1">Clear selection</a>'+o.map(function(x){return'<label><input type="checkbox" value="'+esc(x.v)+'"'+(sel.indexOf(x.v)>=0?" checked":"")+'> '+esc(x.t)+'</label>'}).join("")+'</div></details>';
  el.querySelector(".msb").scrollTop=sc;
 }
+function msNow(el){var c=[].filter.call(el.querySelectorAll("input"),function(i){return i.checked});el.querySelector("summary").textContent=!c.length?(el.dataset.all||"All"):(c.length===1?c[0].parentNode.textContent.trim():c.length+" selected")}
+var _lt;function later(fn){clearTimeout(_lt);_lt=setTimeout(fn,160)}
 function msVal(el){return[].map.call(el.querySelectorAll("input:checked"),function(i){return i.value})}
 function msClear(e){var c=e.target.closest("[data-msclr]");if(!c)return null;e.preventDefault();return c.closest(".ms")}
 document.addEventListener("click",function(e){[].forEach.call(document.querySelectorAll(".ms details[open]"),function(d){if(!d.parentNode.contains(e.target))d.open=false})});
@@ -800,8 +801,8 @@ function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(fu
 function buildBar(w){
  var el=$(w+"Dash");
  el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
- el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;FS[w][k]=msVal(b);if(k==="act"){FS[w].obj=[];FS[w].mode=[]}renderAll()});
- el.addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.f;FS[w][k]=[];if(k==="act"){FS[w].obj=[];FS[w].mode=[]}renderAll();return}if(e.target.dataset.clr){FS[w]={act:[],obj:[],mode:[],q:[]};renderAll()}});
+ el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;FS[w][k]=msVal(b);msNow(b);later(function(){if(k==="act"){FS[w].obj=[];FS[w].mode=[]}fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w)})});
+ el.addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.f;FS[w][k]=[];if(k==="act"){FS[w].obj=[];FS[w].mode=[]}fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w);return}if(e.target.dataset.clr){FS[w]={act:[],obj:[],mode:[],q:[]};fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w)}});
 }
 function fillFilters(w){
  var f=FS[w],all=yi(),acts=uniq(all.map(function(i){return i.act}));
@@ -893,7 +894,7 @@ function wfFill(all){
  var f=$("wfFilt"),g=function(k){return f.querySelector('[data-wf="'+k+'"]')};
  msFill(g("act"),L1(acts),WFF.act,"All activities");msFill(g("obj"),L1(objs),WFF.obj,"All objects of expenditure");msFill(g("q"),QO(),WFF.q,"All quarters");
 }
-$("wfFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.wf)return;var k=b.dataset.wf;WFF[k]=msVal(b);if(k==="act")WFF.obj=[];renderWF()});
+$("wfFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.wf)return;var k=b.dataset.wf;WFF[k]=msVal(b);msNow(b);later(function(){if(k==="act")WFF.obj=[];renderWF()})});
 $("wfPrint").onclick=function(){if(!WFN){alert("There are no WFP entries to print. Check your filters.");return}paintMeta();window.print()};
 $("wfFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.wf;WFF[k]=[];if(k==="act")WFF.obj=[];renderWF();return}if(e.target.dataset.wclr){WFF={act:[],obj:[],q:[]};renderWF()}});
 function renderWF(){
@@ -923,7 +924,7 @@ function dv(r){return{a:r.a,b:r.b,s:r.s,d1:r.a.map(function(x,k){return x-r.b[k]
 function buildAL(){
  $("alDash").innerHTML='<div class="bar"><h2 style="margin:0">Work Financial Plan (WFP) vs Actual Budget</h2><button class="p" id="alXls">Save to Excel</button></div><div class="fbar" style="margin-top:10px"><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div id="alC1"></div><div id="alC2"></div>';
  var el=$("alDash");
- el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;AF[k]=msVal(b);if(k==="act")AF.obj=[];renderAL()});
+ el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;AF[k]=msVal(b);msNow(b);later(function(){if(k==="act")AF.obj=[];renderAL()})});
  el.addEventListener("click",function(e){
   var t=e.target;
   var mc=msClear(e);if(mc){AF[mc.dataset.f]=[];if(mc.dataset.f==="act")AF.obj=[];renderAL();return}if(t.dataset.clr){AF={act:[],obj:[],q:[]};renderAL();return}
