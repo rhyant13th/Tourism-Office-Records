@@ -86,6 +86,8 @@ td.act button{padding:3px 8px;font-size:12px;margin:0 1px}
 table.dt{width:100%;border-collapse:collapse;font-size:13px}table.dt th,table.dt td{border:1px solid var(--line);padding:5px 8px;text-align:left}table.dt th{background:var(--soft)}table.dt td.n{text-align:right}table.dt tfoot td{font-weight:700;background:var(--soft)}
 dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);padding:16px}dialog input{width:100%}dialog::backdrop{background:rgba(0,0,0,.35)}.neg{color:var(--warn)!important}
 #alDash .dtw{grid-template-columns:1fr}#alDash h4{font-size:14px;margin:12px 0 6px;color:var(--brand2)}
+.ms{position:relative}.ms summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:6px;padding:7px 28px 7px 10px;background:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px;position:relative}.ms summary::-webkit-details-marker{display:none}.ms summary:after{content:"\25BE";position:absolute;right:10px;top:7px;color:var(--mute)}
+.msb{position:absolute;z-index:30;left:0;top:100%;min-width:100%;max-height:280px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 4px 14px rgba(0,0,0,.18);padding:4px 0;white-space:nowrap}.msb label{display:flex;gap:8px;align-items:center;padding:5px 12px;font-weight:400;margin:0;cursor:pointer}.msb label:hover{background:var(--soft)}.msb a{display:block;padding:4px 12px;font-size:12px}.msb input{width:auto}
 </style>
 </head>
 <body>
@@ -226,7 +228,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
  <h2 style="margin:18px 0 8px">Transactions</h2>
- <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><select data-lf="act"></select></div><div><label>Transaction</label><select data-lf="type"><option value="">All (Release and Augmentation)</option><option value="rel">Release</option><option value="aug">Augmentation</option></select></div><div><label>Quarter</label><select data-lf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><div><label>Remarks</label><select data-lf="rem"></select></div><div><label>Status</label><select data-lf="stat"><option value="">All</option><option value="act">Active</option><option value="can">Cancelled</option></select></div><button data-lclr="1">Clear filters</button></div>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><div class="ms" data-lf="act"></div></div><div><label>Transaction</label><div class="ms" data-lf="type"></div></div><div><label>Quarter</label><div class="ms" data-lf="q"></div></div><div><label>Remarks</label><div class="ms" data-lf="rem"></div></div><div><label>Status</label><div class="ms" data-lf="stat"></div></div><button data-lclr="1">Clear filters</button></div>
  <div class="wrap">
  <table class="lg">
   <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th>Status</th><th class="act">Action</th></tr></thead>
@@ -247,7 +249,7 @@ dialog{border:1px solid var(--line);border-radius:8px;width:min(760px,94%);paddi
 <div class="btns"><button class="p" id="alSave">Add WFP entry</button><button id="alCancel" class="hidden">Cancel</button></div><div class="err" id="alErr"></div></section>
 <section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
 <div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
-<div class="fbar noprint" id="wfFilt"><div><label>Activities</label><select data-wf="act"></select></div><div><label>Object of Expenditure</label><select data-wf="obj"></select></div><div><label>Quarter</label><select data-wf="q"><option value="">All quarters</option><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div><button data-wclr="1">Clear filters</button></div>
+<div class="fbar noprint" id="wfFilt"><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
 <div class="fsum" id="wfSum"></div><div class="wrap" style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div>
 <div class="sign"><div class="sBy"></div><div class="sApp"></div></div></section>
 </div>
@@ -544,22 +546,26 @@ function renderBM(){
  });
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="9">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
-var TF={act:"",type:"",q:"",rem:"",stat:""},txEdit=null;
+var TF={act:[],type:[],q:[],rem:[],stat:[]},txEdit=null;
 function isCan(x){return x.status?x.status==="Cancelled":/cancel/i.test(x.note||"")}
-function lgOn(){return TF.act||TF.type||TF.q!==""}
+function lgOn(){return TF.act.length||TF.type.length||TF.q.length||TF.rem.length||TF.stat.length}
 function lgOk(x,s){var d=byId(x.to);
- if(TF.type&&x.type!==TF.type)return false;
- if(TF.act&&s.act!==TF.act&&!(x.type==="aug"&&d&&d.act===TF.act))return false;
- if(TF.stat&&(TF.stat==="can")!==isCan(x))return false;
- if(TF.rem){var n=(x.note||"").trim().toLowerCase();if(TF.rem==="__none__"?n!=="":n!==TF.rem.toLowerCase())return false}
- if(TF.q!==""&&x.fq!==+TF.q&&!(x.type==="aug"&&x.tq===+TF.q))return false;
+ if(TF.type.length&&TF.type.indexOf(x.type)<0)return false;
+ if(TF.act.length&&!(TF.act.indexOf(s.act)>=0||(x.type==="aug"&&d&&TF.act.indexOf(d.act)>=0)))return false;
+ if(TF.stat.length&&TF.stat.indexOf(isCan(x)?"can":"act")<0)return false;
+ if(TF.rem.length){var n=(x.note||"").trim().toLowerCase();if(!TF.rem.some(function(r){return r==="__none__"?n==="":n===r.toLowerCase()}))return false}
+ if(TF.q.length&&!TF.q.some(function(k){k=+k;return x.fq===k||(x.type==="aug"&&x.tq===k)}))return false;
  return true}
-function fillLgFilt(){var a=uniq(yi().map(function(i){return i.act}));if(TF.act&&a.indexOf(TF.act)<0)TF.act="";var el=$("lgFilt").querySelector('[data-lf="act"]');el.innerHTML=opts(a,TF.act,"All activities");
+function fillLgFilt(){
+ var a=uniq(yi().map(function(i){return i.act})),f=$("lgFilt"),g=function(k){return f.querySelector('[data-lf="'+k+'"]')};
+ TF.act=TF.act.filter(function(v){return a.indexOf(v)>=0});
  var seen={},rm=[];txs.forEach(function(x){var n=(x.note||"").trim(),k=n.toLowerCase();if(n&&!seen[k]){seen[k]=1;rm.push(n)}});rm.sort(function(x,y){return x.localeCompare(y)});
- if(TF.rem&&TF.rem!=="__none__"&&!seen[TF.rem.toLowerCase()])TF.rem="";
- $("lgFilt").querySelector('[data-lf="rem"]').innerHTML='<option value="">All remarks</option><option value="__none__"'+(TF.rem==="__none__"?" selected":"")+'>(No remarks)</option>'+rm.map(function(n){return'<option value="'+esc(n)+'"'+(n.toLowerCase()===TF.rem.toLowerCase()?" selected":"")+'>'+esc(n)+'</option>'}).join("")}
-$("lgFilt").addEventListener("change",function(e){var k=e.target.dataset.lf;if(!k)return;TF[k]=e.target.value;renderBM()});
-$("lgFilt").addEventListener("click",function(e){if(e.target.dataset.lclr){TF={act:"",type:"",q:"",rem:"",stat:""};[].forEach.call($("lgFilt").querySelectorAll("select"),function(x){x.value=""});renderBM()}});
+ TF.rem=TF.rem.filter(function(r){return r==="__none__"||seen[r.toLowerCase()]});
+ msFill(g("act"),L1(a),TF.act,"All activities");msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"}],TF.type,"All transactions");msFill(g("q"),QO(),TF.q,"All quarters");
+ msFill(g("rem"),[{v:"__none__",t:"(No remarks)"}].concat(L1(rm)),TF.rem,"All remarks");msFill(g("stat"),[{v:"act",t:"Active"},{v:"can",t:"Cancelled"}],TF.stat,"All");
+}
+$("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);fillLgFilt();renderBM()});
+$("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
 function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("tStat").value="";$("terr").textContent=""}
 function txLoad(x){
  var s=byId(x.from),d=byId(x.to);if(!s)return;
@@ -772,26 +778,38 @@ $("obPrint").onclick=function(){if(!yi().length){alert("There are no items for "
 $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget lines for "+year+" to print yet.");return}paintMeta();window.print()};
 
 /* ---------- filters + dashboards ---------- */
-var FS={ob:{act:"",obj:"",mode:"",q:""},bm:{act:"",obj:"",mode:"",q:""}},MODES=["Procurement","Non-Procurement"];
+function msFill(el,o,sel,all){
+ var d=el.querySelector("details"),op=d&&d.open,b0=el.querySelector(".msb"),sc=b0?b0.scrollTop:0;
+ var txt=!sel.length?all:(sel.length===1?(o.filter(function(x){return x.v===sel[0]})[0]||{t:sel[0]}).t:sel.length+" selected");
+ el.innerHTML='<details'+(op?" open":"")+'><summary>'+esc(txt)+'</summary><div class="msb"><a href="#" data-msclr="1">Clear selection</a>'+o.map(function(x){return'<label><input type="checkbox" value="'+esc(x.v)+'"'+(sel.indexOf(x.v)>=0?" checked":"")+'> '+esc(x.t)+'</label>'}).join("")+'</div></details>';
+ el.querySelector(".msb").scrollTop=sc;
+}
+function msVal(el){return[].map.call(el.querySelectorAll("input:checked"),function(i){return i.value})}
+function msClear(e){var c=e.target.closest("[data-msclr]");if(!c)return null;e.preventDefault();return c.closest(".ms")}
+document.addEventListener("click",function(e){[].forEach.call(document.querySelectorAll(".ms details[open]"),function(d){if(!d.parentNode.contains(e.target))d.open=false})});
+function L1(a){return a.map(function(v){return{v:v,t:v}})}
+function QO(){return Q.map(function(n,i){return{v:String(i),t:n+" Quarter"}})}
+function qsOf(a){return a.length?a.map(Number).sort():[0,1,2,3]}
+function qtxt(a){return a.map(function(k){return Q[+k]+" Quarter"})}
+var FS={ob:{act:[],obj:[],mode:[],q:[]},bm:{act:[],obj:[],mode:[],q:[]}},MODES=["Procurement","Non-Procurement"];
 function modeSet(v){$("mode").value=v||"";return;var s=$("mode");if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}s.value=v||""}
-function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.act||it.act===f.act)&&(!f.obj||it.obj===f.obj)&&(!f.mode||(it.mode||"")===f.mode)&&(f.q===""||it.q[+f.q]>0)})}
+function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.act.length||f.act.indexOf(it.act)>=0)&&(!f.obj.length||f.obj.indexOf(it.obj)>=0)&&(!f.mode.length||f.mode.indexOf(it.mode||"")>=0)&&(!f.q.length||f.q.some(function(k){return it.q[+k]>0}))})}
 function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
 function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
 function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));$("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("")}
 function buildBar(w){
  var el=$(w+"Dash");
- el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>Activities</label><select data-f="act"></select></div><div><label>Object of Expenditure</label><select data-f="obj"></select></div><div><label>Mode of Procurement</label><select data-f="mode"></select></div><div><label>Quarter</label><select data-f="q"></select></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
- el.addEventListener("change",function(e){var k=e.target.dataset.f;if(!k)return;FS[w][k]=e.target.value;if(k==="act"){FS[w].obj="";FS[w].mode=""}renderAll()});
- el.addEventListener("click",function(e){if(e.target.dataset.clr){FS[w]={act:"",obj:"",mode:"",q:""};renderAll()}});
+ el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
+ el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;FS[w][k]=msVal(b);if(k==="act"){FS[w].obj=[];FS[w].mode=[]}renderAll()});
+ el.addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.f;FS[w][k]=[];if(k==="act"){FS[w].obj=[];FS[w].mode=[]}renderAll();return}if(e.target.dataset.clr){FS[w]={act:[],obj:[],mode:[],q:[]};renderAll()}});
 }
 function fillFilters(w){
  var f=FS[w],all=yi(),acts=uniq(all.map(function(i){return i.act}));
- if(f.act&&acts.indexOf(f.act)<0)f.act="";
- var inA=all.filter(function(i){return!f.act||i.act===f.act}),objs=uniq(inA.map(function(i){return i.obj})).sort(byObj),ms=uniq(MODES.concat(inA.map(function(i){return i.mode})));
- if(f.obj&&objs.indexOf(f.obj)<0)f.obj="";if(f.mode&&ms.indexOf(f.mode)<0)f.mode="";
+ f.act=f.act.filter(function(a){return acts.indexOf(a)>=0});
+ var inA=all.filter(function(i){return!f.act.length||f.act.indexOf(i.act)>=0}),objs=uniq(inA.map(function(i){return i.obj})).sort(byObj),ms=uniq(MODES.concat(inA.map(function(i){return i.mode})));
+ f.obj=f.obj.filter(function(o){return objs.indexOf(o)>=0});f.mode=f.mode.filter(function(m){return ms.indexOf(m)>=0});
  var s=function(k){return $(w+"Dash").querySelector('[data-f="'+k+'"]')};
- s("act").innerHTML=opts(acts,f.act,"All activities");s("obj").innerHTML=opts(objs,f.obj,"All objects of expenditure");s("mode").innerHTML=opts(ms,f.mode,"All modes");
- s("q").innerHTML='<option value="">All quarters</option>'+Q.map(function(n,i){return'<option value="'+i+'"'+(String(i)===String(f.q)?" selected":"")+'>'+n+' Quarter</option>'}).join("");
+ msFill(s("act"),L1(acts),f.act,"All activities");msFill(s("obj"),L1(objs),f.obj,"All objects of expenditure");msFill(s("mode"),L1(ms),f.mode,"All modes");msFill(s("q"),QO(),f.q,"All quarters");
 }
 function sumL(list,qs){
  var o={n:0,qty:0,b:0,r:0,t:0,f:0,bal:0};
@@ -799,7 +817,7 @@ function sumL(list,qs){
  return o;
 }
 function renderDash(w){
- var f=FS[w],list=fi(w),qs=f.q===""?[0,1,2,3]:[+f.q],bm=w==="bm",el=$(w+"Dash"),T=sumL(list,qs),h="";
+ var f=FS[w],list=fi(w),qs=qsOf(f.q),bm=w==="bm",el=$(w+"Dash"),T=sumL(list,qs),h="";
  var card=function(l,v,c){return'<div class="kpi"><span>'+l+'</span><b'+(c?' class="'+c+'"':"")+'>'+v+'</b></div>'},p=function(v){return"₱ "+money(v)};
  if(!bm){
   var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
@@ -813,7 +831,7 @@ function renderDash(w){
  var or=uniq(list.map(function(i){return i.obj})).sort(byObj).map(function(o){return row(o,sumL(list.filter(function(i){return i.obj===o}),qs))}).join("");
  el.querySelector(".kpis").innerHTML=h;
  el.querySelector(".dtw").innerHTML=tbl("Per quarter","Quarter",qr||"<tr><td colspan='4' class='empty'>No data</td></tr>")+tbl("Per Object of Expenditure","Object of Expenditure",or||"<tr><td colspan='4' class='empty'>No data</td></tr>");
- var on=[f.act,f.obj,f.mode,f.q!==""?Q[+f.q]+" Quarter":""].filter(Boolean);
+ var on=[].concat(f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
 function renderAll(){renderWF();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
@@ -853,7 +871,7 @@ $("objDlg").addEventListener("click",function(e){
 });
 
 /* ---------- Allocation vs Budget ---------- */
-var AF={act:"",obj:"",q:""},alEdit=null,ALR=[];
+var AF={act:[],obj:[],q:[]},alEdit=null,ALR=[];
 function alCalc(){var s=0;[1,2,3,4].forEach(function(i){s+=parseFloat($("al"+i).value)||0});$("alTot").value=money(s)}
 function alClear(){["alAct","alObj","al1","al2","al3","al4"].forEach(function(i){$(i).value=""});alEdit=null;$("alTitle").textContent="Add WFP entry";$("alSave").textContent="Add WFP entry";$("alCancel").classList.add("hidden");$("alErr").textContent="";alCalc()}
 [1,2,3,4].forEach(function(i){$("al"+i).addEventListener("input",alCalc)});$("alCancel").onclick=alClear;
@@ -868,22 +886,23 @@ $("alSave").onclick=function(){
  save(ALK,alloc);alClear();renderAll();
 };
 function wfLoad(r){alEdit=r.id;$("alAct").value=r.act;$("alObj").value=r.obj;[0,1,2,3].forEach(function(k){$("al"+(k+1)).value=r.q[k]||""});$("alTitle").textContent="Edit WFP entry";$("alSave").textContent="Save changes";$("alCancel").classList.remove("hidden");alCalc();window.scrollTo(0,0)}
-var WFF={act:"",obj:"",q:""},WFN=0;
+var WFF={act:[],obj:[],q:[]},WFN=0;
 function wfFill(all){
- var acts=uniq(all.map(function(r){return r.act}));if(WFF.act&&acts.indexOf(WFF.act)<0)WFF.act="";
- var objs=uniq(all.filter(function(r){return!WFF.act||r.act===WFF.act}).map(function(r){return r.obj})).sort(byObj);if(WFF.obj&&objs.indexOf(WFF.obj)<0)WFF.obj="";
- var f=$("wfFilt");f.querySelector('[data-wf="act"]').innerHTML=opts(acts,WFF.act,"All activities");f.querySelector('[data-wf="obj"]').innerHTML=opts(objs,WFF.obj,"All objects of expenditure");f.querySelector('[data-wf="q"]').value=WFF.q;
+ var acts=uniq(all.map(function(r){return r.act}));WFF.act=WFF.act.filter(function(a){return acts.indexOf(a)>=0});
+ var objs=uniq(all.filter(function(r){return!WFF.act.length||WFF.act.indexOf(r.act)>=0}).map(function(r){return r.obj})).sort(byObj);WFF.obj=WFF.obj.filter(function(o){return objs.indexOf(o)>=0});
+ var f=$("wfFilt"),g=function(k){return f.querySelector('[data-wf="'+k+'"]')};
+ msFill(g("act"),L1(acts),WFF.act,"All activities");msFill(g("obj"),L1(objs),WFF.obj,"All objects of expenditure");msFill(g("q"),QO(),WFF.q,"All quarters");
 }
-$("wfFilt").addEventListener("change",function(e){var k=e.target.dataset.wf;if(!k)return;WFF[k]=e.target.value;if(k==="act")WFF.obj="";renderWF()});
+$("wfFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.wf)return;var k=b.dataset.wf;WFF[k]=msVal(b);if(k==="act")WFF.obj=[];renderWF()});
 $("wfPrint").onclick=function(){if(!WFN){alert("There are no WFP entries to print. Check your filters.");return}paintMeta();window.print()};
-$("wfFilt").addEventListener("click",function(e){if(e.target.dataset.wclr){WFF={act:"",obj:"",q:""};renderWF()}});
+$("wfFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.wf;WFF[k]=[];if(k==="act")WFF.obj=[];renderWF();return}if(e.target.dataset.wclr){WFF={act:[],obj:[],q:[]};renderWF()}});
 function renderWF(){
  var all=alloc.filter(function(r){return+r.year===year});wfFill(all);
- var rows=all.filter(function(r){return(!WFF.act||r.act===WFF.act)&&(!WFF.obj||r.obj===WFF.obj)&&(WFF.q===""||r.q[+WFF.q]>0)}).sort(function(a,b){return a.act.localeCompare(b.act)||byObj(a.obj,b.obj)}),T=[0,0,0,0],sm=function(v){return v.reduce(function(a,b){return a+b},0)};
+ var rows=all.filter(function(r){return(!WFF.act.length||WFF.act.indexOf(r.act)>=0)&&(!WFF.obj.length||WFF.obj.indexOf(r.obj)>=0)&&(!WFF.q.length||WFF.q.some(function(k){return r.q[+k]>0}))}).sort(function(a,b){return a.act.localeCompare(b.act)||byObj(a.obj,b.obj)}),T=[0,0,0,0],sm=function(v){return v.reduce(function(a,b){return a+b},0)};
  var h="<thead><tr><th>Activity</th><th>Object of Expenditure</th><th>Account Code</th><th>1st Quarter</th><th>2nd Quarter</th><th>3rd Quarter</th><th>4th Quarter</th><th>Total</th><th class='act'></th></tr></thead><tbody>";
  rows.forEach(function(r){r.q.forEach(function(v,k){T[k]+=v});h+="<tr><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td><td>"+esc(codeOf(r.obj))+"</td>"+r.q.map(function(v){return"<td class='n'>"+(v?money(v):"")+"</td>"}).join("")+"<td class='n'><b>"+money(sm(r.q))+"</b></td><td class='act' style='white-space:nowrap'><button data-w='e' data-id='"+r.id+"'>Edit</button><button class='d' data-w='d' data-id='"+r.id+"'>Delete</button></td></tr>"});
  h+=rows.length?"</tbody><tfoot><tr style='font-weight:700;background:var(--soft)'><td colspan='3'>TOTAL</td>"+T.map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(sm(T))+"</td><td class='act'></td></tr></tfoot>":"<tr><td colspan='9' class='empty'>"+(all.length?"No WFP entries match the filters.":"No WFP entries for "+year+" yet.")+"</td></tr></tbody>";
- $("wfTbl").innerHTML=h;WFN=rows.length;var on=[WFF.act,WFF.obj,WFF.q!==""?Q[+WFF.q]+" Quarter":""].filter(Boolean);$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year+(on.length?" — filtered by: "+on.join(" › "):"");
+ $("wfTbl").innerHTML=h;WFN=rows.length;var on=[].concat(WFF.act,WFF.obj,qtxt(WFF.q));$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year+(on.length?" — filtered by: "+on.join(" › "):"");
 }
 $("wfTbl").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||!b.dataset.w)return;var r=alloc.filter(function(x){return x.id===b.dataset.id})[0];if(!r)return;
  if(b.dataset.w==="e")wfLoad(r);else if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);if(alEdit===r.id)alClear();renderAll()}});
@@ -897,17 +916,17 @@ function alRows(){
  var g=function(a,o){var k=a+"\u0001"+o;return m[k]||(m[k]={act:a,obj:o,a:[0,0,0,0],b:[0,0,0,0],s:[0,0,0,0],id:""})};
  alloc.filter(function(r){return +r.year===year}).forEach(function(r){var x=g(r.act,r.obj);x.id=r.id;for(var k=0;k<4;k++)x.a[k]+=r.q[k]});
  yi().forEach(function(it){var x=g(it.act,it.obj),c=lineCalc(it);for(var k=0;k<4;k++){x.b[k]+=c.b[k];x.s[k]+=c.r[k]}});
- return Object.keys(m).map(function(k){return m[k]}).filter(function(r){return(!f.act||r.act===f.act)&&(!f.obj||r.obj===f.obj)}).sort(function(x,y){return x.act.localeCompare(y.act)||byObj(x.obj,y.obj)});
+ return Object.keys(m).map(function(k){return m[k]}).filter(function(r){return(!f.act.length||f.act.indexOf(r.act)>=0)&&(!f.obj.length||f.obj.indexOf(r.obj)>=0)}).sort(function(x,y){return x.act.localeCompare(y.act)||byObj(x.obj,y.obj)});
 }
 var GR=[["Allocated","a"],["Budgeted","b"],["Actual spent","s"],["Allocation − Budgeted","d1"],["Budgeted − Spent","d2"],["Allocation − Spent","d3"]];
 function dv(r){return{a:r.a,b:r.b,s:r.s,d1:r.a.map(function(x,k){return x-r.b[k]}),d2:r.b.map(function(x,k){return x-r.s[k]}),d3:r.a.map(function(x,k){return x-r.s[k]})}}
 function buildAL(){
- $("alDash").innerHTML='<div class="bar"><h2 style="margin:0">Work Financial Plan (WFP) vs Actual Budget</h2><button class="p" id="alXls">Save to Excel</button></div><div class="fbar" style="margin-top:10px"><div><label>Activities</label><select data-f="act"></select></div><div><label>Object of Expenditure</label><select data-f="obj"></select></div><div><label>Quarter</label><select data-f="q"></select></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div id="alC1"></div><div id="alC2"></div>';
+ $("alDash").innerHTML='<div class="bar"><h2 style="margin:0">Work Financial Plan (WFP) vs Actual Budget</h2><button class="p" id="alXls">Save to Excel</button></div><div class="fbar" style="margin-top:10px"><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div id="alC1"></div><div id="alC2"></div>';
  var el=$("alDash");
- el.addEventListener("change",function(e){var k=e.target.dataset.f;if(!k)return;AF[k]=e.target.value;if(k==="act")AF.obj="";renderAL()});
+ el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;AF[k]=msVal(b);if(k==="act")AF.obj=[];renderAL()});
  el.addEventListener("click",function(e){
   var t=e.target;
-  if(t.dataset.clr){AF={act:"",obj:"",q:""};renderAL();return}
+  var mc=msClear(e);if(mc){AF[mc.dataset.f]=[];if(mc.dataset.f==="act")AF.obj=[];renderAL();return}if(t.dataset.clr){AF={act:[],obj:[],q:[]};renderAL();return}
   if(t.id==="alXls"){alXls();return}
   var r=ALR[t.dataset.i];if(!r)return;
   if(t.dataset.k==="d"){if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);renderAll()}return}
@@ -935,16 +954,15 @@ function cmp(host,title,la,ka,lb,kb,pct,rows,qs,withAct){
  host.innerHTML="<h3 style='margin:22px 0 4px;color:var(--brand2);border-top:2px solid var(--line);padding-top:12px'>"+title+"</h3>"+kp+tabs+det;
 }
 function renderAL(){
- var el=$("alDash"),f=AF,rows=alRows(),qs=f.q===""?[0,1,2,3]:[+f.q];ALR=rows;
+ var el=$("alDash"),f=AF,rows=alRows(),qs=qsOf(f.q);ALR=rows;
  var acts=uniq(alloc.filter(function(r){return+r.year===year}).map(function(r){return r.act}).concat(yi().map(function(i){return i.act})));
- var all=(function(){var s=AF;AF={act:f.act,obj:"",q:""};var r=alRows();AF=s;return r})();
- var objs=uniq(all.map(function(r){return r.obj})).sort(byObj);if(f.obj&&objs.indexOf(f.obj)<0)f.obj="";
+ var all=(function(){var s=AF;AF={act:f.act,obj:[],q:[]};var r=alRows();AF=s;return r})();
+ var objs=uniq(all.map(function(r){return r.obj})).sort(byObj);f.obj=f.obj.filter(function(o){return objs.indexOf(o)>=0});
  var s=function(k){return el.querySelector('[data-f="'+k+'"]')};
- s("act").innerHTML=opts(acts,f.act,"All activities");s("obj").innerHTML=opts(objs,f.obj,"All objects of expenditure");
- s("q").innerHTML='<option value="">All quarters</option>'+Q.map(function(n,i){return'<option value="'+i+'"'+(String(i)===String(f.q)?" selected":"")+'>'+n+' Quarter</option>'}).join("");
+ msFill(s("act"),L1(acts),f.act,"All activities");msFill(s("obj"),L1(objs),f.obj,"All objects of expenditure");msFill(s("q"),QO(),f.q,"All quarters");
  cmp($("alC1"),"Comparison 1: Work Financial Plan (WFP) vs Actual Budget Allocated","WFP","a","Actual Budget Allocated","b","% of WFP allocated",rows,qs,true);
  cmp($("alC2"),"Comparison 2: Actual Budget Allocated vs Actual Budget Spent","Actual Budget Allocated","b","Actual Budget Spent","s","% of allocated budget spent",rows,qs,false);
- var on=[f.act,f.obj,f.q!==""?Q[+f.q]+" Quarter":""].filter(Boolean);
+ var on=[].concat(f.act,f.obj,qtxt(f.q));
  el.querySelector(".fsum").textContent="Year "+year+" — WFP = the lump-sum Work Financial Plan; Actual Budget Allocated = your encoded items (quantity × unit price); Actual Budget Spent = Release recorded in Budget Monitoring. A red balance means the second amount is more than the first"+(on.length?". Filtered by: "+on.join(" › "):"");
  var dl="";acts.forEach(function(a){dl+='<option value="'+esc(a)+'"></option>'});$("alActList").innerHTML=dl;
 }
