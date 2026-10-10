@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tourism Office Records Management System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="login"><form id="loginForm" class="card" autocomplete="on">
+ <img src="images/PGOM_Logo.jpg" alt="Official Seal"><small>Provincial Tourism Office</small>
+ <h2>Tourism Office Records Management System</h2><p class="lgnote">Sign in to continue</p>
+ <label for="lgEmail">Email</label><input id="lgEmail" type="email" autocomplete="username" required>
+ <label for="lgPw">Password</label><div class="pwrow"><input id="lgPw" type="password" autocomplete="current-password" required><button type="button" id="lgShow">Show</button></div>
+ <button class="p" id="lgBtn" type="submit">Sign in</button><div class="err" id="lgErr" role="alert"></div>
+ <a href="#" id="lgForgot">Forgot password?</a>
+ <p class="lgnote">Admin accounts have full control. All other accounts are view-only.</p></form></div>
+<header class="top">
+ <img class="seal" src="images/PGOM_Logo.jpg" alt="Official Seal">
+ <div class="ttl"><small>Provincial Tourism Office</small><h1>Tourism Office Records Management System</h1>
+ <p>Work Financial Plan, Office Budget &amp; Records Monitoring Portal developed by <b>RYAN R. TAJONERA</b>, Tourism Operations Officer II</p></div>
+ <div class="yr"><label for="year">Year</label><select id="year"></select></div>
+ <div id="cloud">☁ Connecting…</div>
+ <button class="p" id="saveCloud" type="button">☁ Save to Cloud</button>
+ <div id="bk" class="noprint" style="position:fixed;left:10px;bottom:10px;z-index:50;display:flex;gap:6px"><button id="bkDown" type="button">⬇ Quick Backup</button><button id="bkUp" type="button">⬆ Restore</button><input id="bkFile" type="file" accept=".json" style="display:none"></div>
+ <div class="chip" id="whoChip"></div>
+ <button type="button" id="signOut">⎋ Sign out</button>
+</header>
+<div class="shell">
+<nav class="tabs" role="tablist">
+ <h6>MAIN NAVIGATION</h6>
+ <button role="tab" id="tabBtnWF" aria-selected="false">📋 Work Financial Plan (Lump-sum)</button>
+ <button role="tab" id="tabBtnOB" aria-selected="true">🧾 Office Budget (Itemized)</button>
+ <button role="tab" id="tabBtnAN" aria-selected="false">🎯 Office Annual Budget</button>
+ <h6>ANALYTICS &amp; REPORTS</h6>
+ <button role="tab" id="tabBtnBM" aria-selected="false">📊 Budget Monitoring</button>
+ <button role="tab" id="tabBtnAL" aria-selected="false">⚖️ WFP vs Actual</button>
+</nav>
+<main>
+<div class="lhead"><img src="images/PGOM_Logo.jpg" alt="Official Seal"><div><div class="a">Republic of the Philippines</div><div class="b">PROVINCIAL GOVERNMENT OF OCCIDENTAL MINDORO</div><div class="c">Provincial Tourism, Culture and Arts Division</div><div class="d">Planning Development, Data Banking and Administrative Section</div></div></div>
+
+<section class="card noprint">
+ <h2>Report details</h2>
+ <div class="meta">
+  <div><label for="mOffice">Office / Division</label><input id="mOffice" placeholder="e.g. Provincial Tourism, Culture and Arts Division"></div>
+  <div><label for="mBy">Prepared by</label><input id="mBy"></div>
+  <div><label for="mApp">Approved by</label><input id="mApp"></div>
+ </div>
+</section>
+
+<!-- ============ OFFICE BUDGET ============ -->
+<div id="tabOB">
+<section class="card entry">
+ <div class="bar" style="margin-bottom:6px"><h2 id="formTitle" style="margin:0">Add item</h2><button type="button" id="entryToggle">Hide form</button></div>
+ <div id="entryBody">
+ <div class="grid">
+  <div class="c3"><label for="aip">AIP Code</label><input id="aip" list="aipList" autocomplete="off"><datalist id="aipList"></datalist></div>
+  <div class="c9"><label for="act">Activities</label><input id="act" list="actList" autocomplete="off"><datalist id="actList"></datalist></div>
+  <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
+  <div class="c6"><label for="obj">Object of Expenditure <a href="#" id="objEdit" style="font-size:12px;font-weight:400">Edit list</a></label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
+  <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
+  <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
+  <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
+   <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
+  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01" list="priceList"><datalist id="priceList"></datalist></div>
+  <div class="c6"><label for="mode">Mode of Procurement</label>
+   <input id="mode" list="modeList" autocomplete="off" placeholder="Procurement or Non-Procurement"><datalist id="modeList"><option value="Procurement"><option value="Non-Procurement"></datalist></div>
+  <div class="c12">
+   <fieldset>
+    <legend>Quantity and amount per quarter</legend>
+    <div class="qgrid">
+     <span class="h">Quarter</span><span class="h">Quantity</span><span class="h">Amount (quantity × unit price)</span>
+     <span class="q">1st Quarter</span><input id="q1" type="number" min="0" step="any" aria-label="1st Quarter quantity"><input id="a1" readonly aria-label="1st Quarter amount">
+     <span class="q">2nd Quarter</span><input id="q2" type="number" min="0" step="any" aria-label="2nd Quarter quantity"><input id="a2" readonly aria-label="2nd Quarter amount">
+     <span class="q">3rd Quarter</span><input id="q3" type="number" min="0" step="any" aria-label="3rd Quarter quantity"><input id="a3" readonly aria-label="3rd Quarter amount">
+     <span class="q">4th Quarter</span><input id="q4" type="number" min="0" step="any" aria-label="4th Quarter quantity"><input id="a4" readonly aria-label="4th Quarter amount">
+    </div>
+   </fieldset>
+  </div>
+  <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
+  <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
+ </div>
+ <div class="info" id="wfpMsg" style="font-weight:600"></div>
+ <div class="err" id="err" role="alert"></div>
+ <div class="btns">
+  <button class="p" id="btnSave">Add item</button>
+  <button id="btnCancel" class="hidden">Cancel edit</button>
+  <button id="btnClear">Clear form</button>
+ </div>
+ </div>
+</section>
+
+<section class="card noprint" id="obDash"></section>
+
+<section class="card">
+ <div class="bar noprint">
+  <h2 style="margin:0">Office Budget report</h2>
+  <div class="btns" style="margin:0">
+   <button class="p" id="obTpl">Download template</button>
+   <button class="p" id="obImp">Import from Excel</button>
+   <input type="file" id="obFile" accept=".xlsx,.xls,.csv" style="display:none">
+   <button class="p" id="obExp">Export items (Excel)</button>
+   <button class="p" id="obXlsx">Save to Excel</button>
+   <button class="p" id="obPrint">Print report</button>
+   <button class="d" id="btnAll">Delete all (this year)</button>
+  </div>
+ </div>
+ <div class="rhead"><h2 id="obTitle"></h2><div class="m"><span id="obOffice"></span><span id="obYear"></span></div></div>
+ <div class="wrap">
+ <table class="ob">
+  <thead>
+   <tr>
+    <th rowspan="2">AIP Code</th><th rowspan="2">Activities</th><th rowspan="2">Description</th><th rowspan="2">Object of Expenditure</th><th rowspan="2">Account Code</th><th rowspan="2">Stock No.</th><th rowspan="2">Unit</th>
+    <th rowspan="2">Unit Price</th><th rowspan="2">Total Qty</th><th rowspan="2">Estimated Budget</th><th rowspan="2">Mode of Procurement</th>
+    <th colspan="2">1st Quarter</th><th colspan="2">2nd Quarter</th><th colspan="2">3rd Quarter</th><th colspan="2">4th Quarter</th><th rowspan="2" class="act">Actions</th>
+   </tr>
+   <tr><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th></tr>
+  </thead>
+  <tbody id="obBody"></tbody><tfoot id="obFoot"></tfoot>
+ </table>
+ </div>
+ <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
+</section>
+</div>
+
+<!-- ============ BUDGET MONITORING ============ -->
+<div id="tabBM" class="hidden">
+<section class="card entry">
+ <h2>Record a release or augmentation</h2>
+ <div class="grid">
+  <div class="c3"><label for="tType">Transaction</label><select id="tType"><option value="rel">Release</option><option value="aug">Augmentation (move budget)</option></select></div>
+  <div class="c9"><label for="fAct" id="lFa">Activities</label><select id="fAct"></select></div>
+  <div class="c9"><label for="fObj" id="lFo">Object of Expenditure</label><select id="fObj"></select></div>
+  <div class="c3"><label for="fAcct" id="lFc">Account Code</label><input id="fAcct" readonly></div>
+  <div class="c9"><label for="tFrom" id="lFrom">Item (budget line)</label><select id="tFrom"></select></div>
+  <div class="c3"><label for="tFq" id="lFq">Quarter of release</label><select id="tFq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
+  <div class="c9 augonly hidden"><label for="tAct">Augmented to – Activities</label><select id="tAct"></select></div>
+  <div class="c9 augonly hidden"><label for="tObj">Augmented to – Object of Expenditure</label><select id="tObj"></select></div>
+  <div class="c3 augonly hidden"><label for="tAcct">Augmented to – Account Code</label><input id="tAcct" readonly></div>
+  <div class="c9 augonly hidden"><label for="tTo">Augmented to – Item (budget line)</label><select id="tTo"></select></div>
+  <div class="c3 augonly hidden"><label for="tTq">Augmented to quarter</label><select id="tTq"><option value="0">1st Quarter</option><option value="1">2nd Quarter</option><option value="2">3rd Quarter</option><option value="3">4th Quarter</option></select></div>
+  <div class="c3"><label for="tQty">Quantity</label><input id="tQty" type="number" min="0" step="any"></div>
+  <div class="c3"><label for="tAmt">Amount (computed)</label><input id="tAmt" readonly placeholder="Quantity × unit price"></div>
+  <div class="c3"><label for="tDate">Date</label><input id="tDate" type="date"></div>
+  <div class="c3"><label for="tNote">Remarks</label><input id="tNote"></div>
+  <div class="c3"><label for="tStat">Status</label><select id="tStat"><option value="">Active</option><option value="Cancelled">Cancelled</option></select></div>
+ </div>
+ <div class="info" id="tInfo"></div>
+ 
+ <div class="err" id="terr" role="alert"></div>
+ <div class="btns"><button class="p" id="btnTx">Add transaction</button><button id="btnTxCancel" class="hidden">Cancel edit</button></div>
+</section>
+
+<section class="card noprint" id="bmDash"></section>
+
+<section class="card">
+ <div class="bar noprint">
+  <h2 style="margin:0">Budget Monitoring report</h2>
+  <div class="btns" style="margin:0">
+   <button class="p" id="bmXlsx">Save to Excel</button>
+   <button class="p" id="bmPrint">Print report</button>
+  </div>
+ </div>
+ <div class="rhead"><h2 id="bmTitle"></h2><div class="m"><span id="bmOffice"></span><span id="bmYear"></span></div></div>
+ <div class="wrap">
+ <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
+ </div>
+ <h2 style="margin:18px 0 8px">Transactions</h2>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><div class="ms" data-lf="act"></div></div><div><label>Transaction</label><div class="ms" data-lf="type"></div></div><div><label>Quarter</label><div class="ms" data-lf="q"></div></div><div><label>Remarks</label><div class="ms" data-lf="rem"></div></div><div><label>Status</label><div class="ms" data-lf="stat"></div></div><button data-lclr="1">Clear filters</button></div>
+ <div class="wrap">
+ <table class="lg">
+  <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th>Status</th><th class="act">Action</th></tr></thead>
+  <tbody id="lgBody"></tbody>
+ </table>
+ </div>
+ <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
+</section>
+</div>
+<div id="tabWF" class="hidden">
+<section class="card noprint"><div class="bar" style="margin-bottom:0"><h2 id="alTitle" style="margin:0">Add WFP entry</h2><button id="alHide" type="button">Hide</button></div><div id="alBody">
+<p class="fsum" style="margin-top:0">Enter the lump-sum Work Financial Plan (WFP) for the selected year, per activity and object of expenditure, for each quarter. There is no quantity or unit price here; the items in Office Budget are checked against it.</p>
+<div class="fbar"><div style="flex:2 1 260px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div>
+<div style="flex:2 1 260px"><label for="alObj">Object of Expenditure</label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select…"></div>
+<div><label for="al1">1st Quarter</label><input id="al1" type="number" min="0" step="0.01"></div><div><label for="al2">2nd Quarter</label><input id="al2" type="number" min="0" step="0.01"></div>
+<div><label for="al3">3rd Quarter</label><input id="al3" type="number" min="0" step="0.01"></div><div><label for="al4">4th Quarter</label><input id="al4" type="number" min="0" step="0.01"></div>
+<div><label for="alTot">Total</label><input id="alTot" readonly></div></div>
+<div class="btns"><button class="p" id="alSave">Add WFP entry</button><button id="alCancel" class="hidden">Cancel</button></div><div class="err" id="alErr"></div></div></section>
+<section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
+<div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
+<div class="fbar noprint" id="wfFilt"><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
+<div class="fsum" id="wfSum"></div><div class="wrap" style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div>
+<div class="sign"><div class="sBy"></div><div class="sApp"></div></div></section>
+</div>
+<div id="tabAN" class="hidden">
+<section class="card noprint"><div class="bar" style="margin-bottom:0"><h2 id="anTitle" style="margin:0">Add Office Annual Budget</h2><button id="anHide" type="button">Hide</button></div>
+<div id="anBody"><p class="fsum">Record the yearly Tourism Budget, the Arawatan Festival budget, and the Arawatan Festival theme.</p>
+<div class="fbar"><div><label for="anYear">Year</label><input id="anYear" type="number" min="2000" max="2100"></div>
+<div><label for="anTour">Tourism Budget</label><input id="anTour" type="number" min="0" step="0.01"></div>
+<div><label for="anArw">Arawatan Budget</label><input id="anArw" type="number" min="0" step="0.01"></div>
+<div><label for="anTot">Total</label><input id="anTot" readonly></div>
+<div style="flex:3 1 320px"><label for="anTheme">Arawatan Festival Theme</label><input id="anTheme" autocomplete="off"></div></div>
+<div class="btns"><button class="p" id="anSave" type="button">Add record</button><button id="anCancel" type="button" class="hidden">Cancel</button></div><div class="err" id="anErr"></div></div></section>
+<section class="card"><div class="bar noprint"><h2 style="margin:0">Office Annual Budget records</h2><button class="p" id="anPrint" type="button">Print report</button></div>
+<div class="rhead"><h2>Office Annual Budget</h2></div>
+<div class="wrap"><table class="dt" id="anTbl"></table></div></section>
+</div>
+<div id="tabAL" class="hidden">
+
+<section class="card" id="alDash"></section>
+</div>
+</main>
+</div>
+<dialog id="objDlg"></dialog>
+
+
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<!-- js/app.js is loaded by auth.js after a successful sign-in -->
+</body>
+</html>

@@ -1,0 +1,13 @@
+// Firebase Console > Firestore Database > Rules.
+// This is what really enforces "admin = full control, others = view-only".
+// If other apps share this Firebase project, ADD the match block below to your existing rules instead of replacing them.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /apps/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.email in ["rhyant13th@gmail.com"];   // same list as js/config.js
+    }
+  }
+}
