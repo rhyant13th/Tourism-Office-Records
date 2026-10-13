@@ -84,6 +84,7 @@
   <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
   <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
  </div>
+ <div class="info" id="objTot" style="font-weight:600"></div>
  <div class="info" id="wfpMsg" style="font-weight:600"></div>
  <div class="err" id="err" role="alert"></div>
  <div class="btns">
@@ -130,7 +131,8 @@
 <!-- ============ BUDGET MONITORING ============ -->
 <div id="tabBM" class="hidden">
 <section class="card entry">
- <h2>Record a release or augmentation</h2>
+ <div class="bar" style="margin-bottom:6px"><h2 style="margin:0">Record a release or augmentation</h2><button type="button" id="txToggle">Hide form</button></div>
+ <div id="txBody">
  <div class="grid">
   <div class="c3"><label for="tType">Transaction</label><select id="tType"><option value="rel">Release</option><option value="aug">Augmentation (move budget)</option></select></div>
   <div class="c9"><label for="fAct" id="lFa">Activities</label><select id="fAct"></select></div>
@@ -150,9 +152,11 @@
   <div class="c3"><label for="tStat">Status</label><select id="tStat"><option value="">Active</option><option value="Cancelled">Cancelled</option></select></div>
  </div>
  <div class="info" id="tInfo"></div>
+ <div class="info" id="tObjTot" style="font-weight:600"></div>
  
  <div class="err" id="terr" role="alert"></div>
  <div class="btns"><button class="p" id="btnTx">Add transaction</button><button id="btnTxCancel" class="hidden">Cancel edit</button></div>
+ </div>
 </section>
 
 <section class="card noprint" id="bmDash"></section>
@@ -166,6 +170,7 @@
   </div>
  </div>
  <div class="rhead"><h2 id="bmTitle"></h2><div class="m"><span id="bmOffice"></span><span id="bmYear"></span></div></div>
+ <div class="noprint" id="bmQ"><b>Show quarters:</b> <label><input type="checkbox" data-bq="0" checked> 1st</label> <label><input type="checkbox" data-bq="1" checked> 2nd</label> <label><input type="checkbox" data-bq="2" checked> 3rd</label> <label><input type="checkbox" data-bq="3" checked> 4th</label> <span class="fsum" style="margin-left:8px">Hidden quarters are also left out when you print. Total Balance still covers all quarters.</span></div>
  <div class="wrap">
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
