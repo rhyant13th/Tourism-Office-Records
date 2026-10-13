@@ -252,7 +252,7 @@ var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account
 var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 (function(){
  var h="<tr>";BASE.forEach(function(b){h+='<th rowspan="2">'+b+'</th>'});
- Q.forEach(function(q,i){h+='<th colspan="5" class="bq'+i+'">'+q+' Quarter</th>'});
+ Q.forEach(function(q,i){h+='<th colspan="5" class="bq'+i+'">'+q+' Quarter <button type="button" class="qh" data-qh="'+i+'" title="Hide this quarter">Hide</button></th><th rowspan="2" class="bqs bqs'+i+'"><button type="button" class="qh" data-qh="'+i+'" title="Show this quarter again">'+q+' Quarter &#9656;</button></th>'});
  h+='<th rowspan="2">Total Balance</th></tr><tr>';
  for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th class='bq"+k+"'>"+s+"</th>"});
  $("bmHead").innerHTML=h+"</tr>";
@@ -266,8 +266,8 @@ function lineCalc(it){
 }
 var lineLabel=function(it){return it?it.act+" – "+it.obj+" ("+it.acct+") – "+it.aip+" – "+it.desc:"(deleted item)"};
 var BMQ=[1,1,1,1];try{var _bq=JSON.parse(localStorage.getItem("wfp_bm_q")||"null");if(_bq&&_bq.length===4)BMQ=_bq}catch(e){}
-function bmQApply(){var t=document.querySelector("table.bm");for(var k=0;k<4;k++){t.classList.toggle("hq"+k,!BMQ[k]);var c=document.querySelector('#bmQ [data-bq="'+k+'"]');if(c)c.checked=!!BMQ[k]}}
-$("bmQ").addEventListener("change",function(e){var k=e.target.dataset.bq;if(k===undefined)return;BMQ[+k]=e.target.checked?1:0;try{localStorage.setItem("wfp_bm_q",JSON.stringify(BMQ))}catch(x){}bmQApply()});
+function bmQApply(){var t=document.querySelector("table.bm");for(var k=0;k<4;k++)t.classList.toggle("hq"+k,!BMQ[k])}
+$("bmHead").addEventListener("click",function(e){var b=e.target.closest("[data-qh]");if(!b)return;var k=+b.dataset.qh;BMQ[k]=BMQ[k]?0:1;try{localStorage.setItem("wfp_bm_q",JSON.stringify(BMQ))}catch(x){}bmQApply()});
 bmQApply();
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
 function renderBM(){
@@ -278,13 +278,13 @@ function renderBM(){
    var c=lineCalc(it),t=tot(it),sum=0;
    h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(t*it.price)+"</td><td>"+esc(it.mode)+"</td>";
    for(var k=0;k<4;k++){
-    h+=cell(c.b[k],"bq"+k)+cell(c.r[k],"bq"+k)+cell(c.t[k],"bq"+k)+cell(c.f[k],"bq"+k)+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td>";
+    h+=cell(c.b[k],"bq"+k)+cell(c.r[k],"bq"+k)+cell(c.t[k],"bq"+k)+cell(c.f[k],"bq"+k)+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
     T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
+  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+"</td>"+(i%5===4?"<td class='bqs bqs"+Math.floor(i/5)+"'></td>":"")}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
  }
  // transaction log
  var lg="";
