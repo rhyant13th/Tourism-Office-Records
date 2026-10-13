@@ -44,7 +44,7 @@
     }
     $("lgPw").value = "";
     if (!loaded) {   /* start the main app only after sign-in */
-      loaded = true; var sc = document.createElement("script"); sc.src = "js/app.js"; document.body.appendChild(sc);
+      loaded = true; var sc = document.createElement("script"); sc.src = "js/app.js?v=" + Date.now(); document.body.appendChild(sc);
     }
   });
 })();
