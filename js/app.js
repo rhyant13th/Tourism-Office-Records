@@ -138,7 +138,13 @@ function calcForm(){
 function itemTotals(ex){var m={};yi().forEach(function(it){if(ex&&it.id===ex)return;for(var k=0;k<4;k++){var key=it.act+"|"+it.obj+"|"+k;m[key]=(m[key]||0)+it.q[k]*it.price}});return m}
 function wfpOf(act,obj,k){var w=0;alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj===obj)w+=r.q[k]});return w}
 function overWfp(list,qs){var T=itemTotals(),seen={},amt=0,n=0;list.forEach(function(it){qs.forEach(function(k){var key=it.act+"|"+it.obj+"|"+k;if(seen[key])return;seen[key]=1;var d=(T[key]||0)-wfpOf(it.act,it.obj,k);if(d>0.005){amt+=d;n++}})});return{amt:amt,n:n}}
-function wfpForm(){
+function objTotTxt(act,obj,pre){
+ if(!obj)return"";var all=0,n=0,inA=0,nA=0;
+ yi().forEach(function(it){if(it.obj===obj){var v=tot(it)*it.price;all+=v;n++;if(act&&it.act===act){inA+=v;nA++}}});
+ return pre+obj+" ("+year+"): \u20b1 "+money(all)+" in "+n+" item"+(n===1?"":"s")+(act?" \u00b7 in this activity: \u20b1 "+money(inA)+" ("+nA+" item"+(nA===1?"":"s")+")":"");
+}
+function objTotOB(){var on=$("obj").value.trim().toLowerCase(),h=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];$("objTot").textContent=h?objTotTxt($("act").value.trim(),h[1],"Total estimated budget \u2013 "):""}
+function wfpForm(){objTotOB();
  var el=$("wfpMsg");el.innerHTML="";var act=$("act").value.trim(),on=$("obj").value.trim().toLowerCase(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];
  if(!act||!hit)return;
  var T=itemTotals(typeof editing!=="undefined"?editing:null),pr=parseFloat($("price").value)||0,h="";
@@ -246,35 +252,40 @@ var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account
 var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 (function(){
  var h="<tr>";BASE.forEach(function(b){h+='<th rowspan="2">'+b+'</th>'});
- Q.forEach(function(q){h+='<th colspan="5">'+q+' Quarter</th>'});
+ Q.forEach(function(q,i){h+='<th colspan="5" class="bq'+i+'">'+q+' Quarter <button type="button" class="qh" data-qh="'+i+'" title="Hide this quarter">Hide</button></th><th rowspan="2" class="bqs bqs'+i+'"><button type="button" class="qh" data-qh="'+i+'" title="Show this quarter again">'+q+' Quarter &#9656;</button></th>'});
  h+='<th rowspan="2">Total Balance</th></tr><tr>';
- for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th>"+s+"</th>"});
+ for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th class='bq"+k+"'>"+s+"</th>"});
  $("bmHead").innerHTML=h+"</tr>";
 })();
 var LCm=null,LCt=null,LCn=-1;
 function lineCalc(it){
- if(LCt!==txs||LCn!==txs.length){LCm={};var Z=function(id){return LCm[id]||(LCm[id]={r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]})};txs.forEach(function(x){if(isCan(x))return;if(x.type==="rel")Z(x.from).r[x.fq]+=x.amt;else{Z(x.from).t[x.fq]+=x.amt;Z(x.to).f[x.tq]+=x.amt}});LCt=txs;LCn=txs.length}
- var a=LCm[it.id]||{r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]},b=[],bal=[],k;
+ if(LCt!==txs||LCn!==txs.length){LCm={};var Z=function(id){return LCm[id]||(LCm[id]={r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0],cr:[0,0,0,0],ct:[0,0,0,0],cf:[0,0,0,0]})};txs.forEach(function(x){var c=isCan(x);if(x.type==="rel"){(c?Z(x.from).cr:Z(x.from).r)[x.fq]+=x.amt}else{(c?Z(x.from).ct:Z(x.from).t)[x.fq]+=x.amt;(c?Z(x.to).cf:Z(x.to).f)[x.tq]+=x.amt}});LCt=txs;LCn=txs.length}
+ var a=LCm[it.id]||{r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0],cr:[0,0,0,0],ct:[0,0,0,0],cf:[0,0,0,0]},b=[],bal=[],k;
  for(k=0;k<4;k++){b[k]=it.q[k]*it.price;bal[k]=b[k]-a.r[k]-a.t[k]+a.f[k]}
- return{b:b,r:a.r,t:a.t,f:a.f,bal:bal};
+ return{b:b,r:a.r,t:a.t,f:a.f,bal:bal,cr:a.cr,ct:a.ct,cf:a.cf};
 }
 var lineLabel=function(it){return it?it.act+" – "+it.obj+" ("+it.acct+") – "+it.aip+" – "+it.desc:"(deleted item)"};
+var BMQ=[1,1,1,1];try{var _bq=JSON.parse(localStorage.getItem("wfp_bm_q")||"null");if(_bq&&_bq.length===4)BMQ=_bq}catch(e){}
+function bmQApply(){var t=document.querySelector("table.bm");for(var k=0;k<4;k++)t.classList.toggle("hq"+k,!BMQ[k])}
+$("bmHead").addEventListener("click",function(e){var b=e.target.closest("[data-qh]");if(!b)return;var k=+b.dataset.qh;BMQ[k]=BMQ[k]?0:1;try{localStorage.setItem("wfp_bm_q",JSON.stringify(BMQ))}catch(x){}bmQApply()});
+bmQApply();
+var cellc=function(v,cv,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+(cv?"<div style='color:var(--warn);font-weight:700' title='Cancelled - not deducted from the balance'>"+money(cv)+"</div>":"")+"</td>"};
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
 function renderBM(){
- var list=fi("bm"),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
+ var list=fi("bm"),h="",T=[],i;var TC=[];for(i=0;i<20;i++){T[i]=0;TC[i]=0}var tb=0;
  if(!list.length){$("bmBody").innerHTML='<tr><td class="empty" colspan="32">'+(yi().length?"No budget lines match the selected filters.":"No budget lines for "+year+". Add items in Office Budget first.")+'</td></tr>';$("bmFoot").innerHTML=""}
  else{
   list.forEach(function(it){
    var c=lineCalc(it),t=tot(it),sum=0;
    h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(t*it.price)+"</td><td>"+esc(it.mode)+"</td>";
    for(var k=0;k<4;k++){
-    h+=cell(c.b[k])+cell(c.r[k])+cell(c.t[k])+cell(c.f[k])+"<td class='n bal"+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td>";
-    T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];sum+=c.bal[k];
+    h+=cell(c.b[k],"bq"+k)+cellc(c.r[k],c.cr[k],"bq"+k)+cellc(c.t[k],c.ct[k],"bq"+k)+cellc(c.f[k],c.cf[k],"bq"+k)+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
+    T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];TC[k*5+1]+=c.cr[k];TC[k*5+2]+=c.ct[k];TC[k*5+3]+=c.cf[k];sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
+  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+(TC[i]?"<div style='color:var(--warn);font-weight:700'>"+money(TC[i])+"</div>":"")+"</td>"+(i%5===4?"<td class='bqs bqs"+Math.floor(i/5)+"'></td>":"")}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
  }
  // transaction log
  var lg="";
@@ -305,8 +316,11 @@ function fillLgFilt(){
 }
 $("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
 $("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
+function txShow(on,np){$("txBody").classList.toggle("hidden",!on);$("txToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_tx_hidden",on?"0":"1")}catch(e){}}
+$("txToggle").onclick=function(){txShow($("txBody").classList.contains("hidden"))};
+try{if(localStorage.getItem("wfp_tx_hidden")==="1")txShow(false,1)}catch(e){}
 function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("tStat").value="";$("terr").textContent=""}
-function txLoad(x){
+function txLoad(x){txShow(true,1);
  var s=byId(x.from),d=byId(x.to);if(!s)return;
  $("tType").value=x.type;typeUi();
  $("fAct").value=s.act;fillTx();$("fObj").value=s.obj;
@@ -344,7 +358,8 @@ function info(){
  var it=byId($("tFrom").value),q=+$("tFq").value,bal=it?lineCalc(it).bal[q]:0;
  $("tInfo").textContent=it?"Unit price: "+money(it.price)+" — available in "+Q[q]+" Quarter: "+money(bal)+" (about "+(Math.floor(bal/it.price*100)/100)+" "+(it.unit||"units")+")":"";
  txAmt();
-
+ var aug=$("tType").value==="aug",l1=objTotTxt($("fAct").value,$("fObj").value,(aug?"Augmented from \u2013 ":"")+"Total estimated budget \u2013 "),l2=aug?objTotTxt($("tAct").value,$("tObj").value,"Augmented to \u2013 Total estimated budget \u2013 "):"";
+ $("tObjTot").innerHTML=(l1?"<div>"+esc(l1)+"</div>":"")+(l2?"<div>"+esc(l2)+"</div>":"");
 }
 
 function txAmt(){var it=byId($("tFrom").value),q=parseFloat($("tQty").value)||0;$("tAmt").value=(it&&q>0)?money(Math.round(q*it.price*100)/100):""}
