@@ -129,3 +129,9 @@ header.top img.seal{background:none;border:0;object-fit:contain;border-radius:50
 body.role-viewer .entry,body.role-viewer .vh,body.role-viewer #saveCloud,body.role-viewer #bkUp,body.role-viewer #btnAll,body.role-viewer #obImp,body.role-viewer #obTpl,
 body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer button[data-e],body.role-viewer button[data-d],body.role-viewer button[data-t],body.role-viewer button[data-a]:not([data-a=close]){display:none!important}
 @media print{#login,#signOut,#whoChip{display:none!important}}
+
+/* ===== BM quarter hide ===== */
+.hq0 .bq0,.hq1 .bq1,.hq2 .bq2,.hq3 .bq3{display:none}
+.bqs{display:none;width:30px;min-width:30px;padding:2px!important;background:var(--soft)}.bqs button{writing-mode:vertical-rl;padding:8px 3px;font-size:11px}.qh{padding:2px 8px;font-size:11px;margin-left:8px}
+.hq0 .bqs0,.hq1 .bqs1,.hq2 .bqs2,.hq3 .bqs3{display:table-cell}
+@media print{.bqs,.qh{display:none!important}}
