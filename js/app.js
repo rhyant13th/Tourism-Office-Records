@@ -138,7 +138,13 @@ function calcForm(){
 function itemTotals(ex){var m={};yi().forEach(function(it){if(ex&&it.id===ex)return;for(var k=0;k<4;k++){var key=it.act+"|"+it.obj+"|"+k;m[key]=(m[key]||0)+it.q[k]*it.price}});return m}
 function wfpOf(act,obj,k){var w=0;alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj===obj)w+=r.q[k]});return w}
 function overWfp(list,qs){var T=itemTotals(),seen={},amt=0,n=0;list.forEach(function(it){qs.forEach(function(k){var key=it.act+"|"+it.obj+"|"+k;if(seen[key])return;seen[key]=1;var d=(T[key]||0)-wfpOf(it.act,it.obj,k);if(d>0.005){amt+=d;n++}})});return{amt:amt,n:n}}
-function wfpForm(){
+function objTotTxt(act,obj,pre){
+ if(!obj)return"";var all=0,n=0,inA=0,nA=0;
+ yi().forEach(function(it){if(it.obj===obj){var v=tot(it)*it.price;all+=v;n++;if(act&&it.act===act){inA+=v;nA++}}});
+ return pre+obj+" ("+year+"): \u20b1 "+money(all)+" in "+n+" item"+(n===1?"":"s")+(act?" \u00b7 in this activity: \u20b1 "+money(inA)+" ("+nA+" item"+(nA===1?"":"s")+")":"");
+}
+function objTotOB(){var on=$("obj").value.trim().toLowerCase(),h=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];$("objTot").textContent=h?objTotTxt($("act").value.trim(),h[1],"Total estimated budget \u2013 "):""}
+function wfpForm(){objTotOB();
  var el=$("wfpMsg");el.innerHTML="";var act=$("act").value.trim(),on=$("obj").value.trim().toLowerCase(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];
  if(!act||!hit)return;
  var T=itemTotals(typeof editing!=="undefined"?editing:null),pr=parseFloat($("price").value)||0,h="";
@@ -246,19 +252,23 @@ var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account
 var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 (function(){
  var h="<tr>";BASE.forEach(function(b){h+='<th rowspan="2">'+b+'</th>'});
- Q.forEach(function(q){h+='<th colspan="5">'+q+' Quarter</th>'});
+ Q.forEach(function(q,i){h+='<th colspan="5" class="bq'+i+'">'+q+' Quarter</th>'});
  h+='<th rowspan="2">Total Balance</th></tr><tr>';
- for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th>"+s+"</th>"});
+ for(var k=0;k<4;k++)SUB.forEach(function(s){h+="<th class='bq"+k+"'>"+s+"</th>"});
  $("bmHead").innerHTML=h+"</tr>";
 })();
 var LCm=null,LCt=null,LCn=-1;
 function lineCalc(it){
- if(LCt!==txs||LCn!==txs.length){LCm={};var Z=function(id){return LCm[id]||(LCm[id]={r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]})};txs.forEach(function(x){if(x.type==="rel")Z(x.from).r[x.fq]+=x.amt;else{Z(x.from).t[x.fq]+=x.amt;Z(x.to).f[x.tq]+=x.amt}});LCt=txs;LCn=txs.length}
+ if(LCt!==txs||LCn!==txs.length){LCm={};var Z=function(id){return LCm[id]||(LCm[id]={r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]})};txs.forEach(function(x){if(isCan(x))return;if(x.type==="rel")Z(x.from).r[x.fq]+=x.amt;else{Z(x.from).t[x.fq]+=x.amt;Z(x.to).f[x.tq]+=x.amt}});LCt=txs;LCn=txs.length}
  var a=LCm[it.id]||{r:[0,0,0,0],t:[0,0,0,0],f:[0,0,0,0]},b=[],bal=[],k;
  for(k=0;k<4;k++){b[k]=it.q[k]*it.price;bal[k]=b[k]-a.r[k]-a.t[k]+a.f[k]}
  return{b:b,r:a.r,t:a.t,f:a.f,bal:bal};
 }
 var lineLabel=function(it){return it?it.act+" – "+it.obj+" ("+it.acct+") – "+it.aip+" – "+it.desc:"(deleted item)"};
+var BMQ=[1,1,1,1];try{var _bq=JSON.parse(localStorage.getItem("wfp_bm_q")||"null");if(_bq&&_bq.length===4)BMQ=_bq}catch(e){}
+function bmQApply(){var t=document.querySelector("table.bm");for(var k=0;k<4;k++){t.classList.toggle("hq"+k,!BMQ[k]);var c=document.querySelector('#bmQ [data-bq="'+k+'"]');if(c)c.checked=!!BMQ[k]}}
+$("bmQ").addEventListener("change",function(e){var k=e.target.dataset.bq;if(k===undefined)return;BMQ[+k]=e.target.checked?1:0;try{localStorage.setItem("wfp_bm_q",JSON.stringify(BMQ))}catch(x){}bmQApply()});
+bmQApply();
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
 function renderBM(){
  var list=fi("bm"),h="",T=[],i;for(i=0;i<20;i++)T[i]=0;var tb=0;
@@ -268,20 +278,20 @@ function renderBM(){
    var c=lineCalc(it),t=tot(it),sum=0;
    h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(t*it.price)+"</td><td>"+esc(it.mode)+"</td>";
    for(var k=0;k<4;k++){
-    h+=cell(c.b[k])+cell(c.r[k])+cell(c.t[k])+cell(c.f[k])+"<td class='n bal"+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td>";
+    h+=cell(c.b[k],"bq"+k)+cell(c.r[k],"bq"+k)+cell(c.t[k],"bq"+k)+cell(c.f[k],"bq"+k)+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td>";
     T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
+  $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
  }
  // transaction log
  var lg="";
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!lgOk(x,s))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(x.type==="rel"?"Release":"Augmentation")+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
-   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'>"+(x.qty?x.qty:"")+"</td><td class='n'>"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
+   (x.type==="aug"?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+(x.qty?x.qty:"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="9">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
@@ -305,8 +315,11 @@ function fillLgFilt(){
 }
 $("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
 $("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
+function txShow(on,np){$("txBody").classList.toggle("hidden",!on);$("txToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_tx_hidden",on?"0":"1")}catch(e){}}
+$("txToggle").onclick=function(){txShow($("txBody").classList.contains("hidden"))};
+try{if(localStorage.getItem("wfp_tx_hidden")==="1")txShow(false,1)}catch(e){}
 function txReset(){txEdit=null;$("btnTx").textContent="Add transaction";$("btnTxCancel").classList.add("hidden");$("tQty").value="";$("tAmt").value="";$("tNote").value="";$("tStat").value="";$("terr").textContent=""}
-function txLoad(x){
+function txLoad(x){txShow(true,1);
  var s=byId(x.from),d=byId(x.to);if(!s)return;
  $("tType").value=x.type;typeUi();
  $("fAct").value=s.act;fillTx();$("fObj").value=s.obj;
@@ -344,7 +357,8 @@ function info(){
  var it=byId($("tFrom").value),q=+$("tFq").value,bal=it?lineCalc(it).bal[q]:0;
  $("tInfo").textContent=it?"Unit price: "+money(it.price)+" — available in "+Q[q]+" Quarter: "+money(bal)+" (about "+(Math.floor(bal/it.price*100)/100)+" "+(it.unit||"units")+")":"";
  txAmt();
-
+ var aug=$("tType").value==="aug",l1=objTotTxt($("fAct").value,$("fObj").value,(aug?"Augmented from \u2013 ":"")+"Total estimated budget \u2013 "),l2=aug?objTotTxt($("tAct").value,$("tObj").value,"Augmented to \u2013 Total estimated budget \u2013 "):"";
+ $("tObjTot").innerHTML=(l1?"<div>"+esc(l1)+"</div>":"")+(l2?"<div>"+esc(l2)+"</div>":"");
 }
 
 function txAmt(){var it=byId($("tFrom").value),q=parseFloat($("tQty").value)||0;$("tAmt").value=(it&&q>0)?money(Math.round(q*it.price*100)/100):""}
@@ -361,7 +375,7 @@ $("btnTx").onclick=function(){
  if(!src){e.textContent="Select the Activity, Object of Expenditure and the item.";return}
  if(!(amt>0)){e.textContent="Enter a quantity greater than zero.";return}
  var keep=txs;if(txEdit)txs=txs.filter(function(t){return t.id!==txEdit});var av=lineCalc(src).bal[fq];txs=keep;
- if(amt>av+0.005){e.textContent="The amount of "+money(amt)+" ("+qty+" × "+money(src.price)+") is more than the "+Q[fq]+" Quarter balance of "+money(av)+".";return}
+ if($("tStat").value!=="Cancelled"&&amt>av+0.005){e.textContent="The amount of "+money(amt)+" ("+qty+" × "+money(src.price)+") is more than the "+Q[fq]+" Quarter balance of "+money(av)+".";return}
  if(type==="aug"){
   if(!byId(to)){e.textContent="Select the Activity, Object of Expenditure and item it is augmented to.";return}
   if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
