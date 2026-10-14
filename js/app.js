@@ -34,6 +34,67 @@ var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionD
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var Q=["1st","2nd","3rd","4th"];
 
+/* ---------- Clear memory (per-datalist) ---------- */
+var CLEAR_TOKEN="__CLEAR_MEMORY__";
+function clearOpt(){return'<option value="'+CLEAR_TOKEN+'">✕ Clear memory</option>'}
+/* Clear only the remembered suggestion for the field you opened — never delete saved records.
+   The datalists for AIP/Activities/Description/Stock/Unit/Price/Mode are rebuilt from saved items
+   on every render, so the only real "memory" to clear is the input box itself (and the browser's
+   own autocomplete).  The Object of Expenditure list has user-added custom entries, so for that
+   field we also drop the custom additions (keeping the built-in OBJ list). */
+function clearFieldMemory(field){
+ if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
+ var msg="Clear the remembered suggestions for this field?\n\nSaved records and reports are NOT deleted.";
+ if(!confirm(msg))return;
+
+ var el=$(field);
+ var touched=false;
+
+ if(field==="aip"||field==="act"||field==="desc"||field==="stock"||field==="unit"||field==="price"||field==="mode"||field==="alAip"||field==="alAct"){
+  /* These datalists are rebuilt from saved data — there is no separate memory.
+     We only clear the input box and turn off the browser's own autocomplete. */
+  if(el){el.value="";el.setAttribute("autocomplete","off")}
+  touched=true;
+ }else if(field==="obj"){
+  /* Object of Expenditure: drop user-added custom entries but keep the built-in list. */
+  custom=custom.filter(function(o){return o[0]==="#full"});
+  OBJ.forEach(function(o){custom.push(o.slice())});
+  save(OBJKEY,custom);fillObj("");touched=true;
+ }else if(field==="alObj"){
+  /* WFP Object of Expenditure uses the same objList, but the input id is alObj. */
+  custom=custom.filter(function(o){return o[0]==="#full"});
+  OBJ.forEach(function(o){custom.push(o.slice())});
+  save(OBJKEY,custom);fillObj("");touched=true;
+ }
+
+ if(touched){
+  refreshLists();renderAll();
+  setBadge("🧹 Field memory cleared","ok");
+  setTimeout(function(){setBadge("☁ Synced","ok")},1500);
+ }
+}
+/* Attach the clear option to a datalist's innerHTML and wire the input's change handler.
+   Safe to call repeatedly: any existing clear option is removed first, and listeners are
+   wired only once per input. */
+function addClearToDatalist(datalistId,inputId){
+ var dl=$(datalistId),inp=$(inputId);if(!dl||!inp)return;
+ /* Remove any existing clear option (prevents duplicates on repeated renders). */
+ var ex=dl.querySelector('option[value="'+CLEAR_TOKEN+'"]');
+ if(ex)ex.parentNode.removeChild(ex);
+ /* Prepend a fresh clear option. */
+ dl.insertAdjacentHTML("afterbegin",clearOpt());
+ /* Only wire the listeners once. */
+ if(!inp._clearWired){
+  inp._clearWired=1;
+  inp.addEventListener("change",function(){
+   if(this.value===CLEAR_TOKEN){this.value="";clearFieldMemory(inputId)}
+  });
+  inp.addEventListener("input",function(){
+   if(this.value===CLEAR_TOKEN){this.value="";clearFieldMemory(inputId)}
+  });
+ }
+}
+
 var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
@@ -594,7 +655,13 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
+function renderAll(){renderWF();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");wireAllClearOptions()}
+/* Wire the "✕ Clear memory" option into every datalist once per render. */
+function wireAllClearOptions(){
+ [["aipList","aip"],["actList","act"],["descList","desc"],["stockList","stock"],["units","unit"],["priceList","price"],["objList","obj"],["modeList","mode"],["alActList","alAct"]].forEach(function(p){
+  addClearToDatalist(p[0],p[1]);
+ });
+}
 buildBar("ob");buildBar("bm");
 /* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
@@ -775,44 +842,8 @@ $("anTbl").onclick=function(e){var b=e.target.closest("button");if(!b)return;var
  $("anTitle").textContent="Edit Office Annual Budget";$("anSave").textContent="Update record";$("anCancel").classList.remove("hidden");$("anErr").textContent="";$("anYear").scrollIntoView({block:"center"})};
 $("anPrint").onclick=function(){if(!annual.length){alert("There are no records to print.");return}window.print()};
 anClear();
-fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
+fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();wireAllClearOptions();
 
-/* ---------- Clear memory (dropdown suggestions) ---------- */
-$("clearMem").onclick=function(){
- if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
- if(!confirm("Clear all remembered suggestions (AIP Code, Activities, Description, Object of Expenditure, Stock No., Unit, Unit Price, Mode)?\n\nThe actual saved records and reports are NOT deleted — only the dropdown memory is cleared."))return;
-
- /* 1. Remove the remembered values that come from saved items:
-       rebuild the datalists from an empty source. */
- var savedItems=items;                 /* keep the real data */
- items=[];                             /* temporarily empty so refreshLists builds nothing */
- refreshLists();
- items=savedItems;                     /* restore the real data */
-
- /* 2. Clear the Object of Expenditure extra entries added by the user
-       (keep the built-in OBJ list, drop custom additions). */
- custom=custom.filter(function(o){return o[0]==="#full"});   /* keep only the marker */
- OBJ.forEach(function(o){custom.push(o.slice())});            /* re-seed the built-in list */
- save(OBJKEY,custom);
- fillObj("");
-
- /* 3. Clear the free-text inputs so nothing is pre-filled. */
- ["aip","act","desc","obj","acct","stock","unit","price","mode","q1","q2","q3","q4"].forEach(function(id){var el=$(id);if(el)el.value=""});
- ["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(id){var el=$(id);if(el)el.value=""});
- ["anTheme"].forEach(function(id){var el=$(id);if(el)el.value=""});
-
- /* 4. Clear the browser's own autocomplete memory for these fields. */
- try{
-  var ac=document.querySelectorAll("input,textarea");
-  for(var i=0;i<ac.length;i++){ac[i].setAttribute("autocomplete","off");ac[i].value=ac[i].value}
- }catch(e){}
-
- clearForm();alClear();anClear();
- renderAll();refreshLists();
- setBadge("🧹 Memory cleared","ok");
- setTimeout(function(){setBadge("☁ Synced","ok")},1500);
- alert("Dropdown memory cleared. Your saved records and reports are unchanged.");
-};
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
@@ -820,7 +851,7 @@ function applyCloud(d){
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
- fillYear();fillObj("");clearForm();renderAll();
+ fillYear();fillObj("");clearForm();renderAll();wireAllClearOptions();
 }
 $("bkDown").onclick=function(){var o={};CLOUD_KEYS.forEach(function(k){o[k]=localStorage.getItem(k)});var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:"application/json"}));a.download="wfp-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()};
 $("bkUp").onclick=function(){$("bkFile").click()};
