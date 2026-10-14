@@ -777,6 +777,42 @@ $("anPrint").onclick=function(){if(!annual.length){alert("There are no records t
 anClear();
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
+/* ---------- Clear memory (dropdown suggestions) ---------- */
+$("clearMem").onclick=function(){
+ if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
+ if(!confirm("Clear all remembered suggestions (AIP Code, Activities, Description, Object of Expenditure, Stock No., Unit, Unit Price, Mode)?\n\nThe actual saved records and reports are NOT deleted — only the dropdown memory is cleared."))return;
+
+ /* 1. Remove the remembered values that come from saved items:
+       rebuild the datalists from an empty source. */
+ var savedItems=items;                 /* keep the real data */
+ items=[];                             /* temporarily empty so refreshLists builds nothing */
+ refreshLists();
+ items=savedItems;                     /* restore the real data */
+
+ /* 2. Clear the Object of Expenditure extra entries added by the user
+       (keep the built-in OBJ list, drop custom additions). */
+ custom=custom.filter(function(o){return o[0]==="#full"});   /* keep only the marker */
+ OBJ.forEach(function(o){custom.push(o.slice())});            /* re-seed the built-in list */
+ save(OBJKEY,custom);
+ fillObj("");
+
+ /* 3. Clear the free-text inputs so nothing is pre-filled. */
+ ["aip","act","desc","obj","acct","stock","unit","price","mode","q1","q2","q3","q4"].forEach(function(id){var el=$(id);if(el)el.value=""});
+ ["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(id){var el=$(id);if(el)el.value=""});
+ ["anTheme"].forEach(function(id){var el=$(id);if(el)el.value=""});
+
+ /* 4. Clear the browser's own autocomplete memory for these fields. */
+ try{
+  var ac=document.querySelectorAll("input,textarea");
+  for(var i=0;i<ac.length;i++){ac[i].setAttribute("autocomplete","off");ac[i].value=ac[i].value}
+ }catch(e){}
+
+ clearForm();alClear();anClear();
+ renderAll();refreshLists();
+ setBadge("🧹 Memory cleared","ok");
+ setTimeout(function(){setBadge("☁ Synced","ok")},1500);
+ alert("Dropdown memory cleared. Your saved records and reports are unchanged.");
+};
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
