@@ -173,7 +173,7 @@
  <table class="bm"><thead id="bmHead"></thead><tbody id="bmBody"></tbody><tfoot id="bmFoot"></tfoot></table>
  </div>
  <h2 style="margin:18px 0 8px">Transactions</h2>
- <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>Activities</label><div class="ms" data-lf="act"></div></div><div><label>Transaction</label><div class="ms" data-lf="type"></div></div><div><label>Quarter</label><div class="ms" data-lf="q"></div></div><div><label>Remarks</label><div class="ms" data-lf="rem"></div></div><button data-lclr="1">Clear filters</button></div>
+ <div class="fbar noprint" id="lgFilt" style="margin-bottom:10px"><div><label>AIP Code</label><div class="ms" data-lf="aip"></div></div><div><label>Activities</label><div class="ms" data-lf="act"></div></div><div><label>Transaction</label><div class="ms" data-lf="type"></div></div><div><label>Quarter</label><div class="ms" data-lf="q"></div></div><div><label>Remarks</label><div class="ms" data-lf="rem"></div></div><button data-lclr="1">Clear filters</button></div>
  <div class="wrap">
  <table class="lg">
   <thead><tr><th>Date</th><th>Type</th><th>From (budget line and quarter)</th><th>Augmented to (budget line and quarter)</th><th>Quantity</th><th>Amount</th><th>Remarks</th><th class="act">Action</th></tr></thead>
@@ -186,15 +186,15 @@
 <div id="tabWF" class="hidden">
 <section class="card noprint"><div class="bar" style="margin-bottom:0"><h2 id="alTitle" style="margin:0">Add WFP entry</h2><button id="alHide" type="button">Hide</button></div><div id="alBody">
 <p class="fsum" style="margin-top:0">Enter the lump-sum Work Financial Plan (WFP) for the selected year, per activity and object of expenditure, for each quarter. There is no quantity or unit price here; the items in Office Budget are checked against it.</p>
-<div class="fbar"><div style="flex:2 1 260px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div>
-<div style="flex:2 1 260px"><label for="alObj">Object of Expenditure</label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select…"></div>
+<div class="fbar"><div><label for="alAip">AIP Code</label><input id="alAip" list="aipList" autocomplete="off" placeholder="e.g. 1000-001-1-001"></div><div style="flex:2 1 260px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div>
+<div style="flex:2 1 260px"><label for="alObj">Object of Expenditure <a href="#" id="alObjEdit" style="font-size:12px;font-weight:400">Add / edit list</a></label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select…"></div>
 <div><label for="al1">1st Quarter</label><input id="al1" type="number" min="0" step="0.01"></div><div><label for="al2">2nd Quarter</label><input id="al2" type="number" min="0" step="0.01"></div>
 <div><label for="al3">3rd Quarter</label><input id="al3" type="number" min="0" step="0.01"></div><div><label for="al4">4th Quarter</label><input id="al4" type="number" min="0" step="0.01"></div>
 <div><label for="alTot">Total</label><input id="alTot" readonly></div></div>
 <div class="btns"><button class="p" id="alSave">Add WFP entry</button><button id="alCancel" class="hidden">Cancel</button></div><div class="err" id="alErr"></div></div></section>
 <section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
 <div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
-<div class="fbar noprint" id="wfFilt"><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
+<div class="fbar noprint" id="wfFilt"><div><label>AIP Code</label><div class="ms" data-wf="aip"></div></div><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
 <div class="fsum" id="wfSum"></div><div class="wrap" style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div>
 <div class="sign"><div class="sBy"></div><div class="sApp"></div></div></section>
 </div>
