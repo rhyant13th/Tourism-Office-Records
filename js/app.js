@@ -2,10 +2,11 @@ window.APP_VER="r8 • Cancelled is a transaction type";(function(){var v=docume
 
 (function(){
 var $=function(id){return document.getElementById(id)};
-var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CMK="procurement_cleared_v1";
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
+/* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_cleared_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -23,7 +24,7 @@ function pushCloud(){if(window.APP_ROLE!=="admin")return;
  },800);
 }
 function save(k,v){
- if(window.APP_ROLE!=="admin")return;
+ if(window.APP_ROLE!=="admin")return; /* viewers are read-only */
  try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
  if(booted&&CLOUD_KEYS.indexOf(k)>=0){try{localStorage.setItem(DIRTY,"1")}catch(e){}pushCloud()}
 }
@@ -33,60 +34,7 @@ var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionD
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var Q=["1st","2nd","3rd","4th"];
 
-var CLEAR_TOKEN="__CLEAR_MEMORY__";
-function clearOpt(){return'<option value="'+CLEAR_TOKEN+'">✕ Clear memory</option>'}
-function inSnap(map,val){
- if(!map||typeof map!=="object")return false;
- return !!map[String(val).toLowerCase()];
-}
-function clearFieldMemory(field){
- if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
- var msg="Clear the remembered suggestions for this field?\n\nSaved records and reports are NOT deleted.";
- if(!confirm(msg))return;
-
- var map={aip:"aip",act:"act",desc:"desc",stock:"stock",unit:"unit",price:"price",
-          alAip:"aip",alAct:"act",obj:"obj",alObj:"obj"};
- var key=map[field];
-
- if(key==="obj"){
-  custom=custom.filter(function(o){return o[0]==="#full"});
-  OBJ.forEach(function(o){custom.push(o.slice())});
-  save(OBJKEY,custom);fillObj("");
- }else if(key){
-  var snap={};
-  if(key==="aip")   items.forEach(function(it){if(it.aip)snap[String(it.aip).toLowerCase()]=1});
-  if(key==="act")   items.forEach(function(it){if(it.act)snap[String(it.act).toLowerCase()]=1});
-  if(key==="desc")  items.forEach(function(it){if(it.desc)snap[String(it.desc).toLowerCase()]=1});
-  if(key==="stock") items.forEach(function(it){if(it.stock)snap[String(it.stock).toLowerCase()]=1});
-  if(key==="unit")  items.forEach(function(it){if(it.unit)snap[String(it.unit).toLowerCase()]=1});
-  if(key==="price") items.forEach(function(it){if(it.price)snap[String(it.price)]=1});
-  cleared[key]=snap;save(CMK,cleared);
- }
-
- var el=$(field);if(el){el.value="";el.setAttribute("autocomplete","off")}
- refreshLists();renderAll();
- setBadge("🧹 Field memory cleared","ok");
- setTimeout(function(){setBadge("☁ Synced","ok")},1500);
-}
-function addClearToDatalist(datalistId,inputId){
- var dl=$(datalistId),inp=$(inputId);if(!dl||!inp)return;
- var ex=dl.querySelector('option[value="'+CLEAR_TOKEN+'"]');
- if(ex)ex.parentNode.removeChild(ex);
- dl.insertAdjacentHTML("afterbegin",clearOpt());
- if(!inp._clearWired){
-  inp._clearWired=1;
-  inp.addEventListener("change",function(){
-   if(this.value===CLEAR_TOKEN){this.value="";clearFieldMemory(inputId)}
-  });
-  inp.addEventListener("input",function(){
-   if(this.value===CLEAR_TOKEN){this.value="";clearFieldMemory(inputId)}
-  });
- }
-}
-
 var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
-var cleared=load(CMK,{});
-if(typeof cleared!=="object"||cleared===null)cleared={};
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
 if(years.indexOf(year)<0)years.push(year);
@@ -95,6 +43,7 @@ var yi=function(){return items.filter(function(i){return +i.year===year}).sort(f
 var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
 var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
 
+/* ---------- year ---------- */
 function fillYear(){
  years.sort(function(a,b){return b-a});
  var h="";years.forEach(function(y){h+='<option value="'+y+'">'+y+'</option>'});
@@ -111,6 +60,7 @@ $("year").onchange=function(){
  year=+v;save(CY,year);fillYear();clearForm();renderAll();
 };
 
+/* ---------- tabs ---------- */
 function tab(w){
  $("tabAN").classList.toggle("hidden",w!=="AN");$("tabBtnAN").setAttribute("aria-selected",w==="AN");
  $("tabWF").classList.toggle("hidden",w!=="WF");$("tabBtnWF").setAttribute("aria-selected",w==="WF");
@@ -125,6 +75,7 @@ $("tabBtnAL").onclick=function(){tab("AL")};
 $("tabBtnAN").onclick=function(){tab("AN")};
 $("saveCloud").onclick=function(){if(!cloudReady){alert("Cloud is not connected yet.");return}pushCloud()};
 
+/* ---------- Object of Expenditure ---------- */
 var OBJ=[
 ["5 01 01 010 00","Salaries and Wages – Regular"],["5 01 01 020 00","Salaries and Wages – Casual/Contractual"],
 ["5 01 02 010 00","Personal Economic Relief Allowance (PERA)"],["5 01 02 020 00","Representation Allowance (RA)"],["5 01 02 030 00","Transportation Allowance (TA)"],
@@ -174,6 +125,7 @@ $("mode").addEventListener("change",function(){
 });
 [].forEach.call(document.querySelectorAll("input[list]"),function(i){i.addEventListener("focus",function(){try{this.select()}catch(e){}})});
 
+/* ---------- Office Budget form ---------- */
 function entryShow(on,np){$("entryBody").classList.toggle("hidden",!on);$("entryToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_entry_hidden",on?"0":"1")}catch(e){}}
 $("entryToggle").onclick=function(){entryShow($("entryBody").classList.contains("hidden"))};
 try{if(localStorage.getItem("wfp_entry_hidden")==="1")entryShow(false)}catch(e){}
@@ -206,26 +158,18 @@ $("act").addEventListener("input",wfpForm);$("obj").addEventListener("input",wfp
 function refreshLists(){
  var sa={},st={},a="",t="";
  items.forEach(function(it){
-  if(it.aip&&!sa[it.aip]&&!inSnap(cleared.aip,it.aip)){sa[it.aip]=1;a+='<option value="'+esc(it.aip)+'" label="'+esc(it.act||"")+'"></option>'}
- });
- items.forEach(function(it){
-  if(it.act&&!st[it.act]&&!inSnap(cleared.act,it.act)){st[it.act]=1;t+='<option value="'+esc(it.act)+'"></option>'}
+  if(it.aip&&!sa[it.aip]){sa[it.aip]=1;a+='<option value="'+esc(it.aip)+'" label="'+esc(it.act||"")+'"></option>'}
+  if(it.act&&!st[it.act]){st[it.act]=1;t+='<option value="'+esc(it.act)+'"></option>'}
  });
  $("aipList").innerHTML=a;$("actList").innerHTML=t;
-
- var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"];
- items.forEach(function(it){
-  if(it.desc&&!sd[it.desc.toLowerCase()]&&!inSnap(cleared.desc,it.desc)){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}
- });
- items.forEach(function(it){if(it.unit&&U.indexOf(it.unit)<0&&!inSnap(cleared.unit,it.unit))U.push(it.unit)});
+ var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"],su={};
+ items.forEach(function(it){if(it.desc&&!sd[it.desc.toLowerCase()]){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}if(it.unit&&U.indexOf(it.unit)<0)U.push(it.unit)});
  $("descList").innerHTML=d;$("units").innerHTML=U.map(function(u){return'<option value="'+esc(u)+'"></option>'}).join("");
  fillPrices();
 }
 function fillPrices(){
  var v=$("desc").value.trim().toLowerCase(),seen={},h="",mine=items.filter(function(i){return i.desc&&i.desc.toLowerCase()===v&&i.price});
- (mine.length?mine:items).slice().reverse().forEach(function(i){
-  if(i.price&&!seen[i.price]&&!inSnap(cleared.price,i.price)){seen[i.price]=1;h+='<option value="'+i.price+'"></option>'}
- });
+ (mine.length?mine:items).slice().reverse().forEach(function(i){if(i.price&&!seen[i.price]){seen[i.price]=1;h+='<option value="'+i.price+'"></option>'}});
  $("priceList").innerHTML=h;
 }
 function pickDesc(){
@@ -258,14 +202,6 @@ $("btnSave").onclick=function(){
  if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
  if(editing===null){it.id=uid();it.year=year;items.push(it)}
  else{var o=byId(editing);it.id=o.id;it.year=o.year;items[items.indexOf(o)]=it}
- /* Re-entered values are un-cleared so they show again in the dropdown. */
- if(cleared.aip&&cleared.aip[String(it.aip).toLowerCase()])delete cleared.aip[String(it.aip).toLowerCase()];
- if(cleared.act&&cleared.act[String(it.act).toLowerCase()])delete cleared.act[String(it.act).toLowerCase()];
- if(cleared.desc&&cleared.desc[String(it.desc).toLowerCase()])delete cleared.desc[String(it.desc).toLowerCase()];
- if(cleared.stock&&it.stock&&cleared.stock[String(it.stock).toLowerCase()])delete cleared.stock[String(it.stock).toLowerCase()];
- if(cleared.unit&&it.unit&&cleared.unit[String(it.unit).toLowerCase()])delete cleared.unit[String(it.unit).toLowerCase()];
- if(cleared.price&&cleared.price[String(it.price)])delete cleared.price[String(it.price)];
- save(CMK,cleared);
  save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
 };
 $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
@@ -278,6 +214,7 @@ function edit(id){
  window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
+/* ---------- Office Budget report ---------- */
 function renderOB(){
  var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
  if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="20">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML="";return}
@@ -311,6 +248,7 @@ $("btnAll").onclick=function(){
  }
 };
 
+/* ---------- Budget Monitoring ---------- */
 var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement"];
 var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 (function(){
@@ -350,6 +288,7 @@ function renderBM(){
   $("bmBody").innerHTML=h;
   $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+"</td>"+(i%5===4?"<td class='bqs bqs"+Math.floor(i/5)+"'></td>":"")}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
  }
+ // transaction log
  var lg="";
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!lgOk(x,s))return;
@@ -363,6 +302,7 @@ function isCan(x){if(x.type==="can")return true;if(x.v===2)return false;return x
 function lgOn(){return TF.act.length||TF.type.length||TF.q.length||TF.rem.length||TF.stat.length}
 function lgOk(x,s){var d=byId(x.to);
  if(TF.type.length&&TF.type.indexOf(isCan(x)?"can":x.type)<0)return false;
+
  if(TF.aip.length&&!(TF.aip.indexOf(s.aip)>=0||(d&&TF.aip.indexOf(d.aip)>=0)))return false;
  if(TF.act.length&&!(TF.act.indexOf(s.act)>=0||(x.type==="aug"&&d&&TF.act.indexOf(d.act)>=0)))return false;
  if(TF.rem.length){var n=(x.note||"").trim().toLowerCase();if(!TF.rem.some(function(r){return r==="__none__"?n==="":n===r.toLowerCase()}))return false}
@@ -399,6 +339,7 @@ $("lgBody").addEventListener("click",function(e){
  if(confirm("Delete this transaction? The balances will be restored.")){if(txEdit===b.dataset.t)txReset();txs=txs.filter(function(x){return x.id!==b.dataset.t});save(TXK,txs);renderAll();info()}
 });
 
+/* transaction form */
 function fillTx(){
  fillLgFilt();
  ["f","t"].forEach(function(p){
@@ -422,6 +363,7 @@ function info(){
  var aug=$("tType").value==="aug",l1=objTotTxt($("fAct").value,$("fObj").value,(aug?"Augmented from \u2013 ":"")+"Total estimated budget \u2013 "),l2=aug?objTotTxt($("tAct").value,$("tObj").value,"Augmented to \u2013 Total estimated budget \u2013 "):"";
  $("tObjTot").innerHTML=(l1?"<div>"+esc(l1)+"</div>":"")+(l2?"<div>"+esc(l2)+"</div>":"");
 }
+
 function txAmt(){var it=byId($("tFrom").value),q=parseFloat($("tQty").value)||0;$("tAmt").value=(it&&q>0)?money(Math.round(q*it.price*100)/100):""}
 $("tQty").addEventListener("input",info);
 function typeUi(){
@@ -446,6 +388,7 @@ $("btnTx").onclick=function(){
  save(TXK,txs);txReset();renderAll();info();
 };
 
+/* ---------- report details ---------- */
 var mm={mOffice:"office",mBy:"by",mApp:"app"};
 function paintMeta(){
  ["ob","bm","wf"].forEach(function(p){
@@ -460,6 +403,7 @@ Object.keys(mm).forEach(function(id){
  $(id).addEventListener("input",function(){meta[mm[id]]=$(id).value;save(META,meta);paintMeta()});
 });
 
+/* ---------- Excel import / template / export of items ---------- */
 var IH=["Year","AIP Code","Activities","Description","Object of Expenditure","Stock No.","Unit","Unit Price","Mode of Procurement","1st Quarter Qty","2nd Quarter Qty","3rd Quarter Qty","4th Quarter Qty"];
 function needX(){if(typeof XLSX==="undefined"){alert("The Excel library could not load. Check your internet connection and refresh the page.");return false}return true}
 function nk(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,"")}
@@ -518,6 +462,7 @@ $("obFile").onchange=function(){
  r.readAsArrayBuffer(f);
 };
 
+/* ---------- Excel ---------- */
 function toXlsx(name,sheets){
  if(typeof XLSX==="undefined"){
   var csv=sheets[0].rows.map(function(r){return r.map(function(c){return'"'+String(c==null?"":c).replace(/"/g,'""')+'"'}).join(",")}).join("\r\n");
@@ -588,6 +533,7 @@ $("bmXlsx").onclick=function(){
 $("obPrint").onclick=function(){if(!yi().length){alert("There are no items for "+year+" to print yet.");return}paintMeta();window.print()};
 $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget lines for "+year+" to print yet.");return}paintMeta();window.print()};
 
+/* ---------- filters + dashboards ---------- */
 function msFill(el,o,sel,all){
  var sig=o.map(function(x){return x.v+"\u0001"+x.t}).join("\u0002"),d=el.querySelector("details");el.dataset.all=all;
  var txt=!sel.length?all:(sel.length===1?(o.filter(function(x){return x.v===sel[0]})[0]||{t:sel[0]}).t:sel.length+" selected");
@@ -610,12 +556,7 @@ function modeSet(v){$("mode").value=v||"";return;var s=$("mode");if(v&&![].some.
 function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.aip.length||f.aip.indexOf(it.aip)>=0)&&(!f.act.length||f.act.indexOf(it.act)>=0)&&(!f.obj.length||f.obj.indexOf(it.obj)>=0)&&(!f.mode.length||f.mode.indexOf(it.mode||"")>=0)&&(!f.q.length||f.q.some(function(k){return it.q[+k]>0}))})}
 function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
 function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
-function fillStock(){
- var u=uniq(items.map(function(i){return i.stock}).filter(function(s){
-  return s!=="N/A"&&!inSnap(cleared.stock,s);
- }));
- $("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("");
-}
+function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));$("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("")}
 function buildBar(w){
  var el=$(w+"Dash");
  el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>AIP Code</label><div class="ms" data-f="aip"></div></div><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
@@ -653,13 +594,9 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");wireAllClearOptions()}
-function wireAllClearOptions(){
- [["aipList","aip"],["actList","act"],["descList","desc"],["stockList","stock"],["units","unit"],["priceList","price"],["objList","obj"],["modeList","mode"],["alActList","alAct"]].forEach(function(p){
-  addClearToDatalist(p[0],p[1]);
- });
-}
+function renderAll(){renderWF();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
 buildBar("ob");buildBar("bm");
+/* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
 function byObj(a,b){return oc(a).localeCompare(oc(b),undefined,{numeric:true})||(a<b?-1:1)}
 function afterObjChange(){fillObj($("obj").value);renderAll()}
@@ -693,6 +630,7 @@ $("objDlg").addEventListener("click",function(e){
  save(KEY,items);save(ALK,alloc);tr.dataset.o=nc;e.target.textContent="Saved ✓";setTimeout(function(){e.target.textContent="Save"},1200);
 });
 
+/* ---------- Allocation vs Budget ---------- */
 var AF={aip:[],act:[],obj:[],q:[]},alEdit=null,ALR=[];
 function alCalc(){var s=0;[1,2,3,4].forEach(function(i){s+=parseFloat($("al"+i).value)||0});$("alTot").value=money(s)}
 function alClear(){["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(i){$(i).value=""});alEdit=null;$("alTitle").textContent="Add WFP entry";$("alSave").textContent="Add WFP entry";$("alCancel").classList.add("hidden");$("alErr").textContent="";alCalc()}
@@ -809,6 +747,8 @@ function alXls(){
 }
 buildAL();
 
+
+/* ---------- Hide / Show forms + Office Annual Budget (CRUD) ---------- */
 var annual=load(ANK,[]),anEdit=null;
 function setHide(p,h){$(p+"Body").classList.toggle("hidden",h);$(p+"Hide").textContent=h?"Show":"Hide"}
 function showBody(p){setHide(p,false)}
@@ -835,40 +775,16 @@ $("anTbl").onclick=function(e){var b=e.target.closest("button");if(!b)return;var
  $("anTitle").textContent="Edit Office Annual Budget";$("anSave").textContent="Update record";$("anCancel").classList.remove("hidden");$("anErr").textContent="";$("anYear").scrollIntoView({block:"center"})};
 $("anPrint").onclick=function(){if(!annual.length){alert("There are no records to print.");return}window.print()};
 anClear();
-fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();wireAllClearOptions();
+fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
-if($("clearMem"))$("clearMem").onclick=function(){
- if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
- if(!confirm("Clear the remembered suggestions from every dropdown field?\n\nSaved records and reports are NOT deleted."))return;
- var snap={aip:{},act:{},desc:{},stock:{},unit:{},price:{}};
- items.forEach(function(it){
-  if(it.aip)  snap.aip[String(it.aip).toLowerCase()]=1;
-  if(it.act)  snap.act[String(it.act).toLowerCase()]=1;
-  if(it.desc) snap.desc[String(it.desc).toLowerCase()]=1;
-  if(it.stock)snap.stock[String(it.stock).toLowerCase()]=1;
-  if(it.unit) snap.unit[String(it.unit).toLowerCase()]=1;
-  if(it.price)snap.price[String(it.price)]=1;
- });
- cleared=snap;save(CMK,cleared);
- custom=custom.filter(function(o){return o[0]==="#full"});
- OBJ.forEach(function(o){custom.push(o.slice())});
- save(OBJKEY,custom);fillObj("");
- ["aip","act","desc","stock","unit","price","mode","obj","alAip","alAct","alObj"].forEach(function(id){var el=$(id);if(el){el.value="";el.setAttribute("autocomplete","off")}});
- clearForm();alClear();anClear();
- refreshLists();renderAll();
- setBadge("🧹 Memory cleared","ok");
- setTimeout(function(){setBadge("☁ Synced","ok")},1500);
- alert("Dropdown memory cleared. Your saved records and reports are unchanged.");
-};
-
+/* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);cleared=load(CMK,{});objInit();
- if(typeof cleared!=="object"||cleared===null)cleared={};
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
- fillYear();fillObj("");clearForm();renderAll();wireAllClearOptions();
+ fillYear();fillObj("");clearForm();renderAll();
 }
 $("bkDown").onclick=function(){var o={};CLOUD_KEYS.forEach(function(k){o[k]=localStorage.getItem(k)});var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(o)],{type:"application/json"}));a.download="wfp-backup-"+new Date().toISOString().slice(0,10)+".json";a.click()};
 $("bkUp").onclick=function(){$("bkFile").click()};
@@ -878,16 +794,15 @@ if(docRef){
  docRef.get().then(function(snap){
   var d=snap.exists?snap.data():null,first=localStorage.getItem(MERGED)!=="1",dirty=localStorage.getItem(DIRTY)==="1";
   var cloudEmpty=!d||!d[KEY]||d[KEY]==="null"||d[KEY]==="[]";
-  if(d&&first&&!cloudEmpty){
+  if(d&&first&&!cloudEmpty){ /* first open of this version on this device: combine, never discard */
    var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
    var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
    o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
-   o[CMK]=(localStorage.getItem(CMK)||d[CMK]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
-  else{localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud()}
+  else{localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud()} /* cloud empty, or unsynced edits on this device */
  }).catch(function(){setBadge("☁ Offline (saved on this device only)","bad")});
 }
 })();
