@@ -2,11 +2,11 @@ window.APP_VER="r8 • Cancelled is a transaction type";(function(){var v=docume
 
 (function(){
 var $=function(id){return document.getElementById(id)};
-var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1";
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CMK="procurement_cleared_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_cleared_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -38,40 +38,32 @@ var Q=["1st","2nd","3rd","4th"];
 var CLEAR_TOKEN="__CLEAR_MEMORY__";
 function clearOpt(){return'<option value="'+CLEAR_TOKEN+'">✕ Clear memory</option>'}
 /* Clear only the remembered suggestion for the field you opened — never delete saved records.
-   The datalists for AIP/Activities/Description/Stock/Unit/Price/Mode are rebuilt from saved items
-   on every render, so the only real "memory" to clear is the input box itself (and the browser's
-   own autocomplete).  The Object of Expenditure list has user-added custom entries, so for that
-   field we also drop the custom additions (keeping the built-in OBJ list). */
+   We record the cleared field in `cleared` so refreshLists()/fillPrices()/fillStock() skip the
+   saved values when building that dropdown. */
 function clearFieldMemory(field){
  if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
  var msg="Clear the remembered suggestions for this field?\n\nSaved records and reports are NOT deleted.";
  if(!confirm(msg))return;
 
- var el=$(field);
- var touched=false;
+ var map={aip:"aip",act:"act",desc:"desc",stock:"stock",unit:"unit",price:"price",
+          alAip:"aip",alAct:"act",obj:"obj",alObj:"obj"};
+ var key=map[field];
 
- if(field==="aip"||field==="act"||field==="desc"||field==="stock"||field==="unit"||field==="price"||field==="mode"||field==="alAip"||field==="alAct"){
-  /* These datalists are rebuilt from saved data — there is no separate memory.
-     We only clear the input box and turn off the browser's own autocomplete. */
-  if(el){el.value="";el.setAttribute("autocomplete","off")}
-  touched=true;
- }else if(field==="obj"){
-  /* Object of Expenditure: drop user-added custom entries but keep the built-in list. */
+ if(key==="obj"){
+  /* Object of Expenditure: drop user-added custom entries, keep the built-in list. */
   custom=custom.filter(function(o){return o[0]==="#full"});
   OBJ.forEach(function(o){custom.push(o.slice())});
-  save(OBJKEY,custom);fillObj("");touched=true;
- }else if(field==="alObj"){
-  /* WFP Object of Expenditure uses the same objList, but the input id is alObj. */
-  custom=custom.filter(function(o){return o[0]==="#full"});
-  OBJ.forEach(function(o){custom.push(o.slice())});
-  save(OBJKEY,custom);fillObj("");touched=true;
+  save(OBJKEY,custom);fillObj("");
+ }else if(key){
+  cleared[key]=true;save(CMK,cleared);
  }
 
- if(touched){
-  refreshLists();renderAll();
-  setBadge("🧹 Field memory cleared","ok");
-  setTimeout(function(){setBadge("☁ Synced","ok")},1500);
- }
+ /* Reset the input box that triggered the clear, so it doesn't hold the token. */
+ var el=$(field);if(el){el.value="";el.setAttribute("autocomplete","off")}
+
+ refreshLists();renderAll();
+ setBadge("🧹 Field memory cleared","ok");
+ setTimeout(function(){setBadge("☁ Synced","ok")},1500);
 }
 /* Attach the clear option to a datalist's innerHTML and wire the input's change handler.
    Safe to call repeatedly: any existing clear option is removed first, and listeners are
@@ -96,6 +88,7 @@ function addClearToDatalist(datalistId,inputId){
 }
 
 var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
+var cleared=load(CMK,{}); /* { field: true } — fields whose suggestion memory has been cleared */
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
 if(years.indexOf(year)<0)years.push(year);
@@ -218,17 +211,24 @@ function wfpForm(){objTotOB();
 $("act").addEventListener("input",wfpForm);$("obj").addEventListener("input",wfpForm);$("obj").addEventListener("change",wfpForm);
 function refreshLists(){
  var sa={},st={},a="",t="";
- items.forEach(function(it){
+ if(!cleared.aip)items.forEach(function(it){
   if(it.aip&&!sa[it.aip]){sa[it.aip]=1;a+='<option value="'+esc(it.aip)+'" label="'+esc(it.act||"")+'"></option>'}
+ });
+ if(!cleared.act)items.forEach(function(it){
   if(it.act&&!st[it.act]){st[it.act]=1;t+='<option value="'+esc(it.act)+'"></option>'}
  });
  $("aipList").innerHTML=a;$("actList").innerHTML=t;
- var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"],su={};
- items.forEach(function(it){if(it.desc&&!sd[it.desc.toLowerCase()]){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}if(it.unit&&U.indexOf(it.unit)<0)U.push(it.unit)});
+
+ var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"];
+ if(!cleared.desc)items.forEach(function(it){
+  if(it.desc&&!sd[it.desc.toLowerCase()]){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}
+ });
+ if(!cleared.unit)items.forEach(function(it){if(it.unit&&U.indexOf(it.unit)<0)U.push(it.unit)});
  $("descList").innerHTML=d;$("units").innerHTML=U.map(function(u){return'<option value="'+esc(u)+'"></option>'}).join("");
  fillPrices();
 }
 function fillPrices(){
+ if(cleared.price){$("priceList").innerHTML="";return}
  var v=$("desc").value.trim().toLowerCase(),seen={},h="",mine=items.filter(function(i){return i.desc&&i.desc.toLowerCase()===v&&i.price});
  (mine.length?mine:items).slice().reverse().forEach(function(i){if(i.price&&!seen[i.price]){seen[i.price]=1;h+='<option value="'+i.price+'"></option>'}});
  $("priceList").innerHTML=h;
@@ -617,7 +617,10 @@ function modeSet(v){$("mode").value=v||"";return;var s=$("mode");if(v&&![].some.
 function fi(w){var f=FS[w];return yi().filter(function(it){return(!f.aip.length||f.aip.indexOf(it.aip)>=0)&&(!f.act.length||f.act.indexOf(it.act)>=0)&&(!f.obj.length||f.obj.indexOf(it.obj)>=0)&&(!f.mode.length||f.mode.indexOf(it.mode||"")>=0)&&(!f.q.length||f.q.some(function(k){return it.q[+k]>0}))})}
 function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
 function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
-function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));$("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("")}
+function fillStock(){
+ var u=cleared.stock?[]:uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));
+ $("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("");
+}
 function buildBar(w){
  var el=$(w+"Dash");
  el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>AIP Code</label><div class="ms" data-f="aip"></div></div><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
@@ -844,10 +847,26 @@ $("anPrint").onclick=function(){if(!annual.length){alert("There are no records t
 anClear();
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();wireAllClearOptions();
 
+/* ---------- Header "🧹 Clear memory" button ---------- */
+if($("clearMem"))$("clearMem").onclick=function(){
+ if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
+ if(!confirm("Clear the remembered suggestions from every dropdown field?\n\nSaved records and reports are NOT deleted."))return;
+ cleared={aip:true,act:true,desc:true,stock:true,unit:true,price:true,obj:true};save(CMK,cleared);
+ custom=custom.filter(function(o){return o[0]==="#full"});
+ OBJ.forEach(function(o){custom.push(o.slice())});
+ save(OBJKEY,custom);fillObj("");
+ ["aip","act","desc","stock","unit","price","mode","obj","alAip","alAct","alObj"].forEach(function(id){var el=$(id);if(el){el.value="";el.setAttribute("autocomplete","off")}});
+ clearForm();alClear();anClear();
+ refreshLists();renderAll();
+ setBadge("🧹 Memory cleared","ok");
+ setTimeout(function(){setBadge("☁ Synced","ok")},1500);
+ alert("Dropdown memory cleared. Your saved records and reports are unchanged.");
+};
+
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);objInit();
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);cleared=load(CMK,{});objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
@@ -867,6 +886,7 @@ if(docRef){
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
    o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
+   o[CMK]=(localStorage.getItem(CMK)||d[CMK]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
   else{localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud()} /* cloud empty, or unsynced edits on this device */
