@@ -4,7 +4,6 @@ window.APP_VER="r8 • Cancelled is a transaction type";(function(){var v=docume
 var $=function(id){return document.getElementById(id)};
 var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CMK="procurement_cleared_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
-/* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
 var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_cleared_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
@@ -24,7 +23,7 @@ function pushCloud(){if(window.APP_ROLE!=="admin")return;
  },800);
 }
 function save(k,v){
- if(window.APP_ROLE!=="admin")return; /* viewers are read-only */
+ if(window.APP_ROLE!=="admin")return;
  try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
  if(booted&&CLOUD_KEYS.indexOf(k)>=0){try{localStorage.setItem(DIRTY,"1")}catch(e){}pushCloud()}
 }
@@ -34,15 +33,10 @@ var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionD
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var Q=["1st","2nd","3rd","4th"];
 
-/* ---------- Clear memory (per-datalist) ----------
-   Clearing stores a SNAPSHOT of every value that currently exists for that field.
-   Those snapshotted values are hidden from the dropdown, but any NEW value typed later
-   (which is not in the snapshot) shows up normally. Saved records are never modified. */
 var CLEAR_TOKEN="__CLEAR_MEMORY__";
 function clearOpt(){return'<option value="'+CLEAR_TOKEN+'">✕ Clear memory</option>'}
 function inSnap(map,val){
  if(!map||typeof map!=="object")return false;
- if(typeof map===true)return false;
  return !!map[String(val).toLowerCase()];
 }
 function clearFieldMemory(field){
@@ -101,7 +95,6 @@ var yi=function(){return items.filter(function(i){return +i.year===year}).sort(f
 var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
 var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
 
-/* ---------- year ---------- */
 function fillYear(){
  years.sort(function(a,b){return b-a});
  var h="";years.forEach(function(y){h+='<option value="'+y+'">'+y+'</option>'});
@@ -118,7 +111,6 @@ $("year").onchange=function(){
  year=+v;save(CY,year);fillYear();clearForm();renderAll();
 };
 
-/* ---------- tabs ---------- */
 function tab(w){
  $("tabAN").classList.toggle("hidden",w!=="AN");$("tabBtnAN").setAttribute("aria-selected",w==="AN");
  $("tabWF").classList.toggle("hidden",w!=="WF");$("tabBtnWF").setAttribute("aria-selected",w==="WF");
@@ -133,7 +125,6 @@ $("tabBtnAL").onclick=function(){tab("AL")};
 $("tabBtnAN").onclick=function(){tab("AN")};
 $("saveCloud").onclick=function(){if(!cloudReady){alert("Cloud is not connected yet.");return}pushCloud()};
 
-/* ---------- Object of Expenditure ---------- */
 var OBJ=[
 ["5 01 01 010 00","Salaries and Wages – Regular"],["5 01 01 020 00","Salaries and Wages – Casual/Contractual"],
 ["5 01 02 010 00","Personal Economic Relief Allowance (PERA)"],["5 01 02 020 00","Representation Allowance (RA)"],["5 01 02 030 00","Transportation Allowance (TA)"],
@@ -183,7 +174,6 @@ $("mode").addEventListener("change",function(){
 });
 [].forEach.call(document.querySelectorAll("input[list]"),function(i){i.addEventListener("focus",function(){try{this.select()}catch(e){}})});
 
-/* ---------- Office Budget form ---------- */
 function entryShow(on,np){$("entryBody").classList.toggle("hidden",!on);$("entryToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_entry_hidden",on?"0":"1")}catch(e){}}
 $("entryToggle").onclick=function(){entryShow($("entryBody").classList.contains("hidden"))};
 try{if(localStorage.getItem("wfp_entry_hidden")==="1")entryShow(false)}catch(e){}
@@ -268,6 +258,14 @@ $("btnSave").onclick=function(){
  if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
  if(editing===null){it.id=uid();it.year=year;items.push(it)}
  else{var o=byId(editing);it.id=o.id;it.year=o.year;items[items.indexOf(o)]=it}
+ /* Re-entered values are un-cleared so they show again in the dropdown. */
+ if(cleared.aip&&cleared.aip[String(it.aip).toLowerCase()])delete cleared.aip[String(it.aip).toLowerCase()];
+ if(cleared.act&&cleared.act[String(it.act).toLowerCase()])delete cleared.act[String(it.act).toLowerCase()];
+ if(cleared.desc&&cleared.desc[String(it.desc).toLowerCase()])delete cleared.desc[String(it.desc).toLowerCase()];
+ if(cleared.stock&&it.stock&&cleared.stock[String(it.stock).toLowerCase()])delete cleared.stock[String(it.stock).toLowerCase()];
+ if(cleared.unit&&it.unit&&cleared.unit[String(it.unit).toLowerCase()])delete cleared.unit[String(it.unit).toLowerCase()];
+ if(cleared.price&&cleared.price[String(it.price)])delete cleared.price[String(it.price)];
+ save(CMK,cleared);
  save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
 };
 $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
@@ -280,7 +278,6 @@ function edit(id){
  window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
-/* ---------- Office Budget report ---------- */
 function renderOB(){
  var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
  if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="20">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML="";return}
@@ -314,7 +311,6 @@ $("btnAll").onclick=function(){
  }
 };
 
-/* ---------- Budget Monitoring ---------- */
 var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement"];
 var SUB=["Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 (function(){
@@ -367,7 +363,6 @@ function isCan(x){if(x.type==="can")return true;if(x.v===2)return false;return x
 function lgOn(){return TF.act.length||TF.type.length||TF.q.length||TF.rem.length||TF.stat.length}
 function lgOk(x,s){var d=byId(x.to);
  if(TF.type.length&&TF.type.indexOf(isCan(x)?"can":x.type)<0)return false;
-
  if(TF.aip.length&&!(TF.aip.indexOf(s.aip)>=0||(d&&TF.aip.indexOf(d.aip)>=0)))return false;
  if(TF.act.length&&!(TF.act.indexOf(s.act)>=0||(x.type==="aug"&&d&&TF.act.indexOf(d.act)>=0)))return false;
  if(TF.rem.length){var n=(x.note||"").trim().toLowerCase();if(!TF.rem.some(function(r){return r==="__none__"?n==="":n===r.toLowerCase()}))return false}
@@ -451,7 +446,6 @@ $("btnTx").onclick=function(){
  save(TXK,txs);txReset();renderAll();info();
 };
 
-/* ---------- report details ---------- */
 var mm={mOffice:"office",mBy:"by",mApp:"app"};
 function paintMeta(){
  ["ob","bm","wf"].forEach(function(p){
@@ -466,7 +460,6 @@ Object.keys(mm).forEach(function(id){
  $(id).addEventListener("input",function(){meta[mm[id]]=$(id).value;save(META,meta);paintMeta()});
 });
 
-/* ---------- Excel import / template / export of items ---------- */
 var IH=["Year","AIP Code","Activities","Description","Object of Expenditure","Stock No.","Unit","Unit Price","Mode of Procurement","1st Quarter Qty","2nd Quarter Qty","3rd Quarter Qty","4th Quarter Qty"];
 function needX(){if(typeof XLSX==="undefined"){alert("The Excel library could not load. Check your internet connection and refresh the page.");return false}return true}
 function nk(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,"")}
@@ -525,7 +518,6 @@ $("obFile").onchange=function(){
  r.readAsArrayBuffer(f);
 };
 
-/* ---------- Excel ---------- */
 function toXlsx(name,sheets){
  if(typeof XLSX==="undefined"){
   var csv=sheets[0].rows.map(function(r){return r.map(function(c){return'"'+String(c==null?"":c).replace(/"/g,'""')+'"'}).join(",")}).join("\r\n");
@@ -596,7 +588,6 @@ $("bmXlsx").onclick=function(){
 $("obPrint").onclick=function(){if(!yi().length){alert("There are no items for "+year+" to print yet.");return}paintMeta();window.print()};
 $("bmPrint").onclick=function(){if(!yi().length){alert("There are no budget lines for "+year+" to print yet.");return}paintMeta();window.print()};
 
-/* ---------- filters + dashboards ---------- */
 function msFill(el,o,sel,all){
  var sig=o.map(function(x){return x.v+"\u0001"+x.t}).join("\u0002"),d=el.querySelector("details");el.dataset.all=all;
  var txt=!sel.length?all:(sel.length===1?(o.filter(function(x){return x.v===sel[0]})[0]||{t:sel[0]}).t:sel.length+" selected");
@@ -669,7 +660,6 @@ function wireAllClearOptions(){
  });
 }
 buildBar("ob");buildBar("bm");
-/* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
 function byObj(a,b){return oc(a).localeCompare(oc(b),undefined,{numeric:true})||(a<b?-1:1)}
 function afterObjChange(){fillObj($("obj").value);renderAll()}
@@ -703,7 +693,6 @@ $("objDlg").addEventListener("click",function(e){
  save(KEY,items);save(ALK,alloc);tr.dataset.o=nc;e.target.textContent="Saved ✓";setTimeout(function(){e.target.textContent="Save"},1200);
 });
 
-/* ---------- Allocation vs Budget ---------- */
 var AF={aip:[],act:[],obj:[],q:[]},alEdit=null,ALR=[];
 function alCalc(){var s=0;[1,2,3,4].forEach(function(i){s+=parseFloat($("al"+i).value)||0});$("alTot").value=money(s)}
 function alClear(){["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(i){$(i).value=""});alEdit=null;$("alTitle").textContent="Add WFP entry";$("alSave").textContent="Add WFP entry";$("alCancel").classList.add("hidden");$("alErr").textContent="";alCalc()}
@@ -820,8 +809,6 @@ function alXls(){
 }
 buildAL();
 
-
-/* ---------- Hide / Show forms + Office Annual Budget (CRUD) ---------- */
 var annual=load(ANK,[]),anEdit=null;
 function setHide(p,h){$(p+"Body").classList.toggle("hidden",h);$(p+"Hide").textContent=h?"Show":"Hide"}
 function showBody(p){setHide(p,false)}
@@ -850,7 +837,6 @@ $("anPrint").onclick=function(){if(!annual.length){alert("There are no records t
 anClear();
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();wireAllClearOptions();
 
-/* ---------- Header "🧹 Clear memory" button ---------- */
 if($("clearMem"))$("clearMem").onclick=function(){
  if(window.APP_ROLE!=="admin"){alert("Viewers cannot clear the saved suggestions.");return}
  if(!confirm("Clear the remembered suggestions from every dropdown field?\n\nSaved records and reports are NOT deleted."))return;
@@ -875,7 +861,6 @@ if($("clearMem"))$("clearMem").onclick=function(){
  alert("Dropdown memory cleared. Your saved records and reports are unchanged.");
 };
 
-/* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
  items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);cleared=load(CMK,{});objInit();
