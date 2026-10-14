@@ -1,4 +1,4 @@
-window.APP_VER="r8 • Cancelled is a transaction type";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r9 • Cancelled is a transaction type";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -644,7 +644,7 @@ $("alSave").onclick=function(){
  var same=alloc.filter(function(r){return +r.year===year&&r.act===act&&r.obj===hit[1]&&r.id!==alEdit})[0];
  if(same){if(!confirm("A WFP entry for this activity and object already exists. Replace it?"))return;alloc=alloc.filter(function(r){return r!==same})}
  if(alEdit){var o=alloc.filter(function(r){return r.id===alEdit})[0];if(o){o.aip=aip;o.act=act;o.obj=hit[1];o.q=q}}else alloc.push({id:uid(),year:year,aip:aip,act:act,obj:hit[1],q:q});
- save(ALK,alloc);alClear();renderAll();
+ var H=sugGet();H.aip=H.aip.filter(function(v){return v!==aip});H.act=H.act.filter(function(v){return v!==act});sugSet(H);save(ALK,alloc);alClear();renderAll();
 };
 $("alObjEdit").onclick=function(e){e.preventDefault();objMgr();$("objDlg").showModal()};
 $("alObj").addEventListener("change",function(){var v=$("alObj").value.trim();if(!v)return;var hit=allObj().filter(function(o){return o[1].toLowerCase()===v.toLowerCase()})[0];if(hit){$("alObj").value=hit[1];return}
@@ -735,7 +735,7 @@ function renderAL(){
  cmp($("alC2"),"Comparison 2: Actual Budget Allocated vs Actual Budget Spent","Actual Budget Allocated","b","Actual Budget Spent","s","% of allocated budget spent",rows,qs,false);
  var on=[].concat(f.aip,f.act,f.obj,qtxt(f.q));
  el.querySelector(".fsum").textContent="Year "+year+" — WFP = the lump-sum Work Financial Plan; Actual Budget Allocated = your encoded items (quantity × unit price); Actual Budget Spent = Release recorded in Budget Monitoring. A red balance means the second amount is more than the first"+(on.length?". Filtered by: "+on.join(" › "):"");
- var dl="";uniq(allA.map(function(r){return r.act})).forEach(function(a){dl+='<option value="'+esc(a)+'"></option>'});$("alActList").innerHTML=dl;
+ fillSug();
 }
 function alXls(){
  if(!needX())return;var r=alRows();if(!r.length){alert("Nothing to export.");return}
@@ -805,4 +805,36 @@ if(docRef){
   else{localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud()} /* cloud empty, or unsynced edits on this device */
  }).catch(function(){setBadge("☁ Offline (saved on this device only)","bad")});
 }
+/* ---------- hide / show for every report ---------- */
+var RT={};try{RT=JSON.parse(localStorage.getItem("wfp_rt")||"{}")||{}}catch(e){}
+function rtApply(sec,key){var h=!!RT[key],b=sec.querySelector(":scope>.rbody"),btn=sec.querySelector('[data-rt="'+key+'"]');if(b)b.classList.toggle("hidden",h);sec.classList.toggle("rcollapsed",h);if(btn)btn.textContent=h?"Show":"Hide"}
+function repWrap(sec,key){
+ if(!sec||sec.dataset.rw)return;sec.dataset.rw="1";
+ var head=[].filter.call(sec.children,function(c){return c.classList.contains("bar")||c.tagName==="H2"})[0];if(!head)return;
+ var bar=head,h2=head.tagName==="H2"?head:head.querySelector("h2");
+ if(head.tagName==="H2"){bar=document.createElement("div");bar.className="bar"+(sec.classList.contains("noprint")?" noprint":"");bar.style.marginBottom="8px";sec.insertBefore(bar,head);bar.appendChild(head);head.style.margin="0"}
+ var btn=document.createElement("button");btn.type="button";btn.className="noprint rtbtn";btn.dataset.rt=key;btn.title="Hide or show this section";
+ h2.insertAdjacentElement("afterend",btn);
+ var body=document.createElement("div");body.className="rbody";
+ [].slice.call(sec.children).forEach(function(c){if(c!==bar)body.appendChild(c)});sec.appendChild(body);
+ btn.onclick=function(){RT[key]=!RT[key];try{localStorage.setItem("wfp_rt",JSON.stringify(RT))}catch(e){}rtApply(sec,key)};
+ rtApply(sec,key);
+}
+function secOf(txt){var h=[].filter.call(document.querySelectorAll("section.card h2"),function(x){return x.textContent.trim()===txt})[0];return h&&h.closest("section")}
+repWrap(secOf("Report details"),"det");repWrap($("obDash"),"obd");repWrap(secOf("Office Budget report"),"obr");repWrap($("bmDash"),"bmd");repWrap(secOf("Budget Monitoring report"),"bmr");repWrap($("lgSec"),"lg");repWrap(secOf("Work Financial Plan entries"),"wfr");repWrap($("alDash"),"alr");repWrap(secOf("Office Annual Budget records"),"anr");
+
+/* ---------- WFP form: Clear entry + reset suggestions ---------- */
+var SUGK="wfp_sug_hide";
+function sugGet(){try{var o=JSON.parse(localStorage.getItem(SUGK)||"null");return{aip:(o&&o.aip)||[],act:(o&&o.act)||[]}}catch(e){return{aip:[],act:[]}}}
+function sugSet(o){try{localStorage.setItem(SUGK,JSON.stringify(o))}catch(e){}$("alSugBack").classList.toggle("hidden",!(o.aip.length||o.act.length))}
+function sugKnown(){return{aip:uniq(alloc.map(function(r){return r.aip}).concat(items.map(function(i){return i.aip}))),act:uniq(alloc.map(function(r){return r.act}).concat(items.map(function(i){return i.act})))}}
+function fillSug(){
+ var H=sugGet(),K=sugKnown(),o=function(a){return a.map(function(v){return'<option value="'+esc(v)+'"></option>'}).join("")};
+ $("alAipList").innerHTML=o(K.aip.filter(function(v){return H.aip.indexOf(v)<0}));$("alActList").innerHTML=o(K.act.filter(function(v){return H.act.indexOf(v)<0}));
+ $("alSugBack").classList.toggle("hidden",!(H.aip.length||H.act.length));
+}
+function newIdentity(){["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(id){var i=$(id);i.name="f"+Math.random().toString(36).slice(2);i.setAttribute("autocomplete","off")})}
+newIdentity();
+$("alReset").onclick=function(){var k=sugKnown();alClear();sugSet(k);newIdentity();fillSug();$("alAip").focus()};
+$("alSugBack").onclick=function(e){e.preventDefault();sugSet({aip:[],act:[]});fillSug()};
 })();
