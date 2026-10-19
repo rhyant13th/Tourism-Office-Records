@@ -155,3 +155,18 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 #bmTip::-webkit-scrollbar{width:10px}
 #bmTip::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:5px}
 #bmTip::-webkit-scrollbar-track{background:#f1f5f9}
+
+/* ===== WFP dashboard + BM field picker ===== */
+.wdb{display:grid;grid-template-columns:104px 1fr 130px;gap:8px;align-items:center;margin:3px 0;font-size:13px}
+.wdb .tr{background:var(--soft);border-radius:6px;height:12px;overflow:hidden}
+.wdb .tr i{display:block;height:100%;border-radius:6px}
+.wdb i.w{background:var(--brand)}.wdb i.b{background:#f59e0b}.wdb i.s{background:#6366f1}
+.wdb .v{text-align:right;font-variant-numeric:tabular-nums}
+.wdb:nth-child(3n+2){margin-top:12px}
+.wdleg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--mute);margin:2px 0 6px}
+.wdleg b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.pct{display:flex;align-items:center;gap:6px;min-width:110px}
+.pct .tr{flex:1;min-width:60px;background:var(--soft);height:8px;border-radius:4px;overflow:hidden}
+.pct i{display:block;height:100%;background:var(--brand)}.pct i.o{background:var(--warn)}
+.wdw .empty{padding:18px}
+.msb .mh{padding:6px 12px 2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
