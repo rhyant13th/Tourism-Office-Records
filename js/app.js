@@ -33,7 +33,44 @@ var money=function(n){return Number(n||0).toLocaleString("en-PH",{minimumFractio
 var qty=function(n){return Number(n||0).toLocaleString("en-PH",{maximumFractionDigits:2})};
 var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
 var Q=["1st","2nd","3rd","4th"];
-
+/* ---------- Excel-like hover tooltip for Budget Monitoring ---------- */
+var bmTip=(function(){
+  var d=document.createElement("div");d.id="bmTip";document.body.appendChild(d);var cur=null;
+  document.addEventListener("mousemove",function(e){
+    if(!cur)return;
+    var x=e.clientX+14,y=e.clientY+14,w=d.offsetWidth,h=d.offsetHeight;
+    if(x+w>innerWidth-8)x=e.clientX-w-14;
+    if(y+h>innerHeight-8)y=e.clientY-h-14;
+    d.style.left=x+"px";d.style.top=y+"px";
+  },{passive:true});
+  return{show:function(t,h){cur=t;d.innerHTML=h;d.style.display="block"},hide:function(){cur=null;d.style.display="none"}};
+})();
+function bmTipHide(){bmTip.hide()}
+function bmTipHTML(it,k,kind){
+  var list=[];
+  txs.forEach(function(x){
+    if(kind==="r"&&x.type!=="aug"&&x.from===it.id&&x.fq===k)list.push({x:x,dir:"out"});
+    else if(kind==="t"&&x.type==="aug"&&x.from===it.id&&x.fq===k)list.push({x:x,dir:"out"});
+    else if(kind==="f"&&x.type==="aug"&&x.to===it.id&&x.tq===k)list.push({x:x,dir:"in"});
+  });
+  var title={r:"Release — "+Q[k]+" Quarter",t:"Augmented From (−) — "+Q[k]+" Quarter",f:"Augmented To (+) — "+Q[k]+" Quarter"}[kind];
+  var h="<h5>"+esc(title)+"</h5>";
+  if(!list.length)return h+'<div class="empty">No transactions.</div>';
+  list.sort(function(a,b){return(a.x.date||"").localeCompare(b.x.date||"")});
+  list.forEach(function(o){
+    var x=o.x,can=isCan(x),other=byId(o.dir==="out"?x.to:x.from);
+    var t=can?"<span class='can'>Cancelled</span>":(x.type==="rel"?"Release":"Augmentation");
+    var line=esc(it.act)+" – "+esc(it.obj),otherTxt="";
+    if(x.type==="aug"){
+      var ot=other?esc(other.act)+" – "+esc(other.obj)+" ("+Q[o.dir==="out"?x.tq:x.fq]+" Qtr)":"(deleted item)";
+      otherTxt="<div class='to'>→ "+ot+"</div>";
+    }
+    h+="<div class='tx'><div><b>"+t+"</b> <span class='d'>"+(esc(x.date||"")||"—")+"</span></div>"+
+       "<div>"+line+" · <span class='a'>₱ "+money(x.amt)+"</span>"+(x.qty?" · "+qty(x.qty)+" "+(it.unit||""):"")+"</div>"+
+       otherTxt+(x.note?"<div class='r'>"+esc(x.note)+"</div>":"")+"</div>";
+  });
+  return h;
+}
 var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
@@ -279,13 +316,31 @@ function renderBM(){
   list.forEach(function(it){
    var c=lineCalc(it),t=tot(it),sum=0;
    h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(t*it.price)+"</td><td>"+esc(it.mode)+"</td>";
-   for(var k=0;k<4;k++){
-    h+=cellx(c.b[k],"bq"+k,c.cr[k]||c.ct[k]||c.cf[k])+cell(c.r[k],"bq"+k)+cell(c.t[k],"bq"+k)+cell(c.f[k],"bq"+k)+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
+      for(var k=0;k<4;k++){
+    var rCell=cellx(c.r[k],"bq"+k,c.cr[k]),tCell=cellx(c.t[k],"bq"+k,c.ct[k]),fCell=cellx(c.f[k],"bq"+k,c.cf[k]);
+    if(c.r[k]||c.cr[k])rCell=rCell.replace("<td","<td data-bmtip='r|"+it.id+"|"+k+"'");
+    if(c.t[k]||c.ct[k])tCell=tCell.replace("<td","<td data-bmtip='t|"+it.id+"|"+k+"'");
+    if(c.f[k]||c.cf[k])fCell=fCell.replace("<td","<td data-bmtip='f|"+it.id+"|"+k+"'");
+    h+=cellx(c.b[k],"bq"+k,c.cr[k]||c.ct[k]||c.cf[k])+rCell+tCell+fCell+"<td class='n bal bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
     T[k*5]+=c.b[k];T[k*5+1]+=c.r[k];T[k*5+2]+=c.t[k];T[k*5+3]+=c.f[k];T[k*5+4]+=c.bal[k];TC[k*5+1]+=c.cr[k];TC[k*5+2]+=c.ct[k];TC[k*5+3]+=c.cf[k];sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
+    if(!$("bmBody")._tipBound){
+   $("bmBody")._tipBound=1;
+   $("bmBody").addEventListener("mouseover",function(e){
+    var td=e.target.closest("[data-bmtip]");if(!td)return;
+    var p=td.dataset.bmtip.split("|"),it=byId(p[1]),k=+p[2];if(!it)return;
+    bmTip.show(td,bmTipHTML(it,k,p[0]));
+   });
+   $("bmBody").addEventListener("mouseout",function(e){
+    var td=e.target.closest("[data-bmtip]");if(!td)return;
+    if(e.relatedTarget&&td.contains(e.relatedTarget))return;
+    bmTipHide();
+   });
+   var _bmWrap=document.querySelector("table.bm");if(_bmWrap&&_bmWrap.closest(".wrap"))_bmWrap.closest(".wrap").addEventListener("scroll",bmTipHide,{passive:true});
+  }
   $("bmFoot").innerHTML="<tr><td colspan='11' style='text-align:right'>TOTAL</td>"+T.slice(0,20).map(function(v,i){return"<td class='n bq"+Math.floor(i/5)+"'>"+money(v)+"</td>"+(i%5===4?"<td class='bqs bqs"+Math.floor(i/5)+"'></td>":"")}).join("")+"<td class='n'>"+money(tb)+"</td></tr>";
  }
  // transaction log
