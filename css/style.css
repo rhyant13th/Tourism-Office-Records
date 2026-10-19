@@ -138,6 +138,3 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 
 .rtbtn{padding:4px 12px;font-size:12px;margin:0 auto 0 12px}.rbody.hidden{display:none!important}
 @media print{.rcollapsed>.bar{display:none!important}}
-
-table.dir{min-width:1500px}table.dir td{vertical-align:top}
-body.role-viewer #dirImp,body.role-viewer #dirTpl{display:none!important}
