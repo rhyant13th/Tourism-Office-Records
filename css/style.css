@@ -139,7 +139,7 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 .rtbtn{padding:4px 12px;font-size:12px;margin:0 auto 0 12px}.rbody.hidden{display:none!important}
 @media print{.rcollapsed>.bar{display:none!important}}
 /* ===== Excel-like comment tooltip for Budget Monitoring ===== */
-#bmTip{position:fixed;z-index:9999;display:none;max-width:380px;max-height:320px;overflow:auto;background:#fff;color:#000;border:1px solid #c9c9c9;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);padding:8px 10px;font:12px/1.4 "Segoe UI",Arial,sans-serif;pointer-events:none}
+#bmTip{position:fixed;z-index:9999;display:none;max-width:380px;max-height:320px;overflow:auto;background:#fff;color:#000;border:1px solid #c9c9c9;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,.18);padding:8px 10px;font:12px/1.4 "Segoe UI",Arial,sans-serif;pointer-events:auto}
 #bmTip h5{margin:0 0 6px;font-size:12px;font-weight:700;color:#0b4640;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
 #bmTip .tx{padding:4px 0;border-bottom:1px dotted #e2e8f0}
 #bmTip .tx:last-child{border-bottom:0}
