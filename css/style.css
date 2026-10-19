@@ -151,3 +151,7 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 #bmTip .can{color:#b3261e;font-weight:700}
 #bmTip .to{color:#0b6e66;font-weight:600}
 @media print{#bmTip{display:none!important}}
+/* nicer scrollbar inside the tooltip */
+#bmTip::-webkit-scrollbar{width:10px}
+#bmTip::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:5px}
+#bmTip::-webkit-scrollbar-track{background:#f1f5f9}
