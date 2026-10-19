@@ -1,4 +1,4 @@
-window.APP_VER="r10 • Cancelled is a transaction type";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r9 • Cancelled is a transaction type";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -6,7 +6,7 @@ var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_t
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_dir_v1","procurement_dircfg_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -62,7 +62,6 @@ $("year").onchange=function(){
 
 /* ---------- tabs ---------- */
 function tab(w){
- $("tabDIR").classList.toggle("hidden",w!=="DIR");$("tabBtnDIR").setAttribute("aria-selected",w==="DIR");
  $("tabAN").classList.toggle("hidden",w!=="AN");$("tabBtnAN").setAttribute("aria-selected",w==="AN");
  $("tabWF").classList.toggle("hidden",w!=="WF");$("tabBtnWF").setAttribute("aria-selected",w==="WF");
  $("tabOB").classList.toggle("hidden",w!=="OB");$("tabBM").classList.toggle("hidden",w!=="BM");
@@ -74,7 +73,6 @@ $("tabBtnOB").onclick=function(){tab("OB")};
 $("tabBtnBM").onclick=function(){tab("BM")};
 $("tabBtnAL").onclick=function(){tab("AL")};
 $("tabBtnAN").onclick=function(){tab("AN")};
-$("tabBtnDIR").onclick=function(){tab("DIR")};
 $("saveCloud").onclick=function(){if(!cloudReady){alert("Cloud is not connected yet.");return}pushCloud()};
 
 /* ---------- Object of Expenditure ---------- */
@@ -596,7 +594,7 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();renderAN();renderDIR();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
+function renderAll(){renderWF();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
 buildBar("ob");buildBar("bm");
 /* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
@@ -777,136 +775,12 @@ $("anTbl").onclick=function(e){var b=e.target.closest("button");if(!b)return;var
  $("anTitle").textContent="Edit Office Annual Budget";$("anSave").textContent="Update record";$("anCancel").classList.remove("hidden");$("anErr").textContent="";$("anYear").scrollIntoView({block:"center"})};
 $("anPrint").onclick=function(){if(!annual.length){alert("There are no records to print.");return}window.print()};
 anClear();
-/* ---------- Directory ---------- */
-var DIRK="procurement_dir_v1",DCK="procurement_dircfg_v1";
-var dirs=load(DIRK,[]),dcfg=load(DCK,{cats:[],yrs:[],sts:[]}),dEdit=null;
-dcfg.cats=dcfg.cats||[];dcfg.yrs=dcfg.yrs||[];dcfg.sts=dcfg.sts||[];
-var DMUN=["Abra de Ilog","Calintaan","Looc","Lubang","Magsaysay","Mamburao","Paluan","Rizal","Sablayan","San Jose","Sta. Cruz","Province of Occidental Mindoro"];
-var DFS=[["prov","Province/City"],["mun","Municipality"],["name","Name"],["pos","Position/Designation"],["off","Office/Agency/Establishment"],["con","Contact Number"],["em","Email Address"],["cat","Category"],["yr","Year"],["st","Status"]];
-var DF={prov:[],mun:[],name:[],pos:[],off:[],con:[],em:[],cat:[],yr:[],st:[],q:""};
-var DH=["No.","Province/City","Municipality","Name","Position/Designation","Office/Agency/Establishment","Contact Number","Email Address","Category","Year","Status"];
-function dClean(v){return String(v==null?"":v).replace(/[\t\r\n]+/g," ").replace(/\s{2,}/g," ").trim()}
-function dCats(){return uniq((dcfg.cats||[]).concat(dirs.map(function(r){return r.cat})))}
-function dSts(){return uniq(["Active","Inactive"].concat(dcfg.sts||[],dirs.map(function(r){return r.st})))}
-function dMuns(){return uniq(DMUN.concat(dirs.map(function(r){return r.mun})))}
-function dYrs(){var s={};(dcfg.yrs||[]).concat(dirs.map(function(r){return r.yr}),[year]).forEach(function(y){y=parseInt(y,10);if(y>=1900&&y<=2100)s[y]=1});for(var cy=new Date().getFullYear(),i=-5;i<=1;i++)s[cy+i]=1;return Object.keys(s).map(Number).sort(function(a,b){return b-a}).map(String)}
-function dFillLists(){
- var sel=function(id,vals,blank){var el=$(id),cur=el.value;el.innerHTML=(blank?'<option value="">Select\u2026</option>':"")+vals.map(function(v){return'<option value="'+esc(v)+'">'+esc(v)+'</option>'}).join("");if(vals.indexOf(cur)>=0)el.value=cur};
- sel("dCat",dCats(),1);sel("dYr",dYrs(),0);sel("dSt",dSts(),0);
- var o=function(a){return a.map(function(v){return'<option value="'+esc(v)+'"></option>'}).join("")};
- $("dMunList").innerHTML=o(dMuns());$("dProvList").innerHTML=o(uniq(["Province of Occidental Mindoro"].concat(dirs.map(function(r){return r.prov}))));
-}
-function dClear(){
- dEdit=null;["dName","dPos","dOff","dCon","dEm","dMun"].forEach(function(id){$(id).value=""});$("dProv").value="Province of Occidental Mindoro";$("dCat").value="";
- $("dYr").value=String(new Date().getFullYear());if(!$("dYr").value)$("dYr").selectedIndex=0;$("dSt").value="Active";
- $("dirTitle").textContent="Add directory record";$("dSave").textContent="Add record";$("dCancel").classList.add("hidden");$("dErr").textContent="";
-}
-function dAddOpt(btn,ask,store,sel,num){
- $(btn).onclick=function(){
-  var n=(prompt(ask)||"").trim();if(!n)return;
-  if(num){var y=parseInt(n,10);if(!(y>=1900&&y<=2100)){alert("Enter a valid year (1900 to 2100).");return}n=String(y)}
-  var all=store==="yrs"?dYrs():(store==="cats"?dCats():dSts()),ex=all.filter(function(c){return c.toLowerCase()===n.toLowerCase()})[0];
-  if(!ex){dcfg[store].push(n);save(DCK,dcfg)}
-  dFillLists();$(sel).value=ex||n;
- };
-}
-dAddOpt("dCatAdd","New category name:","cats","dCat");dAddOpt("dYrAdd","New year (e.g. 2027):","yrs","dYr",1);dAddOpt("dStAdd","New status name:","sts","dSt");
-$("dCancel").onclick=dClear;$("dClear").onclick=dClear;
-$("dSave").onclick=function(){
- var r={id:dEdit||uid(),prov:dClean($("dProv").value),mun:dClean($("dMun").value),name:dClean($("dName").value),pos:dClean($("dPos").value),off:dClean($("dOff").value),con:dClean($("dCon").value),em:dClean($("dEm").value),cat:$("dCat").value,yr:parseInt($("dYr").value,10)||"",st:$("dSt").value},e=$("dErr");
- if(!r.name){e.textContent="Enter the Name.";return}
- var dup=dirs.filter(function(x){return x.id!==r.id&&x.name.toLowerCase()===r.name.toLowerCase()&&x.mun===r.mun&&x.off===r.off&&x.cat===r.cat&&String(x.yr)===String(r.yr)})[0];
- if(dup&&!confirm("A record with the same name, municipality, office, category and year already exists. Save anyway?"))return;
- if(dEdit)dirs=dirs.map(function(x){return x.id===dEdit?r:x});else dirs.push(r);
- save(DIRK,dirs);dClear();dFillLists();renderDIR();
-};
-function dFiltered(){
- var f=DF,q=f.q.trim().toLowerCase();
- return dirs.filter(function(r){
-  for(var i=0;i<DFS.length;i++){var k=DFS[i][0];if(f[k].length&&f[k].indexOf(String(r[k]==null?"":r[k]))<0)return false}
-  if(q&&[r.prov,r.mun,r.name,r.pos,r.off,r.con,r.em,r.cat,r.yr,r.st].join(" ").toLowerCase().indexOf(q)<0)return false;
-  return true;
- });
-}
-function buildDir(){
- var el=$("dirDash");
- el.innerHTML='<h2 style="margin:0 0 10px">Directory dashboard</h2><div class="fbar"><div style="flex:2 1 260px"><label>Search (any field)</label><input id="dQ" placeholder="Type a name, office, number, email\u2026" autocomplete="off"></div>'+DFS.map(function(f){return'<div><label>'+f[1]+'</label><div class="ms" data-d="'+f[0]+'"></div></div>'}).join("")+'<button data-dclr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
- el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.d)return;DF[b.dataset.d]=msVal(b);msNow(b);later(renderDIR)});
- $("dQ").addEventListener("input",function(){DF.q=this.value;later(renderDIR)});
- el.addEventListener("click",function(e){var mc=msClear(e);if(mc){DF[mc.dataset.d]=[];renderDIR();return}if(e.target.dataset.dclr){DF={prov:[],mun:[],name:[],pos:[],off:[],con:[],em:[],cat:[],yr:[],st:[],q:""};$("dQ").value="";renderDIR()}});
-}
-function dCount(L,key){var m={};L.forEach(function(r){var k=r[key]===""||r[key]==null?"(none)":String(r[key]);m[k]=(m[k]||0)+1});return Object.keys(m).map(function(k){return[k,m[k]]})}
-function dTable(title,first,pairs,total){
- return'<div><h3>'+title+'</h3><table class="dt"><thead><tr><th>'+first+'</th><th>Records</th><th>Share</th></tr></thead><tbody>'+pairs.map(function(p){return'<tr><td>'+esc(p[0])+'</td><td class="n">'+p[1]+'</td><td style="min-width:90px"><div style="background:var(--soft);border-radius:4px;height:10px"><div style="background:var(--brand);height:10px;border-radius:4px;width:'+(total?Math.round(p[1]/total*100):0)+'%"></div></div></td></tr>'}).join("")+'</tbody><tfoot><tr><td>TOTAL</td><td class="n">'+total+'</td><td></td></tr></tfoot></table></div>';
-}
-function renderDIR(){
- var el=$("dirDash");if(!el||!el.firstChild)return;
- DFS.forEach(function(f){var k=f[0],vals=uniq(dirs.map(function(r){return r[k]===""||r[k]==null?"":String(r[k])}));if(k==="yr")vals.sort(function(a,b){return b-a});DF[k]=DF[k].filter(function(v){return vals.indexOf(v)>=0});msFill(el.querySelector('[data-d="'+k+'"]'),L1(vals),DF[k],"All")});
- var L=dFiltered(),n=L.length,uq=function(k){return uniq(L.map(function(r){return r[k]})).length},card=function(l,v){return'<div class="kpi"><span>'+l+'</span><b>'+v+'</b></div>'};
- var act=L.filter(function(r){return r.st==="Active"}).length,ina=L.filter(function(r){return r.st==="Inactive"}).length;
- el.querySelector(".kpis").innerHTML=card("Total records",n)+card("Active",act)+card("Inactive",ina)+card("Municipalities",uq("mun"))+card("Offices / Agencies",uq("off"))+card("With email address",L.filter(function(r){return r.em}).length);
- var byc=function(key,sortYear){var p=dCount(L,key);p.sort(sortYear?function(a,b){return b[0]-a[0]}:function(a,b){return b[1]-a[1]||a[0].localeCompare(b[0])});return p};
- el.querySelector(".dtw").innerHTML=dTable("By Municipality","Municipality",byc("mun"),n)+dTable("By Category","Category",byc("cat"),n)+dTable("By Year","Year",byc("yr",1),n)+dTable("By Status","Status",byc("st"),n);
- var on=[];DFS.forEach(function(f){on=on.concat(DF[f[0]])});if(DF.q.trim())on.push('"'+DF.q.trim()+'"');
- var sm="Showing "+n+" of "+dirs.length+" records"+(on.length?" \u2014 filtered by: "+on.join(" \u203a "):"");
- el.querySelector(".fsum").textContent=sm;$("dirSum").textContent=sm;
- $("dirOffice").textContent="Office / Division: "+(meta.office||"");$("dirInfo").textContent="Printed: "+new Date().toLocaleDateString();
- $("dirTbl").innerHTML='<thead><tr><th>No.</th>'+DFS.map(function(f){return'<th>'+f[1]+'</th>'}).join("")+'<th class="act">Actions</th></tr></thead><tbody>'+
-  (L.length?L.map(function(r,i){return'<tr><td class="c">'+(i+1)+'</td><td>'+esc(r.prov)+'</td><td>'+esc(r.mun)+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.pos)+'</td><td>'+esc(r.off)+'</td><td>'+esc(r.con)+'</td><td>'+esc(r.em)+'</td><td>'+esc(r.cat)+'</td><td class="c">'+esc(r.yr)+'</td><td class="c"'+(r.st==="Inactive"?' style="color:var(--warn);font-weight:700"':"")+'>'+esc(r.st)+'</td><td class="act"><button data-e="'+r.id+'">Edit</button> <button class="d" data-d="'+r.id+'">Delete</button></td></tr>'}).join(""):'<tr><td colspan="12" class="empty">'+(dirs.length?"No records match the filters.":"No directory records yet. Add one above or use Import from Excel.")+'</td></tr>')+'</tbody>';
-}
-$("dirTbl").addEventListener("click",function(e){
- var b=e.target.closest("button");if(!b)return;var id=b.dataset.e||b.dataset.d,r=dirs.filter(function(x){return x.id===id})[0];if(!r)return;
- if(b.dataset.d){if(confirm("Delete the record of "+r.name+"?")){dirs=dirs.filter(function(x){return x.id!==id});save(DIRK,dirs);if(dEdit===id)dClear();dFillLists();renderDIR()}return}
- var s=$("dSave").closest("section");if(typeof RT!=="undefined"&&RT.dirf){RT.dirf=false;try{localStorage.setItem("wfp_rt",JSON.stringify(RT))}catch(x){}rtApply(s,"dirf")}
- dEdit=id;$("dProv").value=r.prov;$("dMun").value=r.mun;$("dName").value=r.name;$("dPos").value=r.pos;$("dOff").value=r.off;$("dCon").value=r.con;$("dEm").value=r.em;
- dFillLists();$("dCat").value=r.cat||"";$("dYr").value=String(r.yr);$("dSt").value=r.st;
- $("dirTitle").textContent="Edit directory record";$("dSave").textContent="Update record";$("dCancel").classList.remove("hidden");$("dErr").textContent="";$("dName").scrollIntoView({block:"center"});
-});
-$("dirPrint").onclick=function(){if(!dFiltered().length){alert("There are no records to print. Check your filters.");return}renderDIR();window.print()};
-$("dirExp").onclick=function(){
- if(!needX())return;var L=dFiltered();if(!L.length){alert("There are no records to export. Check your filters.");return}
- var a=[DH].concat(L.map(function(r,i){return[i+1,r.prov,r.mun,r.name,r.pos,r.off,r.con,r.em,r.cat,r.yr,r.st]}));
- var ws=XLSX.utils.aoa_to_sheet(a);ws["!cols"]=[6,28,22,30,34,38,20,34,16,8,10].map(function(w){return{wch:w}});
- var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Directory");XLSX.writeFile(wb,"directory-"+new Date().toISOString().slice(0,10)+".xlsx");
-};
-$("dirTpl").onclick=function(){
- if(!needX())return;
- var wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([DH]);ws["!cols"]=[6,28,22,30,34,38,20,34,16,8,10].map(function(w){return{wch:w}});XLSX.utils.book_append_sheet(wb,ws,"Directory");
- var ins=[["HOW TO USE THIS TEMPLATE"],[""],["1. Type one person per row in the 'Directory' sheet under the headings. Keep the headings as they are; the 'No.' column is optional."],["2. Required: Name. Status defaults to Active if left blank."],["3. The headings 'Office/Agency' and 'Office/Agency/Establishment' are both accepted."],["4. New categories, statuses and years in your file are added automatically."],["5. Save the file, then click 'Import from Excel'. Rows already in the app are skipped, so you can import the same file twice safely."]];
- var wi=XLSX.utils.aoa_to_sheet(ins);wi["!cols"]=[{wch:110}];XLSX.utils.book_append_sheet(wb,wi,"Instructions");
- XLSX.writeFile(wb,"directory-import-template.xlsx");
-};
-$("dirImp").onclick=function(){$("dirFile").value="";$("dirFile").click()};
-$("dirFile").onchange=function(){
- var f=this.files[0];if(!f||!needX())return;var rd=new FileReader();
- rd.onload=function(){
-  var wb;try{wb=XLSX.read(rd.result,{type:"array"})}catch(e){alert("That file could not be read as an Excel file.");return}
-  var ws=wb.Sheets["Directory"]||wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:"",raw:false}),good=[],bad=[],dup=0,seen={};
-  var key=function(r){return[r.name,r.mun,r.off,r.pos,r.cat,r.yr].join("~").toLowerCase()};
-  dirs.forEach(function(r){seen[key(r)]=1});
-  rows.forEach(function(row,n){
-   var g={};Object.keys(row).forEach(function(k){g[nk(k)]=dClean(row[k])});
-   var pick=function(){for(var i=0;i<arguments.length;i++)if(g[arguments[i]]!==undefined)return g[arguments[i]];return""};
-   var off="";Object.keys(g).forEach(function(k){if(k.indexOf("office")===0)off=g[k]});
-   var r={id:uid(),prov:pick("provincecity","province","city"),mun:pick("municipality"),name:pick("name"),pos:pick("positiondesignation","position","designation"),off:off,con:pick("contactnumber","contact"),em:pick("emailaddress","email"),cat:pick("category"),yr:parseInt(pick("year"),10)||"",st:pick("status")||"Active"};
-   if(!r.name&&!r.mun&&!r.pos&&!r.off&&!r.con&&!r.em)return;
-   if(!r.name){bad.push("Row "+(n+2)+": Name missing");return}
-   if(seen[key(r)]){dup++;return}seen[key(r)]=1;good.push(r);
-  });
-  if(!good.length&&!bad.length){alert(dup?"All "+dup+" rows are already in the app.":"No rows found. Use the template and type the records under the headings.");return}
-  var msg=good.length+" record(s) ready to import."+(dup?"\n"+dup+" duplicate row(s) will be skipped.":"")+(bad.length?"\n\n"+bad.length+" row(s) have problems and will be SKIPPED:\n"+bad.slice(0,12).join("\n")+(bad.length>12?"\n\u2026and "+(bad.length-12)+" more":""):"");
-  if(!good.length){alert(msg);return}if(!confirm(msg+"\n\nImport now?"))return;
-  good.forEach(function(r){dirs.push(r)});save(DIRK,dirs);dFillLists();renderDIR();alert("Imported "+good.length+" record(s).");
- };
- rd.readAsArrayBuffer(f);
-};
-buildDir();dFillLists();dClear();
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);dirs=load(DIRK,[]);dcfg=load(DCK,{cats:[],yrs:[],sts:[]});dcfg.cats=dcfg.cats||[];dcfg.yrs=dcfg.yrs||[];dcfg.sts=dcfg.sts||[];objInit();
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
@@ -924,7 +798,7 @@ if(docRef){
    var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
    var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
-   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));o[DIRK]=JSON.stringify(m(L(DIRK),C(DIRK),idf));var pc=function(v){try{return JSON.parse(v)||{}}catch(e){return{}}},la=pc(localStorage.getItem(DCK)),ca=pc(d[DCK]);o[DCK]=JSON.stringify({cats:uniq((la.cats||[]).concat(ca.cats||[])),yrs:uniq((la.yrs||[]).concat(ca.yrs||[])),sts:uniq((la.sts||[]).concat(ca.sts||[]))});
+   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
@@ -947,7 +821,7 @@ function repWrap(sec,key){
  rtApply(sec,key);
 }
 function secOf(txt){var h=[].filter.call(document.querySelectorAll("section.card h2"),function(x){return x.textContent.trim()===txt})[0];return h&&h.closest("section")}
-repWrap(secOf("Report details"),"det");repWrap($("obDash"),"obd");repWrap(secOf("Office Budget report"),"obr");repWrap($("bmDash"),"bmd");repWrap(secOf("Budget Monitoring report"),"bmr");repWrap($("lgSec"),"lg");repWrap(secOf("Work Financial Plan entries"),"wfr");repWrap($("alDash"),"alr");repWrap(secOf("Office Annual Budget records"),"anr");repWrap(secOf("Add directory record"),"dirf");repWrap($("dirDash"),"dird");repWrap(secOf("Directory records"),"dirr");
+repWrap(secOf("Report details"),"det");repWrap($("obDash"),"obd");repWrap(secOf("Office Budget report"),"obr");repWrap($("bmDash"),"bmd");repWrap(secOf("Budget Monitoring report"),"bmr");repWrap($("lgSec"),"lg");repWrap(secOf("Work Financial Plan entries"),"wfr");repWrap($("alDash"),"alr");repWrap(secOf("Office Annual Budget records"),"anr");
 
 /* ---------- WFP form: Clear entry + reset suggestions ---------- */
 var SUGK="wfp_sug_hide";
