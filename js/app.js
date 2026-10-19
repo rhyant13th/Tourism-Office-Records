@@ -334,7 +334,7 @@ function renderBM(){
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-    if(!$("bmBody")._tipBound){
+      if(!$("bmBody")._tipBound){
    $("bmBody")._tipBound=1;
    $("bmBody").addEventListener("mouseover",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
@@ -344,7 +344,7 @@ function renderBM(){
    $("bmBody").addEventListener("mouseout",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
     if(e.relatedTarget&&td.contains(e.relatedTarget))return;
-    bmTipHide();
+    bmTip.arm(); /* grace period: lets the mouse travel into the tooltip */
    });
    var _bmWrap=document.querySelector("table.bm");if(_bmWrap&&_bmWrap.closest(".wrap"))_bmWrap.closest(".wrap").addEventListener("scroll",bmTipHide,{passive:true});
   }
