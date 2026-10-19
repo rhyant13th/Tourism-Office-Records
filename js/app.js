@@ -35,15 +35,22 @@ var esc=function(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){re
 var Q=["1st","2nd","3rd","4th"];
 /* ---------- Excel-like hover tooltip for Budget Monitoring ---------- */
 var bmTip=(function(){
-  var d=document.createElement("div");d.id="bmTip";document.body.appendChild(d);var cur=null;
+  var d=document.createElement("div");d.id="bmTip";document.body.appendChild(d);
+  var cur=null,timer=null;
+  function cancel(){if(timer){clearTimeout(timer);timer=null}}
+  function hide(){cancel();cur=null;d.style.display="none"}
+  function arm(){cancel();timer=setTimeout(hide,220)}
   document.addEventListener("mousemove",function(e){
-    if(!cur)return;
+    if(!cur||d.style.display!=="block")return;
     var x=e.clientX+14,y=e.clientY+14,w=d.offsetWidth,h=d.offsetHeight;
     if(x+w>innerWidth-8)x=e.clientX-w-14;
     if(y+h>innerHeight-8)y=e.clientY-h-14;
     d.style.left=x+"px";d.style.top=y+"px";
   },{passive:true});
-  return{show:function(t,h){cur=t;d.innerHTML=h;d.style.display="block"},hide:function(){cur=null;d.style.display="none"}};
+  d.addEventListener("mouseenter",cancel);
+  d.addEventListener("mouseleave",arm);
+  document.addEventListener("scroll",hide,true);
+  return{show:function(t,html){cancel();cur=t;d.innerHTML=html;d.style.display="block"},arm:arm,hide:hide};
 })();
 function bmTipHide(){bmTip.hide()}
 function bmTipHTML(it,k,kind){
