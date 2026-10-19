@@ -36,17 +36,26 @@ var Q=["1st","2nd","3rd","4th"];
 /* ---------- Excel-like hover tooltip for Budget Monitoring ---------- */
 var bmTip=(function(){
   var d=document.createElement("div");d.id="bmTip";document.body.appendChild(d);
-  var cur=null,timer=null;
+  var cur=null,timer=null,inside=false,scrollLock=false;
   function cancel(){if(timer){clearTimeout(timer);timer=null}}
-  function hide(){cancel();cur=null;d.style.display="none"}
-  function arm(){cancel();timer=setTimeout(hide,600)} /* generous grace period */
-  d.addEventListener("mouseenter",cancel);
-  d.addEventListener("mouseleave",arm);
-  document.addEventListener("scroll",hide,true);
+  function hide(){if(inside||scrollLock)return;cancel();cur=null;d.style.display="none"}
+  function arm(){cancel();timer=setTimeout(hide,700)}
+  d.addEventListener("mouseenter",function(){inside=true;cancel()});
+  d.addEventListener("mouseleave",function(){inside=false;arm()});
+  /* keep it open while the inner scrollbar is engaged */
+  d.addEventListener("scroll",function(){
+    scrollLock=true;cancel();
+    clearTimeout(d._sl);d._sl=setTimeout(function(){scrollLock=false;if(!inside)arm()},400);
+  },{passive:true});
+  /* hide on page scroll, but never when the scroll originates inside the tooltip */
+  document.addEventListener("scroll",function(e){
+    if(d.contains(e.target))return;
+    if(inside||scrollLock)return;
+    hide();
+  },true);
   return{
     show:function(target,html){
       cancel();cur=target;d.innerHTML=html;d.style.display="block";
-      /* anchor near the cell, not the cursor */
       var r=target.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
       var x=r.left,y=r.bottom+6;
       if(x+w>innerWidth-8)x=innerWidth-w-8;
@@ -55,7 +64,7 @@ var bmTip=(function(){
       d.style.left=x+"px";d.style.top=y+"px";
     },
     arm:arm,
-    hide:hide
+    hide:function(){inside=false;scrollLock=false;cancel();cur=null;d.style.display="none"}
   };
 })();
 function bmTipHide(){bmTip.hide()}
@@ -340,7 +349,7 @@ function renderBM(){
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-       if(!$("bmBody")._tipBound){
+        if(!$("bmBody")._tipBound){
    $("bmBody")._tipBound=1;
    $("bmBody").addEventListener("mouseover",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
