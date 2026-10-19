@@ -36,7 +36,6 @@
  <button role="tab" id="tabBtnWF" aria-selected="false">📋 Work Financial Plan (Lump-sum)</button>
  <button role="tab" id="tabBtnOB" aria-selected="true">🧾 Office Budget (Itemized)</button>
  <button role="tab" id="tabBtnAN" aria-selected="false">🎯 Office Annual Budget</button>
- <button role="tab" id="tabBtnDIR" aria-selected="false">📒 Directory</button>
  <h6>ANALYTICS &amp; REPORTS</h6>
  <button role="tab" id="tabBtnBM" aria-selected="false">📊 Budget Monitoring</button>
  <button role="tab" id="tabBtnAL" aria-selected="false">⚖️ WFP vs Actual</button>
@@ -217,34 +216,6 @@
 <div id="tabAL" class="hidden">
 
 <section class="card" id="alDash"></section>
-</div>
-<div id="tabDIR" class="hidden">
-<section class="card entry">
- <h2 id="dirTitle">Add directory record</h2>
- <div class="grid">
-  <div class="c4"><label for="dProv">Province/City</label><input id="dProv" list="dProvList" autocomplete="off"><datalist id="dProvList"></datalist></div>
-  <div class="c4"><label for="dMun">Municipality (choose or type)</label><input id="dMun" list="dMunList" autocomplete="off" placeholder="Choose or type a municipality"><datalist id="dMunList"></datalist></div>
-  <div class="c4"><label for="dName">Name</label><input id="dName" autocomplete="off"></div>
-  <div class="c6"><label for="dPos">Position/Designation</label><input id="dPos" autocomplete="off"></div>
-  <div class="c6"><label for="dOff">Office/Agency/Establishment</label><input id="dOff" autocomplete="off"></div>
-  <div class="c4"><label for="dCon">Contact Number</label><input id="dCon" autocomplete="off"></div>
-  <div class="c4"><label for="dEm">Email Address</label><input id="dEm" type="text" autocomplete="off"></div>
-  <div class="c4"><label for="dCat">Category</label><div class="pwrow"><select id="dCat"></select><button type="button" id="dCatAdd">+ Add</button></div></div>
-  <div class="c4"><label for="dYr">Year</label><div class="pwrow"><select id="dYr"></select><button type="button" id="dYrAdd">+ Add</button></div></div>
-  <div class="c4"><label for="dSt">Status</label><div class="pwrow"><select id="dSt"></select><button type="button" id="dStAdd">+ Add</button></div></div>
- </div>
- <div class="btns"><button class="p" id="dSave">Add record</button><button id="dCancel" type="button" class="hidden">Cancel</button><button id="dClear" type="button">Clear entry</button></div>
- <div class="err" id="dErr"></div>
-</section>
-<section class="card noprint" id="dirDash"></section>
-<section class="card">
- <div class="bar noprint"><h2 style="margin:0">Directory records</h2>
-  <div class="btns" style="margin:0"><button class="p" id="dirTpl">Download template</button><button class="p" id="dirImp">Import from Excel</button><input type="file" id="dirFile" accept=".xlsx,.xls,.csv" style="display:none"><button class="p" id="dirExp">Export (Excel)</button><button class="p" id="dirPrint">Print report</button></div></div>
- <div class="rhead"><h2>DIRECTORY</h2><div class="m"><span id="dirOffice"></span><span id="dirInfo"></span></div></div>
- <div class="fsum" id="dirSum"></div>
- <div class="wrap"><table class="dt dir" id="dirTbl"></table></div>
- <div class="sign"><div class="sBy"></div><div class="sApp"></div></div>
-</section>
 </div>
 </main>
 </div>
