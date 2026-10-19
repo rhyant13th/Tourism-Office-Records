@@ -39,18 +39,24 @@ var bmTip=(function(){
   var cur=null,timer=null;
   function cancel(){if(timer){clearTimeout(timer);timer=null}}
   function hide(){cancel();cur=null;d.style.display="none"}
-  function arm(){cancel();timer=setTimeout(hide,220)}
-  document.addEventListener("mousemove",function(e){
-    if(!cur||d.style.display!=="block")return;
-    var x=e.clientX+14,y=e.clientY+14,w=d.offsetWidth,h=d.offsetHeight;
-    if(x+w>innerWidth-8)x=e.clientX-w-14;
-    if(y+h>innerHeight-8)y=e.clientY-h-14;
-    d.style.left=x+"px";d.style.top=y+"px";
-  },{passive:true});
+  function arm(){cancel();timer=setTimeout(hide,600)} /* generous grace period */
   d.addEventListener("mouseenter",cancel);
   d.addEventListener("mouseleave",arm);
   document.addEventListener("scroll",hide,true);
-  return{show:function(t,html){cancel();cur=t;d.innerHTML=html;d.style.display="block"},arm:arm,hide:hide};
+  return{
+    show:function(target,html){
+      cancel();cur=target;d.innerHTML=html;d.style.display="block";
+      /* anchor near the cell, not the cursor */
+      var r=target.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
+      var x=r.left,y=r.bottom+6;
+      if(x+w>innerWidth-8)x=innerWidth-w-8;
+      if(x<8)x=8;
+      if(y+h>innerHeight-8){y=r.top-h-6;if(y<8)y=8}
+      d.style.left=x+"px";d.style.top=y+"px";
+    },
+    arm:arm,
+    hide:hide
+  };
 })();
 function bmTipHide(){bmTip.hide()}
 function bmTipHTML(it,k,kind){
@@ -334,7 +340,7 @@ function renderBM(){
    tb+=sum;h+="<td class='n bal"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
   $("bmBody").innerHTML=h;
-      if(!$("bmBody")._tipBound){
+       if(!$("bmBody")._tipBound){
    $("bmBody")._tipBound=1;
    $("bmBody").addEventListener("mouseover",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
@@ -344,7 +350,7 @@ function renderBM(){
    $("bmBody").addEventListener("mouseout",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
     if(e.relatedTarget&&td.contains(e.relatedTarget))return;
-    bmTip.arm(); /* grace period: lets the mouse travel into the tooltip */
+    bmTip.arm();
    });
    var _bmWrap=document.querySelector("table.bm");if(_bmWrap&&_bmWrap.closest(".wrap"))_bmWrap.closest(".wrap").addEventListener("scroll",bmTipHide,{passive:true});
   }
