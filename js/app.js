@@ -1,4 +1,4 @@
-window.APP_VER="r10 • WFP dashboard, WFP-linked dropdowns, BM field hide";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r11 • Remarks, print column chooser, add items by Object of Expenditure";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -272,8 +272,10 @@ function clearForm(){
  ["aip","act","desc","stock","unit","price","mode","remarks","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
  $("obj").value="";$("acct").value="";prevObj="";editing=null;fillWfpSel("","");
  $("formTitle").textContent="Add item";$("btnSave").textContent="Add item";$("btnCancel").classList.add("hidden");$("err").textContent="";calcForm();
+ bxRows={};bxKey="";if(bxReady)bxRender();
 }
 $("btnSave").onclick=function(){
+ if(bxActive()){bxSave();return}
  var it={aip:$("aip").value.trim(),act:$("act").value.trim(),desc:$("desc").value.trim(),obj:$("obj").value,acct:$("acct").value,stock:$("stock").value.trim(),
   unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:$("remarks").value.trim(),
   q:[1,2,3,4].map(function(i){return parseFloat($("q"+i).value)||0})},e=$("err");
@@ -286,13 +288,124 @@ $("btnSave").onclick=function(){
  save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
 };
 $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
+
+/* ---------- Add items by Object of Expenditure (objects come from the WFP of the chosen Activity) ---------- */
+var bxSingle=false,bxRows={},bxKey="",bxObjs=[],bxReady=false;
+function bxEmpty(){return{desc:"",stock:"",unit:"",price:"",mode:"",remarks:"",q:["","","",""]}}
+function bxActive(){return editing===null&&!bxSingle}
+function bxList(){var act=$("act").value.trim();if(!act)return[];var s={};alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj)s[r.obj]=1});return Object.keys(s).sort(byObj)}
+function bxGet(oi){var k=year+"|"+$("act").value.trim()+"|"+bxObjs[oi];return bxRows[k]||(bxRows[k]=[bxEmpty()])}
+function bxUsed(r){return!!(r.desc.trim()||r.price!==""||r.q.some(function(v){return v!==""}))}
+function bxRowHtml(oi,ri,r,many){
+ var f=function(n,l,cl,ex){return'<div class="'+cl+'"><label>'+l+'</label><input data-f="'+n+'" '+ex+' value="'+esc(r[n])+'"></div>'};
+ var h='<div class="xrow" data-oi="'+oi+'" data-ri="'+ri+'"><div class="xh">Description '+(ri+1)+'</div>'
+  +f("desc","Description","x4",'list="descList" autocomplete="off"')
+  +f("stock","Stock No.","x2",'list="stockList" autocomplete="off" placeholder="N/A or type"')
+  +f("unit","Unit","x2",'list="units" autocomplete="off"')
+  +f("price","Unit Price","x2",'type="number" min="0" step="0.01"')
+  +f("mode","Mode of Procurement","x2",'list="modeList" autocomplete="off"');
+ for(var k=0;k<4;k++)h+='<div class="x2"><label>'+Q[k]+' Quarter qty</label><input data-f="q'+k+'" type="number" min="0" step="any" value="'+esc(r.q[k])+'"><small class="xa"></small></div>';
+ h+='<div class="x2"><label>Total quantity</label><input class="xtq" readonly></div><div class="x2"><label>Estimated budget</label><input class="xeb" readonly></div>'
+  +f("remarks","Remarks (optional)","x10",'autocomplete="off"')
+  +'<div class="x2 xdel">'+(many?'<button type="button" class="d" data-xdel="1">Remove</button>':'')+'</div></div>';
+ return h;
+}
+function bxBlockHtml(oi){
+ var o=bxObjs[oi],rows=bxGet(oi);
+ return'<fieldset class="xblk" data-oi="'+oi+'"><legend>'+esc(o)+' <span style="font-weight:400">\u00b7 '+esc(codeOf(o))+'</span></legend><div class="xst"></div>'
+  +rows.map(function(r,ri){return bxRowHtml(oi,ri,r,rows.length>1)}).join("")
+  +'<button type="button" data-xadd="1">+ Add description</button></fieldset>';
+}
+function bxStatus(){
+ var box=$("objBlocks"),act=$("act").value.trim(),T=itemTotals(null),nItems=0,grand=0;
+ [].forEach.call(box.querySelectorAll(".xblk"),function(bl){
+  var oi=+bl.dataset.oi,o=bxObjs[oi],rows=bxGet(oi),st="";
+  [].forEach.call(bl.querySelectorAll(".xrow"),function(re){
+   var r=rows[+re.dataset.ri],p=parseFloat(r.price)||0,tq=0;
+   for(var k=0;k<4;k++){var q=parseFloat(r.q[k])||0;tq+=q;re.querySelectorAll(".xa")[k].textContent=q&&p?"= "+money(q*p):""}
+   re.querySelector(".xtq").value=tq?qty(tq):"";re.querySelector(".xeb").value=tq&&p?money(tq*p):"";
+  });
+  for(var k=0;k<4;k++){
+   var w=wfpOf(act,o,k),ex=T[act+"|"+o+"|"+k]||0,th=0;
+   rows.forEach(function(r){th+=(parseFloat(r.q[k])||0)*(parseFloat(r.price)||0)});
+   if(!w&&!ex&&!th)continue;
+   var bal=w-ex-th,over=bal<-0.005;
+   st+="<div style='color:"+(over?"#b3261e":"inherit")+"'>"+Q[k]+" Quarter \u2014 WFP: "+money(w)+" \u00b7 already itemized: "+money(ex)+" \u00b7 this entry: "+money(th)+" \u00b7 "+(over?"OVER the WFP by "+money(-bal):"balance: "+money(bal))+"</div>";
+  }
+  bl.querySelector(".xst").innerHTML=st;
+  rows.forEach(function(r){if(!bxUsed(r))return;nItems++;grand+=r.q.reduce(function(s,v){return s+(parseFloat(v)||0)},0)*(parseFloat(r.price)||0)});
+ });
+ var s=$("bxSum");if(s)s.textContent=nItems?"Ready to add: "+nItems+" item"+(nItems>1?"s":"")+" \u00b7 total estimated budget "+money(grand):"";
+}
+function bxRender(){
+ var box=$("objBlocks"),one=$("oneItem"),sw=$("bxSw"),act=$("act").value.trim();
+ $("bxSwWrap").classList.toggle("hidden",editing!==null);
+ if(!bxActive()){box.classList.add("hidden");one.classList.remove("hidden");sw.textContent="\u2190 Enter by Object of Expenditure from the WFP";return}
+ sw.textContent="Enter a single item instead (any Object of Expenditure)";
+ $("formTitle").textContent="Add item";$("btnSave").textContent="Add items";
+ one.classList.add("hidden");box.classList.remove("hidden");
+ var objs=bxList(),key=year+"|"+act+"|"+objs.join("\u0001");
+ if(!act){box.innerHTML='<div class="fsum" style="margin:0">Select the AIP Code and Activities above. Every Object of Expenditure of that activity in the Work Financial Plan will appear here, ready for your descriptions and quarterly quantities.</div>';bxKey="";bxObjs=[];return}
+ if(!objs.length){box.innerHTML='<div class="fsum" style="margin:0">No Work Financial Plan entries for this activity in '+year+' yet. Add them in the WFP tab, or enter a single item instead.</div>';bxKey="";bxObjs=[];return}
+ if(key===bxKey&&box.querySelector(".xblk")){bxStatus();return}
+ bxKey=key;bxObjs=objs;
+ box.innerHTML=objs.map(function(o,oi){return bxBlockHtml(oi)}).join("")+'<div class="info" id="bxSum"></div>';
+ bxStatus();
+}
+function bxRowOf(t){var re=t.closest(".xrow");if(!re)return null;var oi=+re.dataset.oi,ri=+re.dataset.ri;return{re:re,oi:oi,ri:ri,r:bxGet(oi)[ri]}}
+$("objBlocks").addEventListener("input",function(e){
+ var f=e.target.dataset.f,x=bxRowOf(e.target);if(!f||!x)return;
+ if(f.length===2&&f.charAt(0)==="q")x.r.q[+f.charAt(1)]=e.target.value;else x.r[f]=e.target.value;
+ bxStatus();
+});
+$("objBlocks").addEventListener("change",function(e){
+ var f=e.target.dataset.f,x=bxRowOf(e.target);if(!f||!x)return;
+ if(f==="mode"){var v=e.target.value.trim().toLowerCase();if(v){var ok=MODES.filter(function(m){return m.toLowerCase()===v})[0];if(ok){e.target.value=ok;x.r.mode=ok}else{alert("Mode of Procurement must be Procurement or Non-Procurement.");e.target.value="";x.r.mode=""}}}
+ if(f==="desc"){
+  var d=x.r.desc.trim().toLowerCase();if(!d)return;
+  for(var i=items.length-1;i>=0;i--)if(items[i].desc&&items[i].desc.toLowerCase()===d){
+   var it=items[i];
+   if(!x.r.unit&&it.unit){x.r.unit=it.unit;x.re.querySelector('[data-f="unit"]').value=it.unit}
+   if(x.r.price===""&&it.price){x.r.price=String(it.price);x.re.querySelector('[data-f="price"]').value=it.price}
+   break;
+  }
+  bxStatus();
+ }
+});
+$("objBlocks").addEventListener("click",function(e){
+ var b=e.target.closest("button");if(!b)return;
+ var bl=b.closest(".xblk");if(!bl)return;var oi=+bl.dataset.oi,rows=bxGet(oi);
+ if(b.dataset.xadd){rows.push(bxEmpty());bxKey="";bxRender();var rs=$("objBlocks").querySelectorAll('.xblk[data-oi="'+oi+'"] .xrow');var l=rs[rs.length-1];if(l)l.querySelector('[data-f="desc"]').focus()}
+ else if(b.dataset.xdel){var x=bxRowOf(b);if(x){rows.splice(x.ri,1);if(!rows.length)rows.push(bxEmpty());bxKey="";bxRender()}}
+});
+$("bxSw").addEventListener("click",function(e){e.preventDefault();if(editing!==null)return;bxSingle=!bxSingle;$("err").textContent="";if(!bxSingle)bxKey="";bxRender();if(bxSingle){$("btnSave").textContent="Add item"}});
+$("aip").addEventListener("change",function(){bxRender()});
+$("act").addEventListener("change",function(){bxRender()});
+function bxSave(){
+ var e=$("err"),aip=$("aip").value.trim(),act=$("act").value.trim(),out=[],bad="";
+ if(!aip||!act){e.textContent="Select the AIP Code and Activities (from the Work Financial Plan).";return}
+ bxObjs.forEach(function(o,oi){bxGet(oi).forEach(function(r,ri){
+  if(bad||!bxUsed(r))return;
+  var p=parseFloat(r.price)||0,q=r.q.map(function(v){return parseFloat(v)||0}),lb=o+" \u2013 description "+(ri+1)+": ",m=r.mode.trim();
+  if(!r.desc.trim()){bad=lb+"enter a Description.";return}
+  if(!(p>0)){bad=lb+"enter a Unit Price greater than zero.";return}
+  if(q.reduce(function(s,v){return s+v},0)<=0){bad=lb+"enter a quantity for at least one quarter.";return}
+  if(m){var ok=MODES.filter(function(x){return x.toLowerCase()===m.toLowerCase()})[0];if(!ok){bad=lb+"Mode of Procurement must be Procurement or Non-Procurement.";return}m=ok}
+  out.push({aip:aip,act:act,desc:r.desc.trim(),obj:o,acct:codeOf(o),stock:r.stock.trim(),unit:r.unit.trim(),price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year});
+ })});
+ if(bad){e.textContent=bad;return}
+ if(!out.length){e.textContent="Enter at least one description with a unit price and a quantity.";return}
+ out.forEach(function(it){items.push(it)});save(KEY,items);
+ clearForm();renderAll();refreshLists();$("aip").focus();
+}
+bxReady=true;bxRender();
 function edit(id){
  var it=byId(id);if(!it)return;editing=id;
  fillWfpSel(it.aip,it.act||"");$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
  $("price").value=it.price;modeSet(it.mode);$("remarks").value=it.remarks||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
  calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
- window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
+ if(bxReady)bxRender();window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
 /* ---------- Office Budget report ---------- */
@@ -752,7 +865,7 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm")}
+function renderAll(){renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
 buildBar("ob");buildBar("bm");
 /* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
