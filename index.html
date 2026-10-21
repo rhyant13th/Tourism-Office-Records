@@ -60,6 +60,9 @@
  <div class="grid">
   <div class="c3"><label for="aip">AIP Code <span style="font-weight:400">(from WFP)</span></label><select id="aip"></select></div>
   <div class="c9"><label for="act">Activities <span style="font-weight:400">(from WFP)</span></label><select id="act"></select></div>
+  <div class="c12" id="bxSwWrap" style="font-size:13px"><a href="#" id="bxSw"></a></div>
+  <div class="c12" id="objBlocks"></div>
+  <div class="c12 grid hidden" id="oneItem" style="padding:0">
   <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
   <div class="c6"><label for="obj">Object of Expenditure <a href="#" id="objEdit" style="font-size:12px;font-weight:400">Edit list</a></label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
@@ -84,6 +87,7 @@
   </div>
   <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
   <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
+  </div>
  </div>
  <div class="info" id="objTot" style="font-weight:600"></div>
  <div class="info" id="wfpMsg" style="font-weight:600"></div>
