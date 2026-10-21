@@ -521,9 +521,11 @@ function edit(id){
 function renderOB(){
  var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
  if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="21">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML="";return}
+ var OT=itemTotals(null),over={};
+ yi().forEach(function(it){var key=it.act+"|"+it.obj;if(key in over)return;var sm=0,w=0;for(var k=0;k<4;k++){sm+=OT[key+"|"+k]||0;w+=wfpOf(it.act,it.obj,k)}over[key]=sm-w>0.005?{s:sm,w:w}:null});
  list.forEach(function(it){
-  var t=tot(it),b=t*it.price;gq+=t;gb+=b;
-  h+="<tr><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
+  var t=tot(it),b=t*it.price,ov=over[it.act+"|"+it.obj];gq+=t;gb+=b;
+  h+="<tr"+(ov?" class='over' title='Over the WFP: itemized "+money(ov.s)+" vs WFP "+money(ov.w)+" for this object in this activity'":"")+"><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
   for(var k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"}
   h+="<td>"+esc(it.remarks||"")+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
  });
