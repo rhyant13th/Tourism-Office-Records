@@ -170,3 +170,9 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 .pct i{display:block;height:100%;background:var(--brand)}.pct i.o{background:var(--warn)}
 .wdw .empty{padding:18px}
 .msb .mh{padding:6px 12px 2px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mute)}
+
+/* ===== print column chooser ===== */
+.pcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:2px 14px;margin-bottom:6px}
+.pcl{display:flex;gap:8px;align-items:center;font-weight:400;margin:0;padding:4px 2px;font-size:13px;color:var(--ink);cursor:pointer}
+.pcl input{width:auto}
+@media print{#prnDlg{display:none!important}}
