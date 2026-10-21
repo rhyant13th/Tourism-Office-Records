@@ -202,3 +202,8 @@ input[readonly]#price,input[readonly]#unit,input[readonly]#stock{background:var(
 #csDrop .cso.on,#csDrop .cso:hover{background:var(--soft)}
 #csDrop .csn{padding:10px 12px;color:var(--mute);font-size:13px}
 @media print{#csDrop{display:none!important}}
+
+/* Office Budget lines whose Object of Expenditure total is over the WFP for that activity */
+table.ob tr.over td{color:var(--warn);background:#fdecea}
+table.ob tr.over td.n,table.ob tr.over td.bal{font-weight:700}
+@media print{table.ob tr.over td{background:#fdecea!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
