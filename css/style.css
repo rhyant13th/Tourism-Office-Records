@@ -187,3 +187,18 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 .xdel{display:flex;align-items:flex-end;justify-content:flex-end}
 .xa{display:block;font-size:11.5px;color:var(--mute);min-height:14px;margin-top:2px}
 @media(max-width:900px){.x2,.x4,.x10{grid-column:span 12}}
+
+/* ===== Items (Description) + WFP by Object of Expenditure ===== */
+.xdh{color:var(--warn)!important;font-weight:600}
+#tabIT .c2{grid-column:span 2}
+#wxBlocks .xrow{background:#f8fafc}
+#wxBlocks .xblk .xst div{margin-bottom:2px}
+input[readonly]#price,input[readonly]#unit,input[readonly]#stock{background:var(--soft)}
+@media(max-width:900px){#tabIT .c2{grid-column:span 12}}
+
+#csDrop{position:fixed;z-index:9998;display:none;max-height:300px;overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(15,23,42,.2);padding:4px 0}
+#csDrop .cso{display:flex;justify-content:space-between;gap:16px;padding:7px 12px;cursor:pointer;font-size:13.5px}
+#csDrop .cso small{color:var(--mute);white-space:nowrap;font-size:12px}
+#csDrop .cso.on,#csDrop .cso:hover{background:var(--soft)}
+#csDrop .csn{padding:10px 12px;color:var(--mute);font-size:13px}
+@media print{#csDrop{display:none!important}}
