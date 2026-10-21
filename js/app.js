@@ -1047,3 +1047,108 @@ newIdentity();
 $("alReset").onclick=function(){var k=sugKnown();alClear();sugSet(k);newIdentity();fillSug();$("alAip").focus()};
 $("alSugBack").onclick=function(e){e.preventDefault();sugSet({aip:[],act:[]});fillSug()};
 })();
+
+/* ===== Choose which columns to include when printing ===== */
+(function(){
+var $=function(id){return document.getElementById(id)};
+var REP={
+ obPrint:{key:"ob",title:"Office Budget report",tables:[{label:"",sel:"table.ob"}]},
+ bmPrint:{key:"bm",title:"Budget Monitoring",tables:[{label:"Transactions table",sel:"table.lg"}],note:"The Budget Monitoring report columns are chosen with \u201cShow / hide fields in this report\u201d on the page. Here you choose the columns of the Transactions table."},
+ wfPrint:{key:"wf",title:"Work Financial Plan",tables:[{label:"",sel:"#wfTbl"}]},
+ anPrint:{key:"an",title:"Office Annual Budget",tables:[{label:"",sel:"#anTbl"}]}
+};
+var pending=null,restore=[],orig=window.print.bind(window);
+
+function grid(t){
+ var occ=[],cells=[],n=0;
+ [].forEach.call(t.rows,function(tr,r){
+  occ[r]=occ[r]||[];var c=0;
+  [].forEach.call(tr.cells,function(td){
+   while(occ[r][c])c++;
+   var cs=td.colSpan||1,rs=td.rowSpan||1;
+   for(var i=0;i<rs;i++){occ[r+i]=occ[r+i]||[];for(var j=0;j<cs;j++)occ[r+i][c+j]=1}
+   cells.push({el:td,c:c,span:cs,head:!!td.closest("thead")});
+   c+=cs;if(c>n)n=c;
+  });
+ });
+ return{cells:cells,n:n};
+}
+function cols(t){
+ var g=grid(t),out=[];
+ for(var c=0;c<g.n;c++){
+  var names=[],skip=false;
+  g.cells.forEach(function(x){
+   if(!x.head||c<x.c||c>=x.c+x.span)return;
+   if(x.el.classList.contains("act")){skip=true;return}
+   var s=x.el.textContent.replace(/\s+/g," ").trim();if(s&&names.indexOf(s)<0)names.push(s);
+  });
+  if(!skip)out.push({c:c,name:names.join(" \u2013 ")||("Column "+(c+1))});
+ }
+ return out;
+}
+function load(k){try{return JSON.parse(localStorage.getItem("wfp_print_cols_"+k))||[]}catch(e){return[]}}
+function store(k,v){try{localStorage.setItem("wfp_print_cols_"+k,JSON.stringify(v))}catch(e){}}
+
+function hide(t,hidden){
+ var g=grid(t);
+ g.cells.forEach(function(x){
+  var h=0;for(var i=x.c;i<x.c+x.span;i++)if(hidden.indexOf(i)>=0)h++;
+  if(!h)return;
+  var el=x.el;
+  if(h>=x.span){restore.push([el,el.style.display,null]);el.style.display="none"}
+  else{restore.push([el,null,x.span]);el.colSpan=x.span-h}
+ });
+}
+function undo(){
+ restore.forEach(function(r){if(r[1]!==null)r[0].style.display=r[1];else r[0].colSpan=r[2]});
+ restore=[];
+}
+window.addEventListener("afterprint",undo);
+
+function dlg(){
+ var d=$("prnDlg");if(d)return d;
+ d=document.createElement("dialog");d.id="prnDlg";document.body.appendChild(d);return d;
+}
+function open(def){
+ var d=dlg(),h='<h2 style="margin:0 0 4px">Print \u2013 choose columns</h2><p class="fsum" style="margin:0 0 8px">'+def.title+'. Tick the columns to include in the printed report. Your choice is remembered.</p>';
+ if(def.note)h+='<p class="fsum" style="margin:0 0 8px">'+def.note+'</p>';
+ var groups=[];
+ def.tables.forEach(function(tb,ti){
+  var t=document.querySelector(tb.sel);if(!t)return;
+  var cs=cols(t);if(!cs.length)return;
+  var off=load(def.key+"_"+ti);
+  groups.push({t:t,cs:cs});
+  if(tb.label)h+='<h3 style="margin:10px 0 6px;font-size:14px;color:var(--brand2)">'+tb.label+'</h3>';
+  h+='<div class="pcgrid" data-ti="'+ti+'">'+cs.map(function(x){
+   return'<label class="pcl"><input type="checkbox" data-c="'+x.c+'" data-n="'+x.name.replace(/"/g,"&quot;")+'"'+(off.indexOf(x.name)<0?" checked":"")+'> '+x.name.replace(/</g,"&lt;")+'</label>'}).join("")+'</div>';
+ });
+ if(!groups.length){orig();return}
+ h+='<div class="pcerr err" id="pcErr"></div><div class="btns" style="justify-content:flex-end"><button type="button" id="pcAll" style="margin-right:auto">Select all</button><button type="button" id="pcNone">Clear all</button><button type="button" id="pcCancel">Cancel</button><button type="button" class="p" id="pcGo">Print</button></div>';
+ d.innerHTML=h;
+ var boxes=function(){return[].slice.call(d.querySelectorAll("input[type=checkbox]"))};
+ $("pcAll").onclick=function(){boxes().forEach(function(b){b.checked=true})};
+ $("pcNone").onclick=function(){boxes().forEach(function(b){b.checked=false})};
+ $("pcCancel").onclick=function(){d.close()};
+ $("pcGo").onclick=function(){
+  var ok=true;
+  d.querySelectorAll(".pcgrid").forEach(function(gr){if(!gr.querySelector("input:checked"))ok=false});
+  if(!ok){$("pcErr").textContent="Select at least one column in each table.";return}
+  d.querySelectorAll(".pcgrid").forEach(function(gr){
+   var ti=+gr.dataset.ti,t=groups[ti].t,off=[],hid=[];
+   gr.querySelectorAll("input").forEach(function(b){if(!b.checked){off.push(b.dataset.n);hid.push(+b.dataset.c)}});
+   store(def.key+"_"+ti,off);hide(t,hid);
+  });
+  d.close();
+  setTimeout(function(){orig();setTimeout(undo,1500)},50);
+ };
+ d.showModal();
+}
+document.addEventListener("click",function(e){
+ var b=e.target.closest&&e.target.closest("button");
+ pending=(b&&REP[b.id])||null;
+ if(pending)setTimeout(function(){pending=null},0);
+},true);
+window.print=function(){
+ if(pending){var d=pending;pending=null;open(d)}else orig();
+};
+})();
