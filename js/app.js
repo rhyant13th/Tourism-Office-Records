@@ -1,12 +1,12 @@
-window.APP_VER="r11 • Remarks, print column chooser, add items by Object of Expenditure";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r12 • Items (Description) list per year, WFP entry by Object of Expenditure";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
-var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1";
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CATK="procurement_catalog_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_catalog_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -93,7 +93,7 @@ function bmTipHTML(it,k,kind){
   });
   return h;
 }
-var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]);
+var items=load(KEY,[]),txs=load(TXK,[]),meta=load(META,{}),years=load(YK,[]),custom=load(OBJKEY,[]),alloc=load(ALK,[]),catalog=load(CATK,[]);
 var thisYear=new Date().getFullYear(),year=+load(CY,0)||+meta.year||thisYear,editing=null,prevObj="";
 items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
 if(years.indexOf(year)<0)years.push(year);
@@ -101,6 +101,115 @@ save(KEY,items);save(YK,years);
 var yi=function(){return items.filter(function(i){return +i.year===year}).sort(function(a,b){return(a.acct||"~").localeCompare(b.acct||"~",undefined,{numeric:true})})};
 var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
 var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
+
+/* ---------- Items (Description): one list per year; Office Budget reads Unit, Stock No. and Unit Price from it ---------- */
+var itEdit=null,itQ="";
+var ci=function(){return catalog.filter(function(c){return+c.year===year}).sort(function(a,b){return String(a.desc).localeCompare(String(b.desc),undefined,{numeric:true,sensitivity:"base"})})};
+function catByDesc(d,yr){d=String(d||"").trim().toLowerCase();if(!d)return null;yr=yr||year;for(var i=0;i<catalog.length;i++){var c=catalog[i];if(+c.year===+yr&&String(c.desc).trim().toLowerCase()===d)return c}return null}
+function catById(id){for(var i=0;i<catalog.length;i++)if(catalog[i].id===id)return catalog[i];return null}
+function catUse(c){return items.filter(function(it){return it.cid===c.id}).length}
+function catSync(c){var n=0;items.forEach(function(it){if(it.cid===c.id){it.desc=c.desc;it.stock=c.stock||"";it.unit=c.unit||"";it.price=c.price;n++}});if(n)save(KEY,items);return n}
+function catMigrate(){
+ if(catalog.length||!items.length)return;
+ var map={};
+ items.forEach(function(it){if(!it.desc||!String(it.desc).trim())return;var k=it.year+"\u0001"+String(it.desc).trim().toLowerCase(),c=map[k];
+  if(!c){c=map[k]={id:uid(),year:+it.year,desc:String(it.desc).trim(),stock:"",unit:"",price:0};catalog.push(c)}
+  c.stock=it.stock||"";c.unit=it.unit||"";c.price=it.price||0});
+ items.forEach(function(it){if(!it.desc||it.cid)return;var c=map[it.year+"\u0001"+String(it.desc).trim().toLowerCase()];if(c&&it.price===c.price)it.cid=c.id});
+ save(CATK,catalog);save(KEY,items);
+}
+catMigrate();
+/* ---------- searchable Description picker (type any part of the name, unit or stock no., in any order) ---------- */
+(function(){
+ var dd=document.createElement("div");dd.id="csDrop";document.body.appendChild(dd);
+ var cur=null,list=[],act=-1;
+ var isDesc=function(t){return t&&t.tagName==="INPUT"&&(t.id==="desc"||(t.dataset&&t.dataset.f==="desc"&&t.closest("#objBlocks")))};
+ function hide(){dd.style.display="none";cur=null;act=-1}
+ function paint(){
+  var toks=cur.value.toLowerCase().split(/\s+/).filter(Boolean);
+  list=ci().filter(function(c){var t=(c.desc+" "+(c.stock||"")+" "+(c.unit||"")).toLowerCase();return toks.every(function(w){return t.indexOf(w)>=0})}).slice(0,60);
+  act=list.length&&toks.length?0:-1;
+  dd.innerHTML=list.length?list.map(function(c,i){return'<div class="cso'+(i===act?" on":"")+'" data-i="'+i+'"><span>'+esc(c.desc)+'</span><small>'+esc((c.unit||"")+" \u00b7 \u20b1"+money(c.price))+'</small></div>'}).join(""):'<div class="csn">'+(ci().length?"No match in the "+year+" Items list. Add it in Items (Description).":"The "+year+" Items list is empty. Add items in Items (Description) first.")+'</div>';
+  var r=cur.getBoundingClientRect();dd.style.minWidth=Math.max(r.width,320)+"px";dd.style.display="block";
+  var h=dd.offsetHeight,y=r.bottom+2;if(y+h>innerHeight-8&&r.top-h-2>8)y=r.top-h-2;
+  dd.style.left=Math.min(r.left,Math.max(8,innerWidth-dd.offsetWidth-8))+"px";dd.style.top=y+"px";
+ }
+ function pick(i){var c=list[i];if(!c||!cur)return;var t=cur;t.value=c.desc;hide();t.dispatchEvent(new Event("input",{bubbles:true}));t.dispatchEvent(new Event("change",{bubbles:true}));
+  var row=t.closest(".xrow"),q=row?row.querySelector('[data-f="q0"]'):$("q1");if(q)q.focus()}
+ function mark(){[].forEach.call(dd.querySelectorAll(".cso"),function(e,i){e.classList.toggle("on",i===act);if(i===act)e.scrollIntoView({block:"nearest"})})}
+ document.addEventListener("focusin",function(e){if(isDesc(e.target)){cur=e.target;paint()}});
+ document.addEventListener("input",function(e){if(isDesc(e.target)){cur=e.target;paint()}});
+ document.addEventListener("focusout",function(e){if(e.target===cur)setTimeout(function(){if(document.activeElement!==cur)hide()},120)});
+ document.addEventListener("keydown",function(e){
+  if(!cur||dd.style.display==="none"||e.target!==cur)return;
+  if(e.key==="ArrowDown"){e.preventDefault();if(list.length){act=(act+1)%list.length;mark()}}
+  else if(e.key==="ArrowUp"){e.preventDefault();if(list.length){act=(act<=0?list.length:act)-1;mark()}}
+  else if(e.key==="Enter"){if(act>=0){e.preventDefault();pick(act)}}
+  else if(e.key==="Escape"||e.key==="Tab")hide();
+ });
+ dd.addEventListener("mousedown",function(e){e.preventDefault();var o=e.target.closest(".cso");if(o)pick(+o.dataset.i)});
+ window.addEventListener("resize",hide);
+ document.addEventListener("scroll",function(e){if(!dd.contains(e.target))hide()},true);
+})();
+function fillDescList(){var h="";ci().forEach(function(c){h+='<option value="'+esc(c.desc)+'" label="'+esc((c.unit?c.unit+" \u00b7 ":"")+"\u20b1"+money(c.price))+'"></option>'});$("descList").innerHTML=h}
+function renderIT(){
+ fillDescList();
+ var all=ci(),q=itQ.trim().toLowerCase(),rows=q?all.filter(function(c){return(c.desc+" "+(c.stock||"")+" "+(c.unit||"")).toLowerCase().indexOf(q)>=0}):all;
+ $("itSum").textContent="Year "+year+" \u2014 showing "+rows.length+" of "+all.length+" description"+(all.length===1?"":"s")+". Each year has its own list.";
+ $("itBody").innerHTML=rows.length?rows.map(function(c){return"<tr><td>"+esc(c.desc)+"</td><td>"+esc(c.stock||"")+"</td><td>"+esc(c.unit||"")+"</td><td class='n'>"+money(c.price)+"</td><td class='n'>"+catUse(c)+"</td><td class='act'><button data-k='e' data-id='"+c.id+"'>Edit</button><button class='d' data-k='d' data-id='"+c.id+"'>Delete</button></td></tr>"}).join(""):"<tr><td colspan='6' class='empty'>"+(all.length?"No descriptions match your search.":"No items for "+year+" yet. Add them above, paste them from Excel, or copy them from another year.")+"</td></tr>";
+}
+function itClear(){itEdit=null;["itDesc","itStock","itUnit","itPrice"].forEach(function(i){$(i).value=""});$("itTitle").textContent="Add item description";$("itSave").textContent="Add item";$("itCancel").classList.add("hidden");$("itErr").textContent=""}
+$("itCancel").onclick=function(){$("itInfo").textContent="";itClear()};
+$("itSave").onclick=function(){
+ var d=$("itDesc").value.trim(),st=$("itStock").value.trim(),u=$("itUnit").value.trim(),p=parseFloat($("itPrice").value),e=$("itErr"),inf=$("itInfo");inf.textContent="";
+ if(!d){e.textContent="Enter the Description.";return}
+ if(!u){e.textContent="Enter the Unit (pc, box, ream\u2026).";return}
+ if(!(p>0)){e.textContent="Enter a Unit Price greater than zero.";return}
+ var dup=catByDesc(d);if(dup&&dup.id!==itEdit){e.textContent="\""+dup.desc+"\" is already in the Items list for "+year+". Edit that one instead.";return}
+ var msg="";
+ if(itEdit){var c=catById(itEdit);if(!c){itClear();return}c.desc=d;c.stock=st||"N/A";c.unit=u;c.price=p;var n=catSync(c);if(n)msg=n+" budget line"+(n>1?"s":"")+" in Office Budget recomputed with the new details."}
+ else catalog.push({id:uid(),year:year,desc:d,stock:st||"N/A",unit:u,price:p});
+ save(CATK,catalog);itClear();renderAll();inf.textContent=msg;$("itDesc").focus();
+};
+$("itBody").addEventListener("click",function(e){
+ var b=e.target.closest("button");if(!b||!b.dataset.k)return;var c=catById(b.dataset.id);if(!c)return;$("itInfo").textContent="";
+ if(b.dataset.k==="e"){itEdit=c.id;$("itDesc").value=c.desc;$("itStock").value=c.stock||"";$("itUnit").value=c.unit||"";$("itPrice").value=c.price;$("itTitle").textContent="Edit item description";$("itSave").textContent="Update item";$("itCancel").classList.remove("hidden");$("itErr").textContent="";window.scrollTo({top:0,behavior:"smooth"});$("itDesc").focus();return}
+ var n=catUse(c);
+ if(n){alert("\""+c.desc+"\" is used by "+n+" budget line"+(n>1?"s":"")+" in Office Budget, so it can't be deleted. Delete those lines first, or edit this item instead.");return}
+ if(confirm("Delete \""+c.desc+"\" from the Items list?")){catalog=catalog.filter(function(x){return x!==c});save(CATK,catalog);if(itEdit===c.id)itClear();renderAll()}
+});
+$("itSearch").addEventListener("input",function(){itQ=this.value;renderIT()});
+$("itCopy").onclick=function(){
+ var ys=years.map(Number).filter(function(y){return y!==year&&catalog.some(function(c){return+c.year===y})}).sort(function(a,b){return b-a});
+ if(!ys.length){alert("No other year has an Items list to copy from.");return}
+ var s=parseInt(prompt("Copy the Items list from which year?\nAvailable: "+ys.join(", ")),10);if(ys.indexOf(s)<0)return;
+ var add=catalog.filter(function(c){return+c.year===s&&!catByDesc(c.desc)});
+ if(!add.length){alert("Everything from "+s+" is already in the "+year+" list.");return}
+ if(!confirm("Copy "+add.length+" description(s) from "+s+" to "+year+"?\nThey become separate entries: changing a price in "+year+" will not change "+s+"."))return;
+ add.forEach(function(c){catalog.push({id:uid(),year:year,desc:c.desc,stock:c.stock||"",unit:c.unit||"",price:c.price})});
+ save(CATK,catalog);renderAll();
+};
+$("itBulk").onclick=function(){
+ var d=$("itBulkDlg");
+ d.innerHTML='<h3 style="margin-top:0">Paste many descriptions ('+year+')</h3><p class="fsum" style="margin-top:0">In Excel, select 4 columns in this order: <b>Description, Stock No., Unit, Unit Price</b>. Copy them and paste below, one item per row. Descriptions already in the '+year+' list get the new Stock No., Unit and Unit Price (and their budget lines are recomputed).</p><textarea id="itBulkTx" rows="10"></textarea><div class="err" id="itBulkErr"></div><div class="btns" style="justify-content:flex-end"><button type="button" id="itBulkX">Cancel</button><button type="button" class="p" id="itBulkGo">Add / update</button></div>';
+ d.showModal();
+ $("itBulkX").onclick=function(){d.close()};
+ $("itBulkGo").onclick=function(){
+  var lines=$("itBulkTx").value.split(/\r?\n/),add=0,upd=0,bad=[],touched=0;
+  lines.forEach(function(ln,i){
+   if(!ln.trim())return;var p=ln.split("\t"),de=(p[0]||"").trim(),pr=nm(p[3]===undefined?"":p[3]);
+   if(i===0&&de.toLowerCase()==="description"&&isNaN(pr))return;
+   if(!de||!(p[2]||"").trim()||!(pr>0)){bad.push("Row "+(i+1)+": needs Description, Unit and a Unit Price above 0 (tab-separated)");return}
+   var c=catByDesc(de),stk=(p[1]||"").trim()||"N/A";
+   if(c){c.stock=stk;c.unit=p[2].trim();c.price=pr;touched+=catSync(c);upd++}
+   else{catalog.push({id:uid(),year:year,desc:de,stock:stk,unit:p[2].trim(),price:pr});add++}
+  });
+  if(!add&&!upd){$("itBulkErr").textContent=bad.length?bad.slice(0,5).join("\n"):"Nothing to add. Paste the rows first.";return}
+  save(CATK,catalog);d.close();renderAll();
+  $("itInfo").textContent="Added "+add+", updated "+upd+(touched?" ("+touched+" budget line"+(touched>1?"s":"")+" recomputed)":"")+(bad.length?". Skipped "+bad.length+" row(s) with problems: "+bad.slice(0,3).join("; "):"")+".";
+ };
+};
+
 
 /* ---------- year ---------- */
 function fillYear(){
@@ -116,7 +225,7 @@ $("year").onchange=function(){
   if(years.indexOf(y)<0){years.push(y);save(YK,years)}
   v=y;
  }
- year=+v;save(CY,year);fillYear();clearForm();renderAll();
+ year=+v;save(CY,year);fillYear();clearForm();if(typeof alClear==="function")alClear();itClear();renderAll();
 };
 
 /* ---------- tabs ---------- */
@@ -125,6 +234,7 @@ function tab(w){
  $("tabWF").classList.toggle("hidden",w!=="WF");$("tabBtnWF").setAttribute("aria-selected",w==="WF");
  $("tabOB").classList.toggle("hidden",w!=="OB");$("tabBM").classList.toggle("hidden",w!=="BM");
  $("tabAL").classList.toggle("hidden",w!=="AL");$("tabBtnAL").setAttribute("aria-selected",w==="AL");
+ $("tabIT").classList.toggle("hidden",w!=="IT");$("tabBtnIT").setAttribute("aria-selected",w==="IT");
  $("tabBtnOB").setAttribute("aria-selected",w==="OB");$("tabBtnBM").setAttribute("aria-selected",w==="BM");
 }
 $("tabBtnWF").onclick=function(){tab("WF")};
@@ -132,6 +242,7 @@ $("tabBtnOB").onclick=function(){tab("OB")};
 $("tabBtnBM").onclick=function(){tab("BM")};
 $("tabBtnAL").onclick=function(){tab("AL")};
 $("tabBtnAN").onclick=function(){tab("AN")};
+$("tabBtnIT").onclick=function(){tab("IT")};
 $("saveCloud").onclick=function(){if(!cloudReady){alert("Cloud is not connected yet.");return}pushCloud()};
 
 /* ---------- Object of Expenditure ---------- */
@@ -223,7 +334,7 @@ function refreshLists(){
  fillWfpSel();
  var sd={},d="",U=["pc","box","ream","set","pack","bottle","roll","unit","lot"],su={};
  items.forEach(function(it){if(it.desc&&!sd[it.desc.toLowerCase()]){sd[it.desc.toLowerCase()]=1;d+='<option value="'+esc(it.desc)+'"></option>'}if(it.unit&&U.indexOf(it.unit)<0)U.push(it.unit)});
- $("descList").innerHTML=d;$("units").innerHTML=U.map(function(u){return'<option value="'+esc(u)+'"></option>'}).join("");
+ fillDescList();$("units").innerHTML=U.map(function(u){return'<option value="'+esc(u)+'"></option>'}).join("");
  fillPrices();
 }
 function fillPrices(){
@@ -232,13 +343,12 @@ function fillPrices(){
  $("priceList").innerHTML=h;
 }
 function pickDesc(){
- var v=$("desc").value.trim().toLowerCase();fillPrices();if(!v)return;
- for(var i=items.length-1;i>=0;i--)if(items[i].desc&&items[i].desc.toLowerCase()===v){
-  var it=items[i],ed=editing!==null;
-  if(it.unit&&(!ed||!$("unit").value))$("unit").value=it.unit;
-  if(it.price&&(!ed||!$("price").value))$("price").value=it.price;
-  calcForm();return;
- }
+ var c=catByDesc($("desc").value),o=editing!==null?byId(editing):null,free=!!(o&&!o.cid&&!c);
+ if(c){$("desc").value=c.desc;$("stock").value=c.stock||"";$("unit").value=c.unit||"";$("price").value=c.price}
+ else if(!free){$("stock").value="";$("unit").value="";$("price").value=""}
+ ["stock","unit","price"].forEach(function(id){$(id).readOnly=!free});
+ var h=$("descHint");if(h){var v=$("desc").value.trim();h.textContent=(v&&!c&&!free)?"Not in the Items list for "+year+" \u2013 add it first in Items (Description).":""}
+ calcForm();
 }
 $("desc").addEventListener("input",pickDesc);$("desc").addEventListener("change",pickDesc);
 /* ---------- AIP Code + Activity come from the Work Financial Plan ---------- */
@@ -272,7 +382,7 @@ function clearForm(){
  ["aip","act","desc","stock","unit","price","mode","remarks","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
  $("obj").value="";$("acct").value="";prevObj="";editing=null;fillWfpSel("","");
  $("formTitle").textContent="Add item";$("btnSave").textContent="Add item";$("btnCancel").classList.add("hidden");$("err").textContent="";calcForm();
- bxRows={};bxKey="";if(bxReady)bxRender();
+ bxRows={};bxKey="";if(bxReady)bxRender();pickDesc();
 }
 $("btnSave").onclick=function(){
  if(bxActive()){bxSave();return}
@@ -280,6 +390,9 @@ $("btnSave").onclick=function(){
   unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:$("remarks").value.trim(),
   q:[1,2,3,4].map(function(i){return parseFloat($("q"+i).value)||0})},e=$("err");
  if(!it.aip||!it.act||!it.desc){e.textContent="Select the AIP Code and Activities (from the Work Financial Plan) and enter a Description.";return}
+ var cc=catByDesc(it.desc),old0=editing!==null?byId(editing):null;
+ if(cc){it.cid=cc.id;it.desc=cc.desc;it.stock=cc.stock||"";it.unit=cc.unit||"";it.price=cc.price}
+ else if(!(old0&&!old0.cid)){e.textContent="Select a Description from the Items list for "+year+". If it is not there yet, add it first in Items (Description).";return}
  if(!it.obj||it.obj==="__add__"){e.textContent="Select an Object of Expenditure.";return}
  if(!(it.price>0)){e.textContent="Enter a Unit Price greater than zero.";return}
  if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
@@ -299,10 +412,10 @@ function bxUsed(r){return!!(r.desc.trim()||r.price!==""||r.q.some(function(v){re
 function bxRowHtml(oi,ri,r,many){
  var f=function(n,l,cl,ex){return'<div class="'+cl+'"><label>'+l+'</label><input data-f="'+n+'" '+ex+' value="'+esc(r[n])+'"></div>'};
  var h='<div class="xrow" data-oi="'+oi+'" data-ri="'+ri+'"><div class="xh">Description '+(ri+1)+'</div>'
-  +f("desc","Description","x4",'list="descList" autocomplete="off"')
-  +f("stock","Stock No.","x2",'list="stockList" autocomplete="off" placeholder="N/A or type"')
-  +f("unit","Unit","x2",'list="units" autocomplete="off"')
-  +f("price","Unit Price","x2",'type="number" min="0" step="0.01"')
+  +'<div class="x4"><label>Description</label><input data-f="desc" autocomplete="off" placeholder="Type to search the Items list…" value="'+esc(r.desc)+'"><small class="xa xdh"></small></div>'
+  +f("stock","Stock No.","x2",'readonly tabindex="-1" placeholder="auto"')
+  +f("unit","Unit","x2",'readonly tabindex="-1" placeholder="auto"')
+  +f("price","Unit Price","x2",'type="number" readonly tabindex="-1" placeholder="auto"')
   +f("mode","Mode of Procurement","x2",'list="modeList" autocomplete="off"');
  for(var k=0;k<4;k++)h+='<div class="x2"><label>'+Q[k]+' Quarter qty</label><input data-f="q'+k+'" type="number" min="0" step="any" value="'+esc(r.q[k])+'"><small class="xa"></small></div>';
  h+='<div class="x2"><label>Total quantity</label><input class="xtq" readonly></div><div class="x2"><label>Estimated budget</label><input class="xeb" readonly></div>'
@@ -324,6 +437,7 @@ function bxStatus(){
    var r=rows[+re.dataset.ri],p=parseFloat(r.price)||0,tq=0;
    for(var k=0;k<4;k++){var q=parseFloat(r.q[k])||0;tq+=q;re.querySelectorAll(".xa")[k].textContent=q&&p?"= "+money(q*p):""}
    re.querySelector(".xtq").value=tq?qty(tq):"";re.querySelector(".xeb").value=tq&&p?money(tq*p):"";
+   var hh=re.querySelector(".xdh");if(hh){var dd=r.desc.trim();hh.textContent=dd&&!catByDesc(dd)?"Not in the Items list for "+year+" \u2013 add it in Items (Description).":""}
   });
   for(var k=0;k<4;k++){
    var w=wfpOf(act,o,k),ex=T[act+"|"+o+"|"+k]||0,th=0;
@@ -356,21 +470,14 @@ function bxRowOf(t){var re=t.closest(".xrow");if(!re)return null;var oi=+re.data
 $("objBlocks").addEventListener("input",function(e){
  var f=e.target.dataset.f,x=bxRowOf(e.target);if(!f||!x)return;
  if(f.length===2&&f.charAt(0)==="q")x.r.q[+f.charAt(1)]=e.target.value;else x.r[f]=e.target.value;
+ if(f==="desc"){var c=catByDesc(e.target.value),set=function(n,v){x.r[n]=(v===undefined||v===null)?"":String(v);var el=x.re.querySelector('[data-f="'+n+'"]');if(el)el.value=x.r[n]};
+  if(c){set("unit",c.unit);set("stock",c.stock);set("price",c.price)}else{set("unit","");set("stock","");set("price","")}}
  bxStatus();
 });
 $("objBlocks").addEventListener("change",function(e){
  var f=e.target.dataset.f,x=bxRowOf(e.target);if(!f||!x)return;
  if(f==="mode"){var v=e.target.value.trim().toLowerCase();if(v){var ok=MODES.filter(function(m){return m.toLowerCase()===v})[0];if(ok){e.target.value=ok;x.r.mode=ok}else{alert("Mode of Procurement must be Procurement or Non-Procurement.");e.target.value="";x.r.mode=""}}}
- if(f==="desc"){
-  var d=x.r.desc.trim().toLowerCase();if(!d)return;
-  for(var i=items.length-1;i>=0;i--)if(items[i].desc&&items[i].desc.toLowerCase()===d){
-   var it=items[i];
-   if(!x.r.unit&&it.unit){x.r.unit=it.unit;x.re.querySelector('[data-f="unit"]').value=it.unit}
-   if(x.r.price===""&&it.price){x.r.price=String(it.price);x.re.querySelector('[data-f="price"]').value=it.price}
-   break;
-  }
-  bxStatus();
- }
+ if(f==="desc"){var c=catByDesc(x.r.desc);if(c){x.r.desc=c.desc;e.target.value=c.desc}bxStatus()}
 });
 $("objBlocks").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b)return;
@@ -388,10 +495,12 @@ function bxSave(){
   if(bad||!bxUsed(r))return;
   var p=parseFloat(r.price)||0,q=r.q.map(function(v){return parseFloat(v)||0}),lb=o+" \u2013 description "+(ri+1)+": ",m=r.mode.trim();
   if(!r.desc.trim()){bad=lb+"enter a Description.";return}
+  var cc=catByDesc(r.desc);if(!cc){bad=lb+"the Description is not in the Items list for "+year+". Add it first in Items (Description).";return}
+  p=cc.price;
   if(!(p>0)){bad=lb+"enter a Unit Price greater than zero.";return}
   if(q.reduce(function(s,v){return s+v},0)<=0){bad=lb+"enter a quantity for at least one quarter.";return}
   if(m){var ok=MODES.filter(function(x){return x.toLowerCase()===m.toLowerCase()})[0];if(!ok){bad=lb+"Mode of Procurement must be Procurement or Non-Procurement.";return}m=ok}
-  out.push({aip:aip,act:act,desc:r.desc.trim(),obj:o,acct:codeOf(o),stock:r.stock.trim(),unit:r.unit.trim(),price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year});
+  out.push({aip:aip,act:act,cid:cc.id,desc:cc.desc,obj:o,acct:codeOf(o),stock:cc.stock||"",unit:cc.unit||"",price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year});
  })});
  if(bad){e.textContent=bad;return}
  if(!out.length){e.textContent="Enter at least one description with a unit price and a quantity.";return}
@@ -404,7 +513,7 @@ function edit(id){
  fillWfpSel(it.aip,it.act||"");$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
  $("price").value=it.price;modeSet(it.mode);$("remarks").value=it.remarks||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
- calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
+ pickDesc();calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
  if(bxReady)bxRender();window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
@@ -726,9 +835,11 @@ $("obFile").onchange=function(){
   var msg=good.length+" item(s) ready to import."+(nw?"\n"+nw+" of them use an Activity that is not in the Work Financial Plan for that year (add it there so it shows in the dropdowns).":"")+(dup?"\n"+dup+" duplicate row(s) will be skipped.":"")+(bad.length?"\n\n"+bad.length+" row(s) have problems and will be SKIPPED:\n"+bad.slice(0,12).join("\n")+(bad.length>12?"\n…and "+(bad.length-12)+" more":""):"");
   if(!good.length){alert(msg);return}
   if(!confirm(msg+"\n\nImport now?"))return;
-  good.forEach(function(it){items.push(it);if(years.indexOf(it.year)<0)years.push(it.year)});
-  save(YK,years);save(KEY,items);fillYear();renderAll();refreshLists();
-  alert("Imported "+good.length+" item(s)."+(good.some(function(i){return i.year!==year})?"\nSome items belong to other years. Switch the Year selector to see them.":""));
+  var cmis=0;
+  good.forEach(function(it){var c=catByDesc(it.desc,it.year);if(!c){c={id:uid(),year:it.year,desc:it.desc,stock:it.stock,unit:it.unit,price:it.price};catalog.push(c)}else if(c.price!==it.price)cmis++;
+   it.cid=c.id;it.desc=c.desc;it.stock=c.stock||"";it.unit=c.unit||"";it.price=c.price;items.push(it);if(years.indexOf(it.year)<0)years.push(it.year)});
+  save(CATK,catalog);save(YK,years);save(KEY,items);fillYear();renderAll();refreshLists();
+  alert("Imported "+good.length+" item(s)."+(cmis?"\n"+cmis+" row(s) use the Unit Price already in your Items list instead of the price in the file.":"")+(good.some(function(i){return i.year!==year})?"\nSome items belong to other years. Switch the Year selector to see them.":""));
  };
  r.readAsArrayBuffer(f);
 };
@@ -865,7 +976,7 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q));
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
+function renderAll(){renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
 buildBar("ob");buildBar("bm");
 /* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
@@ -903,29 +1014,80 @@ $("objDlg").addEventListener("click",function(e){
 
 /* ---------- Allocation vs Budget ---------- */
 var AF={aip:[],act:[],obj:[],q:[]},alEdit=null,ALR=[];
-function alCalc(){var s=0;[1,2,3,4].forEach(function(i){s+=parseFloat($("al"+i).value)||0});$("alTot").value=money(s)}
-function alClear(){["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(i){$(i).value=""});alEdit=null;$("alTitle").textContent="Add WFP entry";$("alSave").textContent="Add WFP entry";$("alCancel").classList.add("hidden");$("alErr").textContent="";alCalc()}
-[1,2,3,4].forEach(function(i){$("al"+i).addEventListener("input",alCalc)});$("alCancel").onclick=alClear;
+var wx={rows:[],eg:null};
+function wxRender(){
+ var box=$("wxBlocks");
+ if(!wx.rows.length){box.innerHTML='<div class="fsum" style="margin:8px 0 0">Enter the AIP Code and Activity once, then pick each Object of Expenditure above. Every object gets its own block for the 1st to 4th quarter budget.</div>';wxTotals();return}
+ box.innerHTML=wx.rows.map(function(r,ri){
+  return'<fieldset class="xblk" data-ri="'+ri+'"><legend>'+esc(r.obj)+' <span style="font-weight:400">\u00b7 '+esc(codeOf(r.obj))+'</span></legend><div class="xst"></div><div class="xrow">'
+   +[0,1,2,3].map(function(k){return'<div class="x2"><label>'+Q[k]+' Quarter</label><input data-q="'+k+'" type="number" min="0" step="0.01" value="'+esc(r.q[k])+'"></div>'}).join("")
+   +'<div class="x2"><label>Total</label><input class="xt" readonly></div><div class="x2 xdel"><button type="button" class="d" data-xrm="1">Remove</button></div></div></fieldset>';
+ }).join("");
+ wxTotals();
+}
+function wxTotals(){
+ var act=$("alAct").value.trim(),T=itemTotals(null),G=[0,0,0,0];
+ [].forEach.call($("wxBlocks").querySelectorAll(".xblk"),function(bl){
+  var r=wx.rows[+bl.dataset.ri],t=0,st="";
+  for(var k=0;k<4;k++){var v=parseFloat(r.q[k])||0;t+=v;G[k]+=v;var ex=T[act+"|"+r.obj+"|"+k]||0;
+   if(ex>0.005)st+="<div style='color:"+(ex-v>0.005?"#b3261e":"inherit")+"'>"+Q[k]+" Quarter \u2014 already itemized in Office Budget: "+money(ex)+(ex-v>0.005?" \u00b7 more than this WFP amount by "+money(ex-v):"")+"</div>"}
+  bl.querySelector(".xt").value=t?money(t):"";bl.querySelector(".xst").innerHTML=st;
+ });
+ $("wxSum").textContent=wx.rows.length?(wx.rows.length+" object"+(wx.rows.length>1?"s":"")+" \u00b7 "+Q.map(function(q,k){return q+" "+money(G[k])}).join(" \u00b7 ")+" \u00b7 Total WFP: "+money(G[0]+G[1]+G[2]+G[3])):"";
+}
+function alClear(){["alAip","alAct","alObj"].forEach(function(i){$(i).value=""});wx.rows=[];wx.eg=null;$("alTitle").textContent="Add WFP entry";$("alSave").textContent="Add WFP entries";$("alCancel").classList.add("hidden");$("alErr").textContent="";wxRender()}
+$("alCancel").onclick=alClear;
+function wxObjPick(){
+ var v=$("alObj").value.trim();if(!v)return;$("alErr").textContent="";
+ var hit=allObj().filter(function(o){return o[1].toLowerCase()===v.toLowerCase()})[0];
+ if(!hit){
+  if(confirm("\""+v+"\" is not in the list. Add it as a new Object of Expenditure?")){var code=(prompt("Account Code for \""+v+"\":")||"").trim();
+   if(code){if(allObj().some(function(o){return o[0]===code})){alert("That account code is already used by another object.");$("alObj").value="";return}custom.push([code,v]);save(OBJKEY,custom);fillObj($("obj").value);hit=[code,v]}}
+  if(!hit){$("alObj").value="";return}
+ }
+ $("alObj").value="";
+ if(wx.rows.some(function(r){return r.obj===hit[1]})){$("alErr").textContent="\""+hit[1]+"\" is already added below.";return}
+ wx.rows.push({obj:hit[1],q:["","","",""]});wxRender();
+ var bs=$("wxBlocks").querySelectorAll(".xblk"),l=bs[bs.length-1];if(l){var i=l.querySelector("[data-q]");if(i)i.focus()}
+}
+$("alObj").addEventListener("change",wxObjPick);
+$("alObj").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();wxObjPick()}});
+$("alObjAdd").onclick=function(){if(!$("alObj").value.trim()){$("alObj").focus();return}wxObjPick()};
+$("wxBlocks").addEventListener("input",function(e){var q=e.target.dataset.q,bl=e.target.closest(".xblk");if(q===undefined||!bl)return;wx.rows[+bl.dataset.ri].q[+q]=e.target.value;wxTotals()});
+$("wxBlocks").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||!b.dataset.xrm)return;var bl=b.closest(".xblk");wx.rows.splice(+bl.dataset.ri,1);wxRender()});
+$("alAct").addEventListener("input",wxTotals);
 $("alSave").onclick=function(){
- var aip=$("alAip").value.trim(),act=$("alAct").value.trim(),on=$("alObj").value.trim(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on.toLowerCase()})[0],q=[1,2,3,4].map(function(i){return parseFloat($("al"+i).value)||0}),e=$("alErr");
+ var aip=$("alAip").value.trim(),act=$("alAct").value.trim(),e=$("alErr"),bad="";e.textContent="";
  if(!aip){e.textContent="Enter the AIP Code.";return}
  if(!act){e.textContent="Enter the Activity.";return}
- if(!hit){e.textContent="Select an Object of Expenditure from the list.";return}
- if(q.some(function(x){return x<0})||!q.some(function(x){return x>0})){e.textContent="Enter a WFP amount for at least one quarter.";return}
- var same=alloc.filter(function(r){return +r.year===year&&r.act===act&&r.obj===hit[1]&&r.id!==alEdit})[0];
- if(same){if(!confirm("A WFP entry for this activity and object already exists. Replace it?"))return;alloc=alloc.filter(function(r){return r!==same})}
- if(alEdit){var o=alloc.filter(function(r){return r.id===alEdit})[0];if(o){var oA=o.aip,oC=o.act,oO=o.obj;o.aip=aip;o.act=act;o.obj=hit[1];o.q=q;
-   if((oA!==aip||oC!==act)&&oO===hit[1]){var ch=items.filter(function(i){return+i.year===year&&i.act===oC&&i.obj===oO});
-    if(ch.length&&confirm(ch.length+" itemized budget line(s) in Office Budget still use the old AIP Code / Activity. Update them to match this WFP entry?")){ch.forEach(function(i){i.aip=aip;i.act=act});save(KEY,items)}}}}else alloc.push({id:uid(),year:year,aip:aip,act:act,obj:hit[1],q:q});
+ if(!wx.rows.length){e.textContent="Add at least one Object of Expenditure.";return}
+ var recs=wx.rows.map(function(r){var q=r.q.map(function(v){return parseFloat(v)||0});if(!bad&&(q.some(function(x){return x<0})||!q.some(function(x){return x>0})))bad="Enter a WFP amount for at least one quarter of \""+r.obj+"\", or remove it.";return{obj:r.obj,q:q}});
+ if(bad){e.textContent=bad;return}
+ var eg=wx.eg,inYr=function(r){return+r.year===year};
+ var orig=eg?alloc.filter(function(r){return inYr(r)&&r.act===eg.act&&(r.aip||"")===(eg.aip||"")}):[];
+ var objs=recs.map(function(r){return r.obj}),gone=orig.filter(function(r){return objs.indexOf(r.obj)<0}),clash=[];
+ recs.forEach(function(r){var x=alloc.filter(function(a){return inYr(a)&&a.act===act&&a.obj===r.obj&&orig.indexOf(a)<0})[0];if(x)clash.push(x)});
+ var msg=[],nm2=function(a){return a.map(function(x){return x.obj}).join("; ")};
+ if(clash.length)msg.push(clash.length+" object(s) already have a WFP entry under this activity ("+nm2(clash)+"). They will be replaced with the amounts you entered.");
+ if(gone.length)msg.push(gone.length+" object(s) were removed from this activity ("+nm2(gone)+"). Their WFP entries will be deleted.");
+ if(msg.length&&!confirm(msg.join("\n\n")+"\n\nContinue?"))return;
+ alloc=alloc.filter(function(r){return clash.indexOf(r)<0&&gone.indexOf(r)<0});
+ recs.forEach(function(r){var o=orig.filter(function(x){return x.obj===r.obj})[0];if(o){o.aip=aip;o.act=act;o.q=r.q}else alloc.push({id:uid(),year:year,aip:aip,act:act,obj:r.obj,q:r.q})});
+ if(eg&&((eg.aip||"")!==aip||eg.act!==act)){var ch=items.filter(function(i){return+i.year===year&&i.act===eg.act});
+  if(ch.length&&confirm(ch.length+" itemized budget line(s) in Office Budget still use the old AIP Code / Activity. Update them to match this WFP entry?")){ch.forEach(function(i){i.aip=aip;i.act=act});save(KEY,items)}}
  var H=sugGet();H.aip=H.aip.filter(function(v){return v!==aip});H.act=H.act.filter(function(v){return v!==act});sugSet(H);save(ALK,alloc);alClear();renderAll();
 };
 $("alObjEdit").onclick=function(e){e.preventDefault();objMgr();$("objDlg").showModal()};
-$("alObj").addEventListener("change",function(){var v=$("alObj").value.trim();if(!v)return;var hit=allObj().filter(function(o){return o[1].toLowerCase()===v.toLowerCase()})[0];if(hit){$("alObj").value=hit[1];return}
- if(confirm("\""+v+"\" is not in the list. Add it as a new Object of Expenditure?")){var code=(prompt("Account Code for \""+v+"\":")||"").trim();
-  if(code){if(allObj().some(function(o){return o[0]===code})){alert("That account code is already used by another object.");$("alObj").value="";return}custom.push([code,v]);save(OBJKEY,custom);fillObj($("obj").value);$("alObj").value=v;return}}
- $("alObj").value=""});
 $("alAip").addEventListener("change",function(){var v=$("alAip").value.trim();if(!v||$("alAct").value.trim())return;var m=alloc.filter(function(r){return r.aip===v})[0]||items.filter(function(i){return i.aip===v})[0];if(m)$("alAct").value=m.act});
-function wfLoad(r){showBody("al");alEdit=r.id;$("alAip").value=r.aip||"";$("alAct").value=r.act;$("alObj").value=r.obj;[0,1,2,3].forEach(function(k){$("al"+(k+1)).value=r.q[k]||""});$("alTitle").textContent="Edit WFP entry";$("alSave").textContent="Save changes";$("alCancel").classList.remove("hidden");alCalc();window.scrollTo(0,0)}
+function wxLoadGroup(aip,act){
+ showBody("al");
+ var rs=alloc.filter(function(r){return+r.year===year&&r.act===act&&(r.aip||"")===(aip||"")}).sort(function(a,b){return byObj(a.obj,b.obj)});
+ wx.eg={aip:aip||"",act:act};wx.rows=rs.map(function(r){return{obj:r.obj,q:r.q.map(function(v){return v?String(v):""})}});
+ $("alAip").value=aip||"";$("alAct").value=act;$("alObj").value="";$("alErr").textContent="";
+ $("alTitle").textContent="Edit WFP \u2013 "+act;$("alSave").textContent="Save changes";$("alCancel").classList.remove("hidden");wxRender();window.scrollTo(0,0);
+}
+function wfLoad(r){wxLoadGroup(r.aip,r.act)}
+wxRender();
 var WFF={aip:[],act:[],obj:[],q:[]},WFN=0;
 function wfFill(all){
  var aips=uniq(all.map(function(r){return r.aip}));WFF.aip=WFF.aip.filter(function(a){return aips.indexOf(a)>=0});
@@ -946,7 +1108,7 @@ function renderWF(){
  $("wfTbl").innerHTML=h;WFN=rows.length;var on=[].concat(WFF.aip,WFF.act,WFF.obj,qtxt(WFF.q));$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year+(on.length?" — filtered by: "+on.join(" › "):"");
 }
 $("wfTbl").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||!b.dataset.w)return;var r=alloc.filter(function(x){return x.id===b.dataset.id})[0];if(!r)return;
- if(b.dataset.w==="e")wfLoad(r);else if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);if(alEdit===r.id)alClear();renderAll()}});
+ if(b.dataset.w==="e")wfLoad(r);else if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);if(wx.eg)alClear();renderAll()}});
 function wfpChk(act,obj,q,ex){
  var keep=txs;if(ex)txs=txs.filter(function(t){return t.id!==ex});
  var w=0,sp=0;alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj===obj)w+=r.q[q]});
@@ -971,9 +1133,10 @@ function buildAL(){
   if(t.id==="alXls"){alXls();return}
   var r=ALR[t.dataset.i];if(!r)return;
   if(t.dataset.k==="d"){if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);renderAll()}return}
-  alEdit=t.dataset.k==="e"?r.id:null;$("alAip").value=((alloc.filter(function(x){return x.id===r.id})[0]||{}).aip)||((yi().filter(function(i){return i.act===r.act&&i.obj===r.obj})[0]||{}).aip)||"";$("alAct").value=r.act;$("alObj").value=r.obj;
-  [0,1,2,3].forEach(function(k){$("al"+(k+1)).value=(t.dataset.k==="e"&&r.a[k])?r.a[k]:""});
-  $("alTitle").textContent=alEdit?"Edit WFP entry":"Add WFP entry";$("alSave").textContent=alEdit?"Save changes":"Add WFP entry";$("alCancel").classList.toggle("hidden",!alEdit);alCalc();tab("WF");window.scrollTo(0,0);
+  var aip0=((alloc.filter(function(x){return x.id===r.id})[0]||{}).aip)||((yi().filter(function(i){return i.act===r.act&&i.obj===r.obj})[0]||{}).aip)||"";
+  if(t.dataset.k==="e"&&r.id){wxLoadGroup(aip0,r.act)}
+  else{alClear();showBody("al");$("alAip").value=aip0;$("alAct").value=r.act;wx.rows=[{obj:r.obj,q:["","","",""]}];wxRender()}
+  tab("WF");window.scrollTo(0,0);
  });
 }
 function cmp(host,title,la,ka,lb,kb,pct,rows,qs,withAct){
@@ -1102,7 +1265,7 @@ fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);objInit();
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);catalog=load(CATK,[]);catMigrate();objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
@@ -1120,7 +1283,7 @@ if(docRef){
    var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
    var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
-   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));
+   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));o[CATK]=JSON.stringify(m(L(CATK),C(CATK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
@@ -1155,7 +1318,7 @@ function fillSug(){
  $("alAipList").innerHTML=o(K.aip.filter(function(v){return H.aip.indexOf(v)<0}));$("alActList").innerHTML=o(K.act.filter(function(v){return H.act.indexOf(v)<0}));
  $("alSugBack").classList.toggle("hidden",!(H.aip.length||H.act.length));
 }
-function newIdentity(){["alAip","alAct","alObj","al1","al2","al3","al4"].forEach(function(id){var i=$(id);i.name="f"+Math.random().toString(36).slice(2);i.setAttribute("autocomplete","off")})}
+function newIdentity(){["alAip","alAct","alObj"].forEach(function(id){var i=$(id);i.name="f"+Math.random().toString(36).slice(2);i.setAttribute("autocomplete","off")})}
 newIdentity();
 $("alReset").onclick=function(){var k=sugKnown();alClear();sugSet(k);newIdentity();fillSug();$("alAip").focus()};
 $("alSugBack").onclick=function(e){e.preventDefault();sugSet({aip:[],act:[]});fillSug()};
