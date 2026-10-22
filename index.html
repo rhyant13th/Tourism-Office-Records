@@ -8,7 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<link rel="stylesheet" href="css/style.css?v=r7">
+<link rel="stylesheet" href="css/style.css?v=r9">
 </head>
 <body>
 <div id="login"><form id="loginForm" class="card" autocomplete="on">
@@ -34,6 +34,7 @@
 <nav class="tabs" role="tablist">
  <h6>MAIN NAVIGATION</h6>
  <button role="tab" id="tabBtnWF" aria-selected="false">📋 Work Financial Plan (Lump-sum)</button>
+ <button role="tab" id="tabBtnIT" aria-selected="false">📦 Items (Description)</button>
  <button role="tab" id="tabBtnOB" aria-selected="true">🧾 Office Budget (Itemized)</button>
  <button role="tab" id="tabBtnAN" aria-selected="false">🎯 Office Annual Budget</button>
  <h6>ANALYTICS &amp; REPORTS</h6>
@@ -52,6 +53,29 @@
  </div>
 </section>
 
+<!-- ============ ITEMS (DESCRIPTION) ============ -->
+<div id="tabIT" class="hidden">
+<section class="card entry">
+ <div class="bar" style="margin-bottom:6px"><h2 id="itTitle" style="margin:0">Add item description</h2><button type="button" id="itBulk">Paste many from Excel</button></div>
+ <p class="fsum" style="margin-top:0">List each item description once for the selected year, with its Stock No., Unit, Unit Price and Mode of Procurement. In Office Budget, choosing a Description fills in these details automatically, including the Mode of Procurement. If you change a Unit Price here, every Office Budget line using that item is recomputed. Each year has its own separate list.</p>
+ <div class="grid">
+  <div class="c4"><label for="itDesc">Description</label><input id="itDesc" autocomplete="off"></div>
+  <div class="c2"><label for="itStock">Stock No.</label><input id="itStock" autocomplete="off" placeholder="N/A or type"></div>
+  <div class="c2"><label for="itUnit">Unit</label><input id="itUnit" list="units" autocomplete="off" placeholder="pc, box, ream…"></div>
+  <div class="c2"><label for="itPrice">Unit Price</label><input id="itPrice" type="number" min="0" step="0.01"></div>
+  <div class="c2"><label for="itMode">Mode of Procurement</label><input id="itMode" list="modeList" autocomplete="off" placeholder="Procurement / Non-Procurement"></div>
+ </div>
+ <div class="info" id="itInfo"></div>
+ <div class="err" id="itErr" role="alert"></div>
+ <div class="btns"><button class="p" id="itSave" type="button">Add item</button><button id="itCancel" type="button" class="hidden">Cancel edit</button></div>
+</section>
+<section class="card">
+ <div class="bar noprint"><h2 style="margin:0">Items list</h2><div class="btns" style="margin:0"><input id="itSearch" placeholder="Search description…" style="width:240px"><button id="itCopy" type="button" class="entry">Copy from another year</button></div></div>
+ <div class="fsum" id="itSum"></div>
+ <div class="wrap"><table class="dt"><thead><tr><th>Description</th><th>Stock No.</th><th>Unit</th><th>Unit Price</th><th>Mode of Procurement</th><th>Used in Office Budget</th><th class="act">Actions</th></tr></thead><tbody id="itBody"></tbody></table></div>
+</section>
+</div>
+
 <!-- ============ OFFICE BUDGET ============ -->
 <div id="tabOB">
 <section class="card entry">
@@ -60,15 +84,19 @@
  <div class="grid">
   <div class="c3"><label for="aip">AIP Code <span style="font-weight:400">(from WFP)</span></label><select id="aip"></select></div>
   <div class="c9"><label for="act">Activities <span style="font-weight:400">(from WFP)</span></label><select id="act"></select></div>
-  <div class="c6"><label for="desc">Description</label><input id="desc" list="descList" autocomplete="off"><datalist id="descList"></datalist></div>
+  <div class="c12" id="bxSwWrap" style="font-size:13px"><a href="#" id="bxSw"></a></div>
+  <div class="c12" id="objBlocks"></div>
+  <div class="c12 grid hidden" id="oneItem" style="padding:0">
+  <div class="c6"><label for="desc">Description</label><input id="desc" autocomplete="off" placeholder="Type to search the Items list…"><datalist id="descList"></datalist><small id="descHint" class="xa xdh"></small></div>
   <div class="c6"><label for="obj">Object of Expenditure <a href="#" id="objEdit" style="font-size:12px;font-weight:400">Edit list</a></label><input id="obj" list="objList" autocomplete="off" placeholder="Type to search or select…"><datalist id="objList"></datalist></div>
   <div class="c3"><label for="acct">Account Code</label><input id="acct" readonly></div>
-  <div class="c3"><label for="stock">Stock No.</label><input id="stock" list="stockList" autocomplete="off" placeholder="Select N/A or type"><datalist id="stockList"></datalist></div>
-  <div class="c3"><label for="unit">Unit</label><input id="unit" list="units" placeholder="pc, box, ream…">
+  <div class="c3"><label for="stock">Stock No.</label><input id="stock" readonly placeholder="auto"><datalist id="stockList"></datalist></div>
+  <div class="c3"><label for="unit">Unit</label><input id="unit" readonly placeholder="auto">
    <datalist id="units"><option>pc</option><option>box</option><option>ream</option><option>set</option><option>pack</option><option>bottle</option><option>roll</option><option>unit</option><option>lot</option></datalist></div>
-  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01" list="priceList"><datalist id="priceList"></datalist></div>
+  <div class="c3"><label for="price">Unit Price</label><input id="price" type="number" min="0" step="0.01" readonly placeholder="auto"><datalist id="priceList"></datalist></div>
   <div class="c6"><label for="mode">Mode of Procurement</label>
    <input id="mode" list="modeList" autocomplete="off" placeholder="Procurement or Non-Procurement"><datalist id="modeList"><option value="Procurement"><option value="Non-Procurement"></datalist></div>
+  <div class="c12"><label for="remarks">Remarks <span style="font-weight:400">(optional)</span></label><textarea id="remarks" rows="2" placeholder="Notes about this item…"></textarea></div>
   <div class="c12">
    <fieldset>
     <legend>Quantity and amount per quarter</legend>
@@ -83,6 +111,7 @@
   </div>
   <div class="c4"><label for="tq">Total Quantity (1st to 4th Quarter)</label><input id="tq" readonly></div>
   <div class="c4"><label for="eb">Estimated Budget</label><input id="eb" readonly></div>
+  </div>
  </div>
  <div class="info" id="objTot" style="font-weight:600"></div>
  <div class="info" id="wfpMsg" style="font-weight:600"></div>
@@ -117,7 +146,7 @@
    <tr>
     <th rowspan="2">AIP Code</th><th rowspan="2">Activities</th><th rowspan="2">Description</th><th rowspan="2">Object of Expenditure</th><th rowspan="2">Account Code</th><th rowspan="2">Stock No.</th><th rowspan="2">Unit</th>
     <th rowspan="2">Unit Price</th><th rowspan="2">Total Qty</th><th rowspan="2">Estimated Budget</th><th rowspan="2">Mode of Procurement</th>
-    <th colspan="2">1st Quarter</th><th colspan="2">2nd Quarter</th><th colspan="2">3rd Quarter</th><th colspan="2">4th Quarter</th><th rowspan="2" class="act">Actions</th>
+    <th colspan="2">1st Quarter</th><th colspan="2">2nd Quarter</th><th colspan="2">3rd Quarter</th><th colspan="2">4th Quarter</th><th rowspan="2">Remarks</th><th rowspan="2" class="act">Actions</th>
    </tr>
    <tr><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th><th>Quantity</th><th>Amount</th></tr>
   </thead>
@@ -190,13 +219,12 @@
 </div>
 <div id="tabWF" class="hidden">
 <section class="card noprint"><div class="bar" style="margin-bottom:0"><h2 id="alTitle" style="margin:0">Add WFP entry</h2><button id="alHide" type="button">Hide</button></div><div id="alBody">
-<p class="fsum" style="margin-top:0">Enter the lump-sum Work Financial Plan (WFP) for the selected year, per activity and object of expenditure, for each quarter. There is no quantity or unit price here; the items in Office Budget are checked against it.</p>
-<div class="fbar"><div><label for="alAip">AIP Code</label><input id="alAip" list="alAipList" autocomplete="off" placeholder="e.g. 1000-001-1-001"><datalist id="alAipList"></datalist></div><div style="flex:2 1 260px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div>
-<div style="flex:2 1 260px"><label for="alObj">Object of Expenditure <a href="#" id="alObjEdit" style="font-size:12px;font-weight:400">Add / edit list</a></label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select…"></div>
-<div><label for="al1">1st Quarter</label><input id="al1" type="number" min="0" step="0.01"></div><div><label for="al2">2nd Quarter</label><input id="al2" type="number" min="0" step="0.01"></div>
-<div><label for="al3">3rd Quarter</label><input id="al3" type="number" min="0" step="0.01"></div><div><label for="al4">4th Quarter</label><input id="al4" type="number" min="0" step="0.01"></div>
-<div><label for="alTot">Total</label><input id="alTot" readonly></div></div>
-<div class="btns"><button class="p" id="alSave">Add WFP entry</button><button id="alCancel" class="hidden">Cancel</button><button id="alReset" type="button" title="Empty the form and start the suggestion lists fresh">Clear entry</button><a href="#" id="alSugBack" class="hidden" style="align-self:center;font-size:13px">Show past suggestions again</a></div><div class="err" id="alErr"></div></div></section>
+<p class="fsum" style="margin-top:0">Enter the AIP Code and Activity once, then add each Object of Expenditure with its 1st to 4th quarter budget. This is the lump-sum Work Financial Plan for the selected year (no quantity or unit price). The items you encode in Office Budget are checked against it.</p>
+<div class="fbar"><div><label for="alAip">AIP Code</label><input id="alAip" list="alAipList" autocomplete="off" placeholder="e.g. 1000-001-1-001"><datalist id="alAipList"></datalist></div><div style="flex:3 1 320px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div></div>
+<div class="fbar" style="margin-top:10px"><div style="flex:3 1 320px"><label for="alObj">Object of Expenditure <a href="#" id="alObjEdit" style="font-size:12px;font-weight:400">Add / edit list</a></label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select, then it is added below…"></div><div style="flex:0 0 auto"><button type="button" id="alObjAdd">+ Add object of expenditure</button></div></div>
+<div id="wxBlocks" style="margin-top:12px"></div>
+<div class="info" id="wxSum"></div>
+<div class="btns"><button class="p" id="alSave">Add WFP entries</button><button id="alCancel" class="hidden">Cancel</button><button id="alReset" type="button" title="Empty the form and start the suggestion lists fresh">Clear entry</button><a href="#" id="alSugBack" class="hidden" style="align-self:center;font-size:13px">Show past suggestions again</a></div><div class="err" id="alErr"></div></div></section>
 <section class="card noprint" id="wfDash"></section>
 <section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
 <div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
@@ -224,11 +252,12 @@
 </main>
 </div>
 <dialog id="objDlg"></dialog>
+<dialog id="itBulkDlg"></dialog>
 
 
 
-<script src="js/config.js?v=r7"></script>
-<script src="js/auth.js?v=r7"></script>
+<script src="js/config.js?v=r9"></script>
+<script src="js/auth.js?v=r9"></script>
 <!-- js/app.js is loaded by auth.js after a successful sign-in -->
 </body>
 </html>
