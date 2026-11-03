@@ -534,10 +534,44 @@ function edit(id){
  if(bxReady)bxRender();window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
 }
 
+
+/* ---------- Remaining WFP to itemize (WFP minus itemized) ---------- */
+function wfpRemain(f){
+ var qs=qsOf(f.q),m={},L=[];
+ var ok=function(r){return(!f.aip.length||f.aip.indexOf(r.aip)>=0)&&(!f.act.length||f.act.indexOf(r.act)>=0)&&(!f.obj.length||f.obj.indexOf(r.obj)>=0)};
+ var get=function(r){var key=r.act+"\u0001"+r.obj,x=m[key];if(!x){x=m[key]={aip:r.aip||"",act:r.act,obj:r.obj,w:[0,0,0,0],i:[0,0,0,0]};L.push(x)}return x};
+ alloc.forEach(function(r){if(+r.year!==year||!ok(r))return;var x=get(r);for(var k=0;k<4;k++)x.w[k]+=r.q[k]||0});
+ yi().forEach(function(it){if(!ok(it))return;var x=get(it);for(var k=0;k<4;k++)x.i[k]+=(it.q[k]||0)*(it.price||0)});
+ var W=[0,0,0,0],I=[0,0,0,0];
+ L.forEach(function(x){for(var k=0;k<4;k++){W[k]+=x.w[k];I[k]+=x.i[k]}});
+ return{L:L,W:W,I:I,qs:qs};
+}
+function obRemFoot(){
+ var R=wfpRemain(FS.ob),qs=R.qs;if(!R.L.length)return"";
+ var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
+ var rem=R.W.map(function(w,k){return w-R.I[k]}),RT=sm(R.W)-sm(R.I);
+ var cell=function(v,bold){return"<td class='n"+(v<-0.005?" neg":"")+"'"+(bold?" style='font-weight:700'":"")+">"+money(v)+"</td>"};
+ var qc=function(arr,isRem){return[0,1,2,3].map(function(k){return"<td></td>"+(qs.indexOf(k)>=0?(isRem?cell(arr[k],1):"<td class='n'>"+money(arr[k])+"</td>"):"<td></td>")}).join("")};
+ var lbl=function(t){return"<td colspan='8' style='text-align:right'>"+t+"</td><td></td>"};
+ return"<tr style='background:var(--soft)'>"+lbl("WFP BUDGET (lump-sum)")+"<td class='n'>"+money(sm(R.W))+"</td><td></td>"+qc(R.W,0)+"<td></td><td class='act'></td></tr>"
+  +"<tr style='background:var(--soft)'>"+lbl("ITEMIZED SO FAR (all items)")+"<td class='n'>"+money(sm(R.I))+"</td><td></td>"+qc(R.I,0)+"<td></td><td class='act'></td></tr>"
+  +"<tr style='background:var(--soft);font-weight:700'>"+lbl("REMAINING TO ITEMIZE (WFP \u2212 itemized; red = over the WFP)")+cell(RT,1)+"<td></td>"+qc(rem,1)+"<td></td><td class='act'></td></tr>";
+}
+function obRemTable(f){
+ var R=wfpRemain(f),qs=R.qs,p=function(v){return"<td class='n"+(v<-0.005?" neg":"")+"'>"+money(v)+"</td>"};
+ var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
+ var L=R.L.filter(function(x){return sm(x.w)>0.005||sm(x.i)>0.005}).sort(function(a,b){return(a.aip||"~").localeCompare(b.aip||"~",undefined,{numeric:true})||a.act.localeCompare(b.act)||byObj(a.obj,b.obj)});
+ var body=L.map(function(x){var w=sm(x.w),i=sm(x.i),d=w-i;
+  return"<tr><td>"+esc(x.aip)+"</td><td>"+esc(x.act)+"</td><td>"+esc(x.obj)+"</td><td class='n'>"+money(w)+"</td><td class='n'>"+money(i)+"</td>"+p(d)+qs.map(function(k){return p(x.w[k]-x.i[k])}).join("")+"<td>"+(Math.abs(d)<0.005?"\u2714 equal":d>0?"Add \u20b1 "+money(d):"Over by \u20b1 "+money(-d))+"</td></tr>"}).join("");
+ var W=sm(R.W),I=sm(R.I);
+ var foot="<tr style='font-weight:700;background:var(--soft)'><td colspan='3'>TOTAL</td><td class='n'>"+money(W)+"</td><td class='n'>"+money(I)+"</td>"+p(W-I)+qs.map(function(k){return p(R.W[k]-R.I[k])}).join("")+"<td>"+(Math.abs(W-I)<0.005?"\u2714 equal":W>I?"Add \u20b1 "+money(W-I):"Over by \u20b1 "+money(I-W))+"</td></tr>";
+ return"<div style='grid-column:1/-1'><h3>Remaining WFP to itemize \u2014 amount needed to make the WFP and the itemized budget equal</h3><div class='wrap'><table class='dt'><thead><tr><th>AIP Code</th><th>Activity</th><th>Object of Expenditure</th><th>WFP</th><th>Itemized</th><th>Remaining</th>"+qs.map(function(k){return"<th>"+Q[k]+" Qtr remaining</th>"}).join("")+"<th>What to do</th></tr></thead><tbody>"+(body||"<tr><td colspan='"+(7+qs.length)+"' class='empty'>No WFP or itemized data for the selected filters.</td></tr>")+"</tbody><tfoot>"+foot+"</tfoot></table></div></div>";
+}
+
 /* ---------- Office Budget report ---------- */
 function renderOB(){
  var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
- if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="21">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML="";return}
+ if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="21">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML=obRemFoot();return}
  obTips={};overDetail(list,[0,1,2,3]).forEach(function(c){c.items.forEach(function(x){(obTips[x.id]=obTips[x.id]||[]).push(c)})});
  Object.keys(obTips).forEach(function(id){obTips[id]=overTipHTML(obTips[id],"This item is part of a budget that is over the WFP")});
  list.forEach(function(it){
@@ -548,7 +582,7 @@ function renderOB(){
  });
  $("obBody").innerHTML=h;
  $("obFoot").innerHTML="<tr><td colspan='8' style='text-align:right'>TOTAL</td><td class='n'>"+qty(gq)+"</td><td class='n'>"+money(gb)+"</td><td></td>"+
-  gqq.map(function(v,k){return"<td class='n'>"+qty(v)+"</td><td class='n'>"+money(ga[k])+"</td>"}).join("")+"<td></td><td class='act'></td></tr>";
+  gqq.map(function(v,k){return"<td class='n'>"+qty(v)+"</td><td class='n'>"+money(ga[k])+"</td>"}).join("")+"<td></td><td class='act'></td></tr>"+obRemFoot();
 }
 function delItem(id){
  var it=byId(id),n=txs.filter(function(x){return x.from===id||x.to===id}).length;
@@ -891,6 +925,13 @@ function headMerges(nBase,lastCol,groups,groupSpan,firstGroupCol,extraCol){
 }
 function baseCells(it){var t=tot(it);return[it.aip,it.act||"",it.desc,it.obj||"",it.acct||"",it.stock,it.unit,it.price,t,t*it.price,it.mode]}
 
+function obRemXlsx(){
+ var R=wfpRemain(FS.ob),qs=R.qs;if(!R.L.length)return[];
+ var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
+ var mk=function(label,tot,arr){var r=[label,"","","","","","","","",tot,""];for(var k=0;k<4;k++)r.push("",qs.indexOf(k)>=0?arr[k]:"");r.push("");return r};
+ var rem=R.W.map(function(w,k){return w-R.I[k]});
+ return[mk("WFP BUDGET (lump-sum)",sm(R.W),R.W),mk("ITEMIZED SO FAR (all items)",sm(R.I),R.I),mk("REMAINING TO ITEMIZE (WFP - itemized; negative = over the WFP)",sm(R.W)-sm(R.I),rem)];
+}
 $("obXlsx").onclick=function(){
  var list=fi("ob");if(!list.length){alert("There are no items for "+year+" to save yet.");return}
  var h1=BASE.slice(),h2=BASE.map(function(){return""}),k;
@@ -901,10 +942,10 @@ $("obXlsx").onclick=function(){
   for(k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;r.push(it.q[k],a)}
   r.push(it.remarks||"");rows.push(r);
  });
- var tr=["TOTAL","","","","","","","",gq,gb,""];for(k=0;k<4;k++)tr.push(gqq[k],ga[k]);tr.push("");rows.push(tr,[]);
+ var tr=["TOTAL","","","","","","","",gq,gb,""];for(k=0;k<4;k++)tr.push(gqq[k],ga[k]);tr.push("");var rm=obRemXlsx();rows.push(tr);rm.forEach(function(r){rows.push(r)});rows.push([]);
  rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
  toXlsx("Office_Budget_"+year+".xlsx",[{n:"Office Budget",rows:rows,merges:headMerges(11,19,4,2,11,19),cols:[14,30,38,34,16,12,8,12,12,16,26,10,14,10,14,10,14,10,14,34],
-  money:[7,9,12,14,16,18],qty:[8,11,13,15,17],from:5,to:5+list.length}]);
+  money:[7,9,12,14,16,18],qty:[8,11,13,15,17],from:5,to:5+list.length+rm.length}]);
 };
 $("bmXlsx").onclick=function(){
  var list=fi("bm");if(!list.length){alert("There are no budget lines for "+year+" to save yet.");return}
@@ -983,7 +1024,7 @@ function renderDash(w){
  var card=function(l,v,c){return'<div class="kpi"><span>'+l+'</span><b'+(c?' class="'+c+'"':"")+'>'+v+'</b></div>'},p=function(v){return"₱ "+money(v)};
  if(!bm){
   var pr=sumL(list.filter(function(i){return i.mode==="Procurement"}),qs),np=sumL(list.filter(function(i){return i.mode==="Non-Procurement"}),qs);
-  h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b))+(function(){var o=overWfp(list,qs);return card("Items over WFP",p(o.amt)+" \u00b7 "+o.n+(o.n===1?" case":" cases"),o.n?"neg":"")})();
+  h=card("Items",T.n)+card("Total quantity",qty(T.qty))+card("Estimated budget",p(T.b))+card("Procurement",p(pr.b))+card("Non-Procurement",p(np.b))+(function(){var o=overWfp(list,qs);return card("Items over WFP",p(o.amt)+" \u00b7 "+o.n+(o.n===1?" case":" cases"),o.n?"neg":"")})()+(function(){var R=wfpRemain(f),sm=function(a){return R.qs.reduce(function(t,k){return t+a[k]},0)},d=sm(R.W)-sm(R.I);return card("WFP budget",p(sm(R.W)))+card("Remaining WFP to itemize",p(d),d<-0.005?"neg":"")})();
  }else h=card("Budget",p(T.b))+card("Released",p(T.r))+card("Augmented from (taken out)",p(T.t))+card("Augmented to (added)",p(T.f))+card("Balance",p(T.bal),T.bal<-0.005?"neg":"")+card("% released",T.b?(T.r/T.b*100).toFixed(1)+"%":"–")+(function(){var cn=txs.filter(function(x){var s0=byId(x.from);return s0&&list.indexOf(s0)>=0&&qs.indexOf(x.fq)>=0&&isCan(x)});return card("Cancelled transactions",p(cn.reduce(function(a,x){return a+x.amt},0))+" · "+cn.length,cn.length?"neg":"")})()+(function(){var o=overWfp(list,qs);return card("Items over WFP",p(o.amt)+" \u00b7 "+o.n+(o.n===1?" case":" cases"),o.n?"neg":"")})();
 
  var cols=bm?["Budget","Released","Balance"]:["Items","Quantity","Amount"];
@@ -993,6 +1034,7 @@ function renderDash(w){
  var or=uniq(list.map(function(i){return i.obj})).sort(byObj).map(function(o){return row(o,sumL(list.filter(function(i){return i.obj===o}),qs))}).join("");
  el.querySelector(".kpis").innerHTML=h;
  el.querySelector(".dtw").innerHTML=tbl("Per quarter","Quarter",qr||"<tr><td colspan='4' class='empty'>No data</td></tr>")+tbl("Per Object of Expenditure","Object of Expenditure",or||"<tr><td colspan='4' class='empty'>No data</td></tr>");
+ if(!bm)el.querySelector(".dtw").insertAdjacentHTML("beforeend",obRemTable(f));
  var ovEl=[].filter.call(el.querySelectorAll(".kpi"),function(k){return k.firstChild.textContent==="Items over WFP"})[0];
  if(ovEl){var od=overDetail(list,qs);if(od.length){ovEl.classList.add("ovk");ovEl._tip=overTipHTML(od)}}
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);
