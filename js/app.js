@@ -108,7 +108,7 @@ var ci=function(){return catalog.filter(function(c){return+c.year===year}).sort(
 function catByDesc(d,yr){d=String(d||"").trim().toLowerCase();if(!d)return null;yr=yr||year;for(var i=0;i<catalog.length;i++){var c=catalog[i];if(+c.year===+yr&&String(c.desc).trim().toLowerCase()===d)return c}return null}
 function catById(id){for(var i=0;i<catalog.length;i++)if(catalog[i].id===id)return catalog[i];return null}
 function catUse(c){return items.filter(function(it){return it.cid===c.id}).length}
-function catSync(c){var n=0;items.forEach(function(it){if(it.cid===c.id){it.desc=c.desc;it.stock=c.stock||"";it.unit=c.unit||"";it.price=c.price;if(c.mode)it.mode=c.mode;n++}});if(n)save(KEY,items);return n}
+function catSync(c,od){var n=0,o=String(od||c.desc).trim().toLowerCase();items.forEach(function(it){if(it.cid===c.id||(!it.cid&&+it.year===+c.year&&String(it.desc||"").trim().toLowerCase()===o)){it.cid=c.id;it.desc=c.desc;it.stock=c.stock||"";it.unit=c.unit||"";it.price=c.price;if(c.mode)it.mode=c.mode;n++}});if(n)save(KEY,items);return n}
 function catMigrate(){
  if(catalog.length||!items.length)return;
  var map={};
@@ -119,6 +119,13 @@ function catMigrate(){
  save(CATK,catalog);save(KEY,items);
 }
 catMigrate();
+/* The Items (Description) list is the single source of truth: every budget line follows it for description, stock no., unit, unit price and mode.
+   Runs at start and before every redraw, so a changed price reaches all encoded lines (even older or unlinked ones) automatically. */
+function catResync(){var ch=0;items.forEach(function(it){if(!it.desc&&!it.cid)return;var c=(it.cid&&catById(it.cid))||catByDesc(it.desc,it.year);if(!c)return;
+ var st=c.stock||"",un=c.unit||"",md=c.mode||it.mode;
+ if(it.cid!==c.id||it.desc!==c.desc||(it.stock||"")!==st||(it.unit||"")!==un||it.price!==c.price||it.mode!==md){it.cid=c.id;it.desc=c.desc;it.stock=st;it.unit=un;it.price=c.price;it.mode=md;ch++}});
+ if(ch)save(KEY,items);return ch}
+catResync();
 (function(){var ch=0;catalog.forEach(function(c){if(c.mode)return;var it=items.filter(function(i){return i.cid===c.id&&i.mode})[0];if(it){c.mode=it.mode;ch=1}});if(ch)save(CATK,catalog)})();
 var normMode=function(v){v=String(v||"").trim().toLowerCase();if(!v)return"";return["Procurement","Non-Procurement"].filter(function(m){return m.toLowerCase()===v})[0]||null};
 /* ---------- searchable Description picker (type any part of the name, unit or stock no., in any order) ---------- */
@@ -170,7 +177,7 @@ $("itSave").onclick=function(){
  if(!md){e.textContent="Select the Mode of Procurement: Procurement or Non-Procurement.";return}
  var dup=catByDesc(d);if(dup&&dup.id!==itEdit){e.textContent="\""+dup.desc+"\" is already in the Items list for "+year+". Edit that one instead.";return}
  var msg="";
- if(itEdit){var c=catById(itEdit);if(!c){itClear();return}c.desc=d;c.stock=st||"N/A";c.unit=u;c.price=p;c.mode=md;var n=catSync(c);if(n)msg=n+" budget line"+(n>1?"s":"")+" in Office Budget recomputed with the new details."}
+ if(itEdit){var c=catById(itEdit);if(!c){itClear();return}var od=c.desc;c.desc=d;c.stock=st||"N/A";c.unit=u;c.price=p;c.mode=md;var n=catSync(c,od);if(n)msg=n+" budget line"+(n>1?"s":"")+" in Office Budget recomputed with the new details."}
  else catalog.push({id:uid(),year:year,desc:d,stock:st||"N/A",unit:u,price:p,mode:md});
  save(CATK,catalog);itClear();renderAll();inf.textContent=msg;$("itDesc").focus();
 };
@@ -551,7 +558,7 @@ function obRemFoot(){
  var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
  var rem=R.W.map(function(w,k){return w-R.I[k]}),RT=sm(R.W)-sm(R.I);
  var cell=function(v,bold){return"<td class='n"+(v<-0.005?" neg":"")+"'"+(bold?" style='font-weight:700'":"")+">"+money(v)+"</td>"};
- var qc=function(arr,isRem){return[0,1,2,3].map(function(k){return"<td></td>"+(qs.indexOf(k)>=0?(isRem?cell(arr[k],1):"<td class='n'>"+money(arr[k])+"</td>"):"<td></td>")}).join("")};
+ var qc=function(arr,isRem){return qs.map(function(k){return"<td></td>"+(isRem?cell(arr[k],1):"<td class='n'>"+money(arr[k])+"</td>")}).join("")};
  var lbl=function(t){return"<td colspan='8' style='text-align:right'>"+t+"</td><td></td>"};
  return"<tr style='background:var(--soft)'>"+lbl("WFP BUDGET (lump-sum)")+"<td class='n'>"+money(sm(R.W))+"</td><td></td>"+qc(R.W,0)+"<td></td><td class='act'></td></tr>"
   +"<tr style='background:var(--soft)'>"+lbl("ITEMIZED SO FAR (all items)")+"<td class='n'>"+money(sm(R.I))+"</td><td></td>"+qc(R.I,0)+"<td></td><td class='act'></td></tr>"
@@ -569,20 +576,21 @@ function obRemTable(f){
 }
 
 /* ---------- Office Budget report ---------- */
+function obQHead(qs){var t=document.querySelector("table.ob thead");if(!t||t.rows.length<2)return;var r=t.rows;for(var k=0;k<4;k++){var d=qs.indexOf(k)>=0?"":"none";r[0].cells[11+k].style.display=d;r[1].cells[2*k].style.display=d;r[1].cells[2*k+1].style.display=d}}
 function renderOB(){
- var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
- if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="21">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML=obRemFoot();return}
+ var list=fi("ob"),h="",gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0],qs=qsOf(FS.ob.q);obQHead(qs);
+ if(!list.length){$("obBody").innerHTML='<tr><td class="empty" colspan="'+(13+2*qs.length)+'">'+(yi().length?"No items match the selected filters.":"No items for "+year+" yet. Fill in the form above and select Add item.")+'</td></tr>';$("obFoot").innerHTML=obRemFoot();return}
  obTips={};overDetail(list,[0,1,2,3]).forEach(function(c){c.items.forEach(function(x){(obTips[x.id]=obTips[x.id]||[]).push(c)})});
  Object.keys(obTips).forEach(function(id){obTips[id]=overTipHTML(obTips[id],"This item is part of a budget that is over the WFP")});
  list.forEach(function(it){
-  var t=tot(it),b=t*it.price;gq+=t;gb+=b;
+  var t=qs.reduce(function(a,k){return a+it.q[k]},0),b=t*it.price;gq+=t;gb+=b;
   h+="<tr"+(obTips[it.id]?" class='ovr' data-ovid='"+it.id+"'":"")+"><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
-  for(var k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"}
+  qs.forEach(function(k){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"});
   h+="<td>"+esc(it.remarks||"")+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
  });
  $("obBody").innerHTML=h;
  $("obFoot").innerHTML="<tr><td colspan='8' style='text-align:right'>TOTAL</td><td class='n'>"+qty(gq)+"</td><td class='n'>"+money(gb)+"</td><td></td>"+
-  gqq.map(function(v,k){return"<td class='n'>"+qty(v)+"</td><td class='n'>"+money(ga[k])+"</td>"}).join("")+"<td></td><td class='act'></td></tr>"+obRemFoot();
+  qs.map(function(k){return"<td class='n'>"+qty(gqq[k])+"</td><td class='n'>"+money(ga[k])+"</td>"}).join("")+"<td></td><td class='act'></td></tr>"+obRemFoot();
 }
 function delItem(id){
  var it=byId(id),n=txs.filter(function(x){return x.from===id||x.to===id}).length;
@@ -923,29 +931,32 @@ function headMerges(nBase,lastCol,groups,groupSpan,firstGroupCol,extraCol){
  m.push({s:{r:0,c:0},e:{r:0,c:lastCol}},{s:{r:1,c:0},e:{r:1,c:lastCol}});
  return m;
 }
-function baseCells(it){var t=tot(it);return[it.aip,it.act||"",it.desc,it.obj||"",it.acct||"",it.stock,it.unit,it.price,t,t*it.price,it.mode]}
+function baseCells(it,qs){var t=qs?qs.reduce(function(a,k){return a+it.q[k]},0):tot(it);return[it.aip,it.act||"",it.desc,it.obj||"",it.acct||"",it.stock,it.unit,it.price,t,t*it.price,it.mode]}
 
 function obRemXlsx(){
  var R=wfpRemain(FS.ob),qs=R.qs;if(!R.L.length)return[];
  var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
- var mk=function(label,tot,arr){var r=[label,"","","","","","","","",tot,""];for(var k=0;k<4;k++)r.push("",qs.indexOf(k)>=0?arr[k]:"");r.push("");return r};
+ var mk=function(label,tot,arr){var r=[label,"","","","","","","","",tot,""];qs.forEach(function(k){r.push("",arr[k])});r.push("");return r};
  var rem=R.W.map(function(w,k){return w-R.I[k]});
  return[mk("WFP BUDGET (lump-sum)",sm(R.W),R.W),mk("ITEMIZED SO FAR (all items)",sm(R.I),R.I),mk("REMAINING TO ITEMIZE (WFP - itemized; negative = over the WFP)",sm(R.W)-sm(R.I),rem)];
 }
 $("obXlsx").onclick=function(){
  var list=fi("ob");if(!list.length){alert("There are no items for "+year+" to save yet.");return}
- var h1=BASE.slice(),h2=BASE.map(function(){return""}),k;
- Q.forEach(function(q){h1.push(q+" Quarter","");h2.push("Quantity","Amount")});h1.push("Remarks");h2.push("");
- var rows=[["OFFICE BUDGET "+year],[meta.office||""],[],h1,h2],gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
+ var qs=qsOf(FS.ob.q),n=qs.length,h1=BASE.slice(),h2=BASE.map(function(){return""}),k,i;
+ qs.forEach(function(j){h1.push(Q[j]+" Quarter","");h2.push("Quantity","Amount")});h1.push("Remarks");h2.push("");
+ var rows=[["OFFICE BUDGET "+year+(n<4?" - "+qs.map(function(j){return Q[j]}).join(", ")+" Quarter":"")],[meta.office||""],[],h1,h2],gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
  list.forEach(function(it){
-  var r=baseCells(it);gq+=tot(it);gb+=tot(it)*it.price;
-  for(k=0;k<4;k++){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;r.push(it.q[k],a)}
+  var r=baseCells(it,qs);gq+=r[8];gb+=r[9];
+  qs.forEach(function(j){var a=it.q[j]*it.price;gqq[j]+=it.q[j];ga[j]+=a;r.push(it.q[j],a)});
   r.push(it.remarks||"");rows.push(r);
  });
- var tr=["TOTAL","","","","","","","",gq,gb,""];for(k=0;k<4;k++)tr.push(gqq[k],ga[k]);tr.push("");var rm=obRemXlsx();rows.push(tr);rm.forEach(function(r){rows.push(r)});rows.push([]);
+ var tr=["TOTAL","","","","","","","",gq,gb,""];qs.forEach(function(j){tr.push(gqq[j],ga[j])});tr.push("");
+ var rm=obRemXlsx();rows.push(tr);rm.forEach(function(r){rows.push(r)});rows.push([]);
  rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
- toXlsx("Office_Budget_"+year+".xlsx",[{n:"Office Budget",rows:rows,merges:headMerges(11,19,4,2,11,19),cols:[14,30,38,34,16,12,8,12,12,16,26,10,14,10,14,10,14,10,14,34],
-  money:[7,9,12,14,16,18],qty:[8,11,13,15,17],from:5,to:5+list.length+rm.length}]);
+ var cols=[14,30,38,34,16,12,8,12,12,16,26],mon=[7,9],qt=[8];
+ for(i=0;i<n;i++){cols.push(10,14);qt.push(11+2*i);mon.push(12+2*i)}cols.push(34);
+ toXlsx("Office_Budget_"+year+(n<4?"_"+qs.map(function(j){return Q[j]}).join("-"):"")+".xlsx",[{n:"Office Budget",rows:rows,merges:headMerges(11,11+2*n,n,2,11,11+2*n),cols:cols,
+  money:mon,qty:qt,from:5,to:5+list.length+rm.length}]);
 };
 $("bmXlsx").onclick=function(){
  var list=fi("bm");if(!list.length){alert("There are no budget lines for "+year+" to save yet.");return}
@@ -1040,7 +1051,7 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
+function renderAll(){catResync();renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
 buildBar("ob");buildBar("bm");
 ["ob","bm"].forEach(function(w){var d=$(w+"Dash");
  d.addEventListener("mouseover",function(e){var k=e.target.closest(".ovk");if(k&&k._tip)bmTip.show(k,k._tip)});
