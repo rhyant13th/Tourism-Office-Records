@@ -739,10 +739,10 @@ function lgOk(x,s){var d=byId(x.to);
  return true}
 function fillLgFilt(){
  var ap=uniq(yi().map(function(i){return i.aip})),a=uniq(yi().map(function(i){return i.act})),f=$("lgFilt"),g=function(k){return f.querySelector('[data-lf="'+k+'"]')};
- TF.act=TF.act.filter(function(v){return a.indexOf(v)>=0});TF.aip=TF.aip.filter(function(v){return ap.indexOf(v)>=0});
+ TF.act=[];TF.aip=[];TF.q=[];
  var seen={},rm=[];txs.forEach(function(x){var n=(x.note||"").trim(),k=n.toLowerCase();if(n&&!seen[k]){seen[k]=1;rm.push(n)}});rm.sort(function(x,y){return x.localeCompare(y)});
  TF.rem=TF.rem.filter(function(r){return r==="__none__"||seen[r.toLowerCase()]});
- msFill(g("aip"),L1(ap),TF.aip,"All AIP codes");msFill(g("act"),L1(a),TF.act,"All activities");msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"},{v:"can",t:"Cancelled"}],TF.type,"All transactions");msFill(g("q"),QO(),TF.q,"All quarters");
+ msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"},{v:"can",t:"Cancelled"}],TF.type,"All transactions");
  msFill(g("rem"),[{v:"__none__",t:"(No remarks)"}].concat(L1(rm)),TF.rem,"All remarks");
 }
 $("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
