@@ -680,6 +680,7 @@ $("bmCols").addEventListener("change",function(e){
 $("bmColsAll").onclick=function(){BMC={c:[],t:0,s:[]};BMQ=[1,1,1,1];bmColSave();try{localStorage.setItem("wfp_bm_q",JSON.stringify(BMQ))}catch(x){}buildBMHead();bmColApply();bmQApply();renderBM();bmColUi()};
 var cellx=function(v,cls,red){return"<td class='n"+(cls?" "+cls:"")+"'"+(red?" style='color:var(--warn);font-weight:700' title='This item has a cancelled transaction in this quarter (not deducted from the balance)'":"")+">"+(v?money(v):"")+"</td>"};
 var cell=function(v,cls){return"<td class='n"+(cls?" "+cls:"")+"'>"+(v?money(v):"")+"</td>"};
+function bmQOk(x){var q=FS.bm.q;return!q.length||q.some(function(k){k=+k;return x.fq===k||(x.type==="aug"&&x.tq===k)})}
 function renderBM(){
  bmQApply();
  var list=fi("bm"),h="",T=[],i,qsel=qsOf(FS.bm.q);var TC=[];for(i=0;i<24;i++){T[i]=0;TC[i]=0}var tb=0;
@@ -718,10 +719,11 @@ function renderBM(){
  // transaction log
  var lg="";
  txs.forEach(function(x){
-  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!lgOk(x,s))return;
+  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!bmQOk(x))return;if(!lgOk(x,s))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":(x.type==="rel"?"Release":"Augmentation"))+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
    (x.to?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+(x.qty?x.qty:"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
+ (function(){var n=$("lgDashNote"),f=FS.bm,on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);if(!n){n=document.createElement("div");n.id="lgDashNote";n.className="fsum noprint";n.style.margin="0 0 8px";var w=$("lgBody").closest(".wrap");w.parentNode.insertBefore(n,w)}n.textContent=on.length?"Also filtered by the Budget Monitoring dashboard: "+on.join(" › "):""})();
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="8">No releases or augmentations recorded for '+year+'.</td></tr>';
 }
 var TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]},txEdit=null;
@@ -977,6 +979,7 @@ $("bmXlsx").onclick=function(){
  var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Quantity","Amount","Remarks"]];
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;
+  if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!bmQOk(x))return;
   lg.push([x.date||"",isCan(x)?"Cancelled":(x.type==="rel"?"Release":"Augmentation"),lineLabel(s),Q[x.fq]+" Quarter",x.to?lineLabel(byId(x.to)):"",x.to?Q[x.tq]+" Quarter":"",x.qty||"",x.amt,x.note||""]);
  });
  toXlsx("Budget_Monitoring_"+year+".xlsx",[
