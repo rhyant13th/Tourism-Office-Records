@@ -39,7 +39,7 @@ button:hover{filter:brightness(.95)}
 .bar{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .wrap{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:12.5px}
-table.ob{min-width:1750px}table.bm{min-width:3300px}table.lg{min-width:900px}
+table.ob{min-width:1750px}table.bm{min-width:3700px}table.lg{min-width:900px}
 th,td{border:1px solid #9fb0ad;padding:5px 6px;vertical-align:top}
 th{background:var(--soft);text-align:center;font-weight:600}
 td.n{text-align:right;white-space:nowrap}
@@ -131,7 +131,9 @@ body.role-viewer button[data-k],body.role-viewer button[data-w],body.role-viewer
 @media print{#login,#signOut,#whoChip{display:none!important}}
 
 /* ===== BM quarter hide ===== */
-.hq0 .bq0,.hq1 .bq1,.hq2 .bq2,.hq3 .bq3{display:none}
+.hq0 .bq0,.hq1 .bq1,.hq2 .bq2,.hq3 .bq3,.fq0 .bq0,.fq1 .bq1,.fq2 .bq2,.fq3 .bq3{display:none}
+.fq0 .bqs0,.fq1 .bqs1,.fq2 .bqs2,.fq3 .bqs3{display:none!important}
+table.bm td.qtyc{font-weight:700;background:var(--soft)}
 .bqs{display:none;width:30px;min-width:30px;padding:2px!important;background:var(--soft)}.bqs button{writing-mode:vertical-rl;padding:8px 3px;font-size:11px}.qh{padding:2px 8px;font-size:11px;margin-left:8px}
 .hq0 .bqs0,.hq1 .bqs1,.hq2 .bqs2,.hq3 .bqs3{display:table-cell}
 @media print{.bqs,.qh{display:none!important}}
