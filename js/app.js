@@ -1,4 +1,4 @@
-window.APP_VER="r16 • Edit history (date encoded / edited, reason per edit)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r17 • Quarters with WFP budget to itemize highlighted";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -99,6 +99,8 @@ items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year|
 if(years.indexOf(year)<0)years.push(year);
 save(KEY,items);save(YK,years);
 var yi=function(){return items.filter(function(i){return +i.year===year}).sort(function(a,b){return(a.acct||"~").localeCompare(b.acct||"~",undefined,{numeric:true})})};
+/* ---------- Quarter highlight: which quarters still need itemizing (WFP minus itemized) ---------- */
+(function(){var s=document.createElement("style");s.textContent=".xqc{display:inline-block;margin:2px 6px 2px 0;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid transparent}.xqc0{background:#f1f5f9;color:#64748b}.xqc1{background:#fff4d6;color:#8a5a00;border-color:#f5b301}.xqc2{background:#e3f6e8;color:#0a6b2d}.xqc3{background:#fde8e6;color:#b3261e}div.xq-need{background:#fff4d6;border-radius:6px;box-shadow:0 0 0 2px #f5b301}div.xq-need>label{color:#8a5a00;font-weight:700}input.xq-need{background:#fff4d6;box-shadow:0 0 0 2px #f5b301}";document.head.appendChild(s)})();
 /* ---------- Edit history: date encoded, date edited, required reason per edit ---------- */
 function nowIso(){return new Date().toISOString()}
 function histAdd(r,why){var t=nowIso();(r.hist=r.hist||[]).push({d:t,why:why});r.edited=t}
@@ -363,9 +365,11 @@ function objTotTxt(act,obj,pre){
 }
 function objTotOB(){var on=$("obj").value.trim().toLowerCase(),h=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];$("objTot").textContent=h?objTotTxt($("act").value.trim(),h[1],"Total estimated budget \u2013 "):""}
 function wfpForm(){objTotOB();
- var el=$("wfpMsg");el.innerHTML="";var act=$("act").value.trim(),on=$("obj").value.trim().toLowerCase(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];
+ var el=$("wfpMsg");el.innerHTML="";[1,2,3,4].forEach(function(i){$("q"+i).classList.remove("xq-need")});var act=$("act").value.trim(),on=$("obj").value.trim().toLowerCase(),hit=allObj().filter(function(o){return o[1].toLowerCase()===on})[0];
  if(!act||!hit)return;
- var T=itemTotals(typeof editing!=="undefined"?editing:null),pr=parseFloat($("price").value)||0,h="";
+ var T=itemTotals(typeof editing!=="undefined"?editing:null),pr=parseFloat($("price").value)||0,h="",nd=[],anyW=0;
+ for(var k2=0;k2<4;k2++){var w2=wfpOf(act,hit[1],k2),r2=w2-(T[act+"|"+hit[1]+"|"+k2]||0);if(w2>0)anyW=1;if(w2>0&&r2>0.005){nd.push(Q[k2]+" Quarter \u2014 \u20b1 "+money(r2));$("q"+(k2+1)).classList.add("xq-need")}}
+ h='<div style="color:#8a5a00;margin-top:4px"><b>'+(nd.length?'Quarters with WFP budget still to itemize:</b> '+esc(nd.join("; ")):(anyW?'All WFP budget of this object is already itemized.</b>':'No WFP entered for this activity and object.</b>'))+'</div>';
  for(var k=0;k<4;k++){var add=(parseFloat($("q"+(k+1)).value)||0)*pr;if(!(add>0))continue;
   var w=wfpOf(act,hit[1],k),sofar=T[act+"|"+hit[1]+"|"+k]||0,after=sofar+add,over=after-w;
   var c=over>0.005?"#b3261e":"inherit";
@@ -493,6 +497,19 @@ function bxStatus(){
    re.querySelector(".xtq").value=tq?qty(tq):"";re.querySelector(".xeb").value=tq&&p?money(tq*p):"";
    var hh=re.querySelector(".xdh");if(hh){var dd=r.desc.trim();hh.textContent=dd&&!catByDesc(dd)?"Not in the Items list for "+year+" \u2013 add it in Items (Description).":""}
   });
+  var chips="",need=[];
+  for(var k=0;k<4;k++){
+   var w0=wfpOf(act,o,k),ex0=T[act+"|"+o+"|"+k]||0,th0=0;
+   rows.forEach(function(r){th0+=(parseFloat(r.q[k])||0)*(parseFloat(r.price)||0)});
+   var rem0=w0-ex0-th0,cl,tx;
+   if(!w0&&!ex0&&!th0){cl="xqc0";tx=Q[k]+" Quarter: no WFP budget"}
+   else if(!w0){cl="xqc3";tx=Q[k]+" Quarter: no WFP entered"}
+   else if(rem0>0.005){cl="xqc1";tx=Q[k]+" Quarter: \u20b1 "+money(rem0)+" WFP budget still to itemize";need[k]=1}
+   else if(rem0<-0.005){cl="xqc3";tx=Q[k]+" Quarter: over the WFP by \u20b1 "+money(-rem0)}
+   else{cl="xqc2";tx="\u2714 "+Q[k]+" Quarter: fully itemized"}
+   chips+='<span class="xqc '+cl+'">'+tx+'</span>';
+  }
+  [].forEach.call(bl.querySelectorAll(".xrow"),function(re){for(var q=0;q<4;q++){var inp=re.querySelector('[data-f="q'+q+'"]');if(inp&&inp.parentNode)inp.parentNode.classList.toggle("xq-need",!!need[q])}});
   for(var k=0;k<4;k++){
    var w=wfpOf(act,o,k),ex=T[act+"|"+o+"|"+k]||0,th=0;
    rows.forEach(function(r){th+=(parseFloat(r.q[k])||0)*(parseFloat(r.price)||0)});
@@ -500,7 +517,7 @@ function bxStatus(){
    var bal=w-ex-th,over=bal<-0.005;
    st+="<div style='color:"+(over?"#b3261e":"inherit")+";margin-top:3px'><b>"+Q[k]+" Quarter</b> \u2014 "+(w?"WFP budget: \u20b1 "+money(w)+". ":"<b>No WFP entered</b> for this object. ")+"Already itemized: \u20b1 "+money(ex)+". This entry adds \u20b1 "+money(th)+", so the total becomes \u20b1 "+money(ex+th)+". "+(over?"<b>That is \u20b1 "+money(-bal)+" MORE than the WFP.</b>":"Still within the WFP (\u20b1 "+money(bal)+" left).")+"</div>";
   }
-  bl.querySelector(".xst").innerHTML=st;
+  bl.querySelector(".xst").innerHTML="<div style='margin-bottom:4px'>"+chips+"</div>"+st;
   rows.forEach(function(r){if(!bxUsed(r))return;nItems++;grand+=r.q.reduce(function(s,v){return s+(parseFloat(v)||0)},0)*(parseFloat(r.price)||0)});
  });
  var s=$("bxSum");if(s)s.textContent=nItems?"Ready to add: "+nItems+" item"+(nItems>1?"s":"")+" \u00b7 total estimated budget "+money(grand):"";
@@ -595,7 +612,7 @@ function obRemFoot(){
  var R=wfpRemain(FS.ob),qs=R.qs;if(!R.L.length)return"";
  var sm=function(a){return qs.reduce(function(t,k){return t+a[k]},0)};
  var rem=R.W.map(function(w,k){return w-R.I[k]}),RT=sm(R.W)-sm(R.I);
- var cell=function(v,bold){return"<td class='n"+(v<-0.005?" neg":"")+"'"+(bold?" style='font-weight:700'":"")+">"+money(v)+"</td>"};
+ var cell=function(v,bold){return"<td class='n"+(v<-0.005?" neg":"")+"'"+(bold?" style='font-weight:700"+(v>0.005?";background:#fff4d6":"")+"'":"")+">"+money(v)+"</td>"};
  var qc=function(arr,isRem){return qs.map(function(k){return"<td></td>"+(isRem?cell(arr[k],1):"<td class='n'>"+money(arr[k])+"</td>")}).join("")};
  var lbl=function(t){return"<td colspan='8' style='text-align:right'>"+t+"</td><td></td>"};
  return"<tr style='background:var(--soft)'>"+lbl("WFP BUDGET (lump-sum)")+"<td class='n'>"+money(sm(R.W))+"</td><td></td>"+qc(R.W,0)+"<td></td><td class='act'></td></tr>"
