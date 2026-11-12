@@ -1,4 +1,4 @@
-window.APP_VER="r14 • Remarks per Object of Expenditure (Office Budget + Budget Monitoring)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r16 • Edit history (date encoded / edited, reason per edit)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -99,6 +99,22 @@ items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year|
 if(years.indexOf(year)<0)years.push(year);
 save(KEY,items);save(YK,years);
 var yi=function(){return items.filter(function(i){return +i.year===year}).sort(function(a,b){return(a.acct||"~").localeCompare(b.acct||"~",undefined,{numeric:true})})};
+/* ---------- Edit history: date encoded, date edited, required reason per edit ---------- */
+function nowIso(){return new Date().toISOString()}
+function histAdd(r,why){var t=nowIso();(r.hist=r.hist||[]).push({d:t,why:why});r.edited=t}
+function askWhy(what){var w;while(true){w=prompt("Reason for editing this "+what+" (required).\nType why it is being edited:");if(w===null)return null;w=w.trim();if(w)return w;alert("The reason for the edit is required.")}}
+function fmtDt(s){var d=new Date(s);return isNaN(d)?"":d.toLocaleString("en-PH",{year:"numeric",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
+function showHist(r,label){
+ var d=document.getElementById("histDlg");
+ if(!d){d=document.createElement("dialog");d.id="histDlg";d.style.cssText="max-width:560px;width:92%;border:1px solid #cbd5e1;border-radius:12px;padding:16px";document.body.appendChild(d)}
+ var H=(r.hist||[]).slice().reverse();
+ d.innerHTML='<h3 style="margin-top:0">History</h3><div class="fsum" style="margin-top:0">'+esc(label)+'</div>'
+  +'<p><b>Date encoded:</b> '+(r.created?esc(fmtDt(r.created)):'<i>not recorded (encoded before history was added)</i>')+'</p>'
+  +'<p style="margin-bottom:4px"><b>Edits ('+H.length+')</b>'+(r.edited?' \u00b7 last edited '+esc(fmtDt(r.edited)):'')+'</p>'
+  +(H.length?'<ol style="margin:6px 0 0;padding-left:20px;max-height:50vh;overflow:auto">'+H.map(function(h){return'<li style="margin-bottom:6px"><b>'+esc(fmtDt(h.d))+'</b><br>'+esc(h.why)+'</li>'}).join("")+'</ol>':'<p style="margin-top:4px">No edits recorded.</p>')
+  +'<div class="btns" style="justify-content:flex-end;margin-top:12px"><button type="button" id="histX">Close</button></div>';
+ d.showModal();document.getElementById("histX").onclick=function(){d.close()};
+}
 /* ---------- Remarks per Object of Expenditure (intended use) ---------- */
 function objRemOf(act,obj,exceptId){var l=yi().filter(function(i){return i.act===act&&i.obj===obj&&(i.objRem||"").trim()&&i.id!==exceptId});return l.length?l[0].objRem.trim():""}
 function remText(it){var a=(it.objRem||"").trim(),b=(it.remarks||"").trim();return a&&b?a+" | "+b:(a||b)}
@@ -169,7 +185,7 @@ function renderIT(){
  fillDescList();
  var all=ci(),q=itQ.trim().toLowerCase(),rows=q?all.filter(function(c){return(c.desc+" "+(c.stock||"")+" "+(c.unit||"")).toLowerCase().indexOf(q)>=0}):all;
  $("itSum").textContent="Year "+year+" \u2014 showing "+rows.length+" of "+all.length+" description"+(all.length===1?"":"s")+". Each year has its own list.";
- $("itBody").innerHTML=rows.length?rows.map(function(c){return"<tr><td>"+esc(c.desc)+"</td><td>"+esc(c.stock||"")+"</td><td>"+esc(c.unit||"")+"</td><td class='n'>"+money(c.price)+"</td><td>"+esc(c.mode||"")+"</td><td class='n'>"+catUse(c)+"</td><td class='act'><button data-k='e' data-id='"+c.id+"'>Edit</button><button class='d' data-k='d' data-id='"+c.id+"'>Delete</button></td></tr>"}).join(""):"<tr><td colspan='7' class='empty'>"+(all.length?"No descriptions match your search.":"No items for "+year+" yet. Add them above, paste them from Excel, or copy them from another year.")+"</td></tr>";
+ $("itBody").innerHTML=rows.length?rows.map(function(c){return"<tr><td>"+esc(c.desc)+"</td><td>"+esc(c.stock||"")+"</td><td>"+esc(c.unit||"")+"</td><td class='n'>"+money(c.price)+"</td><td>"+esc(c.mode||"")+"</td><td class='n'>"+catUse(c)+"</td><td class='act'><button data-k='e' data-id='"+c.id+"'>Edit</button><button data-k='h' data-id='"+c.id+"'>History</button><button class='d' data-k='d' data-id='"+c.id+"'>Delete</button></td></tr>"}).join(""):"<tr><td colspan='7' class='empty'>"+(all.length?"No descriptions match your search.":"No items for "+year+" yet. Add them above, paste them from Excel, or copy them from another year.")+"</td></tr>";
 }
 function itClear(){itEdit=null;["itDesc","itStock","itUnit","itPrice","itMode"].forEach(function(i){$(i).value=""});$("itTitle").textContent="Add item description";$("itSave").textContent="Add item";$("itCancel").classList.add("hidden");$("itErr").textContent=""}
 $("itCancel").onclick=function(){$("itInfo").textContent="";itClear()};
@@ -181,12 +197,15 @@ $("itSave").onclick=function(){
  if(!md){e.textContent="Select the Mode of Procurement: Procurement or Non-Procurement.";return}
  var dup=catByDesc(d);if(dup&&dup.id!==itEdit){e.textContent="\""+dup.desc+"\" is already in the Items list for "+year+". Edit that one instead.";return}
  var msg="";
- if(itEdit){var c=catById(itEdit);if(!c){itClear();return}var od=c.desc;c.desc=d;c.stock=st||"N/A";c.unit=u;c.price=p;c.mode=md;var n=catSync(c,od);if(n)msg=n+" budget line"+(n>1?"s":"")+" in Office Budget recomputed with the new details."}
- else catalog.push({id:uid(),year:year,desc:d,stock:st||"N/A",unit:u,price:p,mode:md});
+ if(itEdit){var c=catById(itEdit);if(!c){itClear();return}var od=c.desc,chg=(c.desc!==d||(c.stock||"")!==(st||"N/A")||(c.unit||"")!==u||+c.price!==p||(c.mode||"")!==md);
+  if(chg){var _w=askWhy("Items list entry \""+od+"\"");if(_w===null)return;histAdd(c,_w);items.forEach(function(it){if(it.cid===c.id)histAdd(it,"Items list entry \""+od+"\" updated: "+_w)})}
+  c.desc=d;c.stock=st||"N/A";c.unit=u;c.price=p;c.mode=md;var n=catSync(c,od);if(n)msg=n+" budget line"+(n>1?"s":"")+" in Office Budget recomputed with the new details."}
+ else catalog.push({id:uid(),year:year,desc:d,stock:st||"N/A",unit:u,price:p,mode:md,created:nowIso()});
  save(CATK,catalog);itClear();renderAll();inf.textContent=msg;$("itDesc").focus();
 };
 $("itBody").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b||!b.dataset.k)return;var c=catById(b.dataset.id);if(!c)return;$("itInfo").textContent="";
+ if(b.dataset.k==="h"){showHist(c,c.desc);return}
  if(b.dataset.k==="e"){itEdit=c.id;$("itDesc").value=c.desc;$("itStock").value=c.stock||"";$("itUnit").value=c.unit||"";$("itPrice").value=c.price;$("itMode").value=c.mode||"";$("itTitle").textContent="Edit item description";$("itSave").textContent="Update item";$("itCancel").classList.remove("hidden");$("itErr").textContent="";window.scrollTo({top:0,behavior:"smooth"});$("itDesc").focus();return}
  var n=catUse(c);
  if(n){alert("\""+c.desc+"\" is used by "+n+" budget line"+(n>1?"s":"")+" in Office Budget, so it can't be deleted. Delete those lines first, or edit this item instead.");return}
@@ -200,7 +219,7 @@ $("itCopy").onclick=function(){
  var add=catalog.filter(function(c){return+c.year===s&&!catByDesc(c.desc)});
  if(!add.length){alert("Everything from "+s+" is already in the "+year+" list.");return}
  if(!confirm("Copy "+add.length+" description(s) from "+s+" to "+year+"?\nThey become separate entries: changing a price in "+year+" will not change "+s+"."))return;
- add.forEach(function(c){catalog.push({id:uid(),year:year,desc:c.desc,stock:c.stock||"",unit:c.unit||"",price:c.price,mode:c.mode||""})});
+ add.forEach(function(c){catalog.push({id:uid(),year:year,desc:c.desc,stock:c.stock||"",unit:c.unit||"",price:c.price,mode:c.mode||"",created:nowIso()})});
  save(CATK,catalog);renderAll();
 };
 $("itBulk").onclick=function(){
@@ -209,15 +228,16 @@ $("itBulk").onclick=function(){
  d.showModal();
  $("itBulkX").onclick=function(){d.close()};
  $("itBulkGo").onclick=function(){
-  var lines=$("itBulkTx").value.split(/\r?\n/),add=0,upd=0,bad=[],touched=0;
+  var lines=$("itBulkTx").value.split(/\r?\n/),add=0,upd=0,bad=[],touched=0,_bw="";
+  if(lines.some(function(ln){var p=ln.split("\t"),de=(p[0]||"").trim();return de&&de.toLowerCase()!=="description"&&catByDesc(de)})){_bw=askWhy("Items list entries (bulk update)");if(_bw===null)return}
   lines.forEach(function(ln,i){
    if(!ln.trim())return;var p=ln.split("\t"),de=(p[0]||"").trim(),pr=nm(p[3]===undefined?"":p[3]);
    if(i===0&&de.toLowerCase()==="description"&&isNaN(pr))return;
    if(!de||!(p[2]||"").trim()||!(pr>0)){bad.push("Row "+(i+1)+": needs Description, Unit and a Unit Price above 0 (tab-separated)");return}
    var mdv=normMode(p[4]);if(mdv===null){bad.push("Row "+(i+1)+": Mode of Procurement must be Procurement or Non-Procurement");return}
    var c=catByDesc(de),stk=(p[1]||"").trim()||"N/A";
-   if(c){c.stock=stk;c.unit=p[2].trim();c.price=pr;if(mdv)c.mode=mdv;touched+=catSync(c);upd++}
-   else{catalog.push({id:uid(),year:year,desc:de,stock:stk,unit:p[2].trim(),price:pr,mode:mdv});add++}
+   if(c){histAdd(c,_bw);items.forEach(function(it){if(it.cid===c.id)histAdd(it,"Items list entry \""+c.desc+"\" updated (bulk): "+_bw)});c.stock=stk;c.unit=p[2].trim();c.price=pr;if(mdv)c.mode=mdv;touched+=catSync(c);upd++}
+   else{catalog.push({id:uid(),year:year,desc:de,stock:stk,unit:p[2].trim(),price:pr,mode:mdv,created:nowIso()});add++}
   });
   if(!add&&!upd){$("itBulkErr").textContent=bad.length?bad.slice(0,5).join("\n"):"Nothing to add. Paste the rows first.";return}
   save(CATK,catalog);d.close();renderAll();
@@ -407,7 +427,7 @@ function fillWfpSel(sa,sc){
 $("aip").addEventListener("change",function(){$("act").value="";fillWfpSel();wfpForm()});
 $("act").addEventListener("change",function(){fillWfpSel();wfpForm()});
 function clearForm(){
- ["aip","act","desc","stock","unit","price","mode","remarks","objrem","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
+ ["aip","act","desc","stock","unit","price","mode","objrem","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
  $("obj").value="";$("acct").value="";prevObj="";editing=null;fillWfpSel("","");
  $("formTitle").textContent="Add item";$("btnSave").textContent="Add item";$("btnCancel").classList.add("hidden");$("err").textContent="";calcForm();
  bxRows={};bxRem={};bxKey="";if(bxReady)bxRender();pickDesc();
@@ -415,7 +435,7 @@ function clearForm(){
 $("btnSave").onclick=function(){
  if(bxActive()){bxSave();return}
  var it={aip:$("aip").value.trim(),act:$("act").value.trim(),desc:$("desc").value.trim(),obj:$("obj").value,acct:$("acct").value,stock:$("stock").value.trim(),
-  unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:$("remarks").value.trim(),objRem:$("objrem").value.trim(),
+  unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:(editing!==null&&byId(editing)?byId(editing).remarks||"":""),objRem:$("objrem").value.trim(),
   q:[1,2,3,4].map(function(i){return parseFloat($("q"+i).value)||0})},e=$("err");
  if(!it.aip||!it.act||!it.desc){e.textContent="Select the AIP Code and Activities (from the Work Financial Plan) and enter a Description.";return}
  var cc=catByDesc(it.desc),old0=editing!==null?byId(editing):null;
@@ -424,9 +444,12 @@ $("btnSave").onclick=function(){
  if(!it.obj||it.obj==="__add__"){e.textContent="Select an Object of Expenditure.";return}
  if(!(it.price>0)){e.textContent="Enter a Unit Price greater than zero.";return}
  if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
- if(editing===null){it.id=uid();it.year=year;items.push(it)}
- else{var o=byId(editing);it.id=o.id;it.year=o.year;items[items.indexOf(o)]=it}
- if(it.objRem){yi().forEach(function(i){if(i.act===it.act&&i.obj===it.obj)i.objRem=it.objRem})}else{var _ex=objRemOf(it.act,it.obj,it.id);if(_ex)it.objRem=_ex}
+ var _sib=[],_why="";
+ if(it.objRem){_sib=yi().filter(function(i){return i.id!==editing&&i.act===it.act&&i.obj===it.obj&&(i.objRem||"")!==it.objRem})}else{var _ex=objRemOf(it.act,it.obj,editing||"");if(_ex)it.objRem=_ex}
+ if(editing!==null||_sib.length){_why=askWhy(editing!==null?"budget line":"Object of Expenditure remarks");if(_why===null)return}
+ if(editing===null){it.id=uid();it.year=year;it.created=nowIso();items.push(it)}
+ else{var o=byId(editing);it.id=o.id;it.year=o.year;it.created=o.created;it.hist=(o.hist||[]).slice();it.edited=o.edited;histAdd(it,_why);items[items.indexOf(o)]=it}
+ _sib.forEach(function(i){i.objRem=it.objRem;histAdd(i,"Object remarks changed: "+_why)});
  save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
 };
 $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
@@ -448,7 +471,6 @@ function bxRowHtml(oi,ri,r,many){
   +f("mode","Mode of Procurement","x2",'list="modeList" autocomplete="off"');
  for(var k=0;k<4;k++)h+='<div class="x2"><label>'+Q[k]+' Quarter qty</label><input data-f="q'+k+'" type="number" min="0" step="any" value="'+esc(r.q[k])+'"><small class="xa"></small></div>';
  h+='<div class="x2"><label>Total quantity</label><input class="xtq" readonly></div><div class="x2"><label>Estimated budget</label><input class="xeb" readonly></div>'
-  +f("remarks","Remarks (optional)","x10",'autocomplete="off"')
   +'<div class="x2 xdel">'+(many?'<button type="button" class="d" data-xdel="1">Remove</button>':'')+'</div></div>';
  return h;
 }
@@ -533,16 +555,17 @@ function bxSave(){
   if(!(p>0)){bad=lb+"enter a Unit Price greater than zero.";return}
   if(q.reduce(function(s,v){return s+v},0)<=0){bad=lb+"enter a quantity for at least one quarter.";return}
   if(m){var ok=MODES.filter(function(x){return x.toLowerCase()===m.toLowerCase()})[0];if(!ok){bad=lb+"Mode of Procurement must be Procurement or Non-Procurement.";return}m=ok}
-  out.push({aip:aip,act:act,cid:cc.id,desc:cc.desc,obj:o,acct:codeOf(o),stock:cc.stock||"",unit:cc.unit||"",price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year});
+  out.push({aip:aip,act:act,cid:cc.id,desc:cc.desc,obj:o,acct:codeOf(o),stock:cc.stock||"",unit:cc.unit||"",price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year,created:nowIso()});
  })});
  if(bad){e.textContent=bad;return}
- var remUp=0;
+ var ups=[];
  bxObjs.forEach(function(o,oi){
   var k=year+"|"+act+"|"+o,ex=objRemOf(act,o),touched=bxRem[k]!==undefined,v=touched?String(bxRem[k]).trim():ex;
   out.forEach(function(it){if(it.obj===o)it.objRem=v});
-  if(touched&&v!==ex){yi().forEach(function(i){if(i.act===act&&i.obj===o){i.objRem=v;remUp++}})}
+  if(touched&&v!==ex){yi().forEach(function(i){if(i.act===act&&i.obj===o&&(i.objRem||"").trim()!==v)ups.push([i,v])})}
  });
- if(!out.length&&!remUp){e.textContent="Enter at least one description with a unit price and a quantity.";return}
+ if(!out.length&&!ups.length){e.textContent="Enter at least one description with a unit price and a quantity.";return}
+ if(ups.length){var _w=askWhy("Object of Expenditure remarks");if(_w===null)return;ups.forEach(function(u){u[0].objRem=u[1];histAdd(u[0],"Object remarks changed: "+_w)})}
  out.forEach(function(it){items.push(it)});save(KEY,items);
  clearForm();renderAll();refreshLists();$("aip").focus();
 }
@@ -550,7 +573,7 @@ bxReady=true;bxRender();
 function edit(id){
  var it=byId(id);if(!it)return;editing=id;
  fillWfpSel(it.aip,it.act||"");$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
- $("price").value=it.price;modeSet(it.mode);$("remarks").value=it.remarks||"";$("objrem").value=it.objRem||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
+ $("price").value=it.price;modeSet(it.mode);$("objrem").value=it.objRem||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
  pickDesc();calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
  if(bxReady)bxRender();window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
@@ -601,7 +624,7 @@ function renderOB(){
   var t=qs.reduce(function(a,k){return a+it.q[k]},0),b=t*it.price;gq+=t;gb+=b;
   h+="<tr"+(obTips[it.id]?" class='ovr' data-ovid='"+it.id+"'":"")+"><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
   qs.forEach(function(k){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"});
-  h+="<td>"+remHtml(it)+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
+  h+="<td>"+remHtml(it)+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button data-h='"+it.id+"'>History</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
  });
  $("obBody").innerHTML=h;
  $("obFoot").innerHTML="<tr><td colspan='8' style='text-align:right'>TOTAL</td><td class='n'>"+qty(gq)+"</td><td class='n'>"+money(gb)+"</td><td></td>"+
@@ -615,7 +638,7 @@ function delItem(id){
 }
 $("obBody").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b)return;
- if(b.dataset.e)edit(b.dataset.e);else if(b.dataset.d)delItem(b.dataset.d);
+ if(b.dataset.e)edit(b.dataset.e);else if(b.dataset.h){var _i=byId(b.dataset.h);if(_i)showHist(_i,_i.desc+" \u2013 "+_i.obj)}else if(b.dataset.d)delItem(b.dataset.d);
 });
 $("btnAll").onclick=function(){
  var l=yi();
@@ -736,7 +759,7 @@ function renderBM(){
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!bmQOk(x))return;if(!lgOk(x,s))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":(x.type==="rel"?"Release":"Augmentation"))+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
-   (x.to?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+(x.qty?x.qty:"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
+   (x.to?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+(x.qty?x.qty:"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button data-h='"+x.id+"'>History</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
  (function(){var n=$("lgDashNote"),f=FS.bm,on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);if(!n){n=document.createElement("div");n.id="lgDashNote";n.className="fsum noprint";n.style.margin="0 0 8px";var w=$("lgBody").closest(".wrap");w.parentNode.insertBefore(n,w)}n.textContent=on.length?"Also filtered by the Budget Monitoring dashboard: "+on.join(" › "):""})();
  $("lgBody").innerHTML=lg||'<tr><td class="empty" colspan="8">No releases or augmentations recorded for '+year+'.</td></tr>';
@@ -774,7 +797,7 @@ function txLoad(x){txShow(true,1);
  txEdit=x.id;$("btnTx").textContent="Save changes";$("btnTxCancel").classList.remove("hidden");$("terr").textContent="";info();
  $("btnTx").scrollIntoView({behavior:"smooth",block:"center"});
 }
-$("lgBody").addEventListener("click",function(e){var b=e.target.closest("button");if(b&&b.dataset.e){var x=txs.filter(function(t){return t.id===b.dataset.e})[0];if(x)txLoad(x)}});
+$("lgBody").addEventListener("click",function(e){var b=e.target.closest("button");if(b&&b.dataset.e){var x=txs.filter(function(t){return t.id===b.dataset.e})[0];if(x)txLoad(x)}if(b&&b.dataset.h){var y=txs.filter(function(t){return t.id===b.dataset.h})[0];if(y)showHist(y,(isCan(y)?"Cancelled":(y.type==="rel"?"Release":"Augmentation"))+" \u2013 "+(y.date||"")+" \u2013 "+lineLabel(byId(y.from)))}});
 $("btnTxCancel").onclick=txReset;
 $("lgBody").addEventListener("click",function(e){
  var b=e.target.closest("button");if(!b||!b.dataset.t)return;
@@ -842,7 +865,7 @@ $("btnTx").onclick=function(){
   if(to===from&&tq===fq){e.textContent="Choose a different budget line or quarter to augment to.";return}
  }
  var rec={id:txEdit||uid(),type:type,from:from,fq:fq,to:type==="aug"?to:"",tq:tq,qty:qty,amt:amt,date:$("tDate").value,note:$("tNote").value.trim(),v:2};
- if(txEdit){txs=txs.map(function(t){return t.id===txEdit?rec:t})}else txs.push(rec);
+ if(txEdit){var _o=txs.filter(function(t){return t.id===txEdit})[0]||{},_w=askWhy("transaction");if(_w===null)return;rec.created=_o.created;rec.hist=(_o.hist||[]).slice();rec.edited=_o.edited;histAdd(rec,_w);txs=txs.map(function(t){return t.id===txEdit?rec:t})}else{rec.created=nowIso();txs.push(rec)}
  save(TXK,txs);txReset();renderAll();info();
 };
 
@@ -905,7 +928,7 @@ $("obFile").onchange=function(){
    if(q.some(function(x){return isNaN(x)||x<0}))er.push("Quarter quantity is not a number");else if(!q.some(function(x){return x>0}))er.push("No quantity in any quarter");
    var mo="";if(md){mo=MODES.filter(function(m){return m.toLowerCase()===md.toLowerCase()})[0]||"";if(!mo)er.push("Mode must be Procurement or Non-Procurement")}
    if(er.length){bad.push("Row "+(n+2)+": "+er.join("; "));return}
-   var it={id:uid(),year:(yr>=2000&&yr<=2100)?yr:year,aip:aip,act:act,desc:desc,obj:hit[1],acct:hit[0],stock:String(pick("stockno","stock")).trim(),unit:String(pick("unit")).trim(),price:pr,mode:mo,remarks:String(pick("remarks","remark")).trim(),objRem:String(pick("objectremarks","objremarks")).trim(),q:q};
+   var it={id:uid(),year:(yr>=2000&&yr<=2100)?yr:year,aip:aip,act:act,desc:desc,obj:hit[1],acct:hit[0],stock:String(pick("stockno","stock")).trim(),unit:String(pick("unit")).trim(),price:pr,mode:mo,remarks:String(pick("remarks","remark")).trim(),objRem:String(pick("objectremarks","objremarks")).trim(),q:q,created:nowIso()};
    var key=[it.year,it.aip,it.desc,it.obj,it.price,it.q.join("|")].join("~").toLowerCase();
    if(seen[key]){dup++;return}seen[key]=1;good.push(it);
   });
@@ -915,7 +938,7 @@ $("obFile").onchange=function(){
   if(!good.length){alert(msg);return}
   if(!confirm(msg+"\n\nImport now?"))return;
   var cmis=0;
-  good.forEach(function(it){var c=catByDesc(it.desc,it.year);if(!c){c={id:uid(),year:it.year,desc:it.desc,stock:it.stock,unit:it.unit,price:it.price};catalog.push(c)}else if(c.price!==it.price)cmis++;
+  good.forEach(function(it){var c=catByDesc(it.desc,it.year);if(!c){c={id:uid(),year:it.year,desc:it.desc,stock:it.stock,unit:it.unit,price:it.price,created:nowIso()};catalog.push(c)}else if(c.price!==it.price)cmis++;
    it.cid=c.id;it.desc=c.desc;it.stock=c.stock||"";it.unit=c.unit||"";it.price=c.price;items.push(it);if(years.indexOf(it.year)<0)years.push(it.year)});
   save(CATK,catalog);save(YK,years);save(KEY,items);fillYear();renderAll();refreshLists();
   alert("Imported "+good.length+" item(s)."+(cmis?"\n"+cmis+" row(s) use the Unit Price already in your Items list instead of the price in the file.":"")+(good.some(function(i){return i.year!==year})?"\nSome items belong to other years. Switch the Year selector to see them.":""));
@@ -1173,10 +1196,12 @@ $("alSave").onclick=function(){
  if(clash.length)msg.push(clash.length+" object(s) already have a WFP entry under this activity ("+nm2(clash)+"). They will be replaced with the amounts you entered.");
  if(gone.length)msg.push(gone.length+" object(s) were removed from this activity ("+nm2(gone)+"). Their WFP entries will be deleted.");
  if(msg.length&&!confirm(msg.join("\n\n")+"\n\nContinue?"))return;
+ var _aw="",_anyChg=gone.length||clash.length||recs.some(function(r){var o=orig.filter(function(x){return x.obj===r.obj})[0];return!o||(o.aip||"")!==aip||o.act!==act||o.q.some(function(v,k){return v!==r.q[k]})});
+ if(eg&&_anyChg){_aw=askWhy("WFP entry");if(_aw===null)return}
  alloc=alloc.filter(function(r){return clash.indexOf(r)<0&&gone.indexOf(r)<0});
- recs.forEach(function(r){var o=orig.filter(function(x){return x.obj===r.obj})[0];if(o){o.aip=aip;o.act=act;o.q=r.q}else alloc.push({id:uid(),year:year,aip:aip,act:act,obj:r.obj,q:r.q})});
+ recs.forEach(function(r){var o=orig.filter(function(x){return x.obj===r.obj})[0];if(o){var _c=(o.aip||"")!==aip||o.act!==act||o.q.some(function(v,k){return v!==r.q[k]});o.aip=aip;o.act=act;o.q=r.q;if(_c&&_aw)histAdd(o,_aw)}else{var _n={id:uid(),year:year,aip:aip,act:act,obj:r.obj,q:r.q,created:nowIso()};alloc.push(_n)}});
  if(eg&&((eg.aip||"")!==aip||eg.act!==act)){var ch=items.filter(function(i){return+i.year===year&&i.act===eg.act});
-  if(ch.length&&confirm(ch.length+" itemized budget line(s) in Office Budget still use the old AIP Code / Activity. Update them to match this WFP entry?")){ch.forEach(function(i){i.aip=aip;i.act=act});save(KEY,items)}}
+  if(ch.length&&confirm(ch.length+" itemized budget line(s) in Office Budget still use the old AIP Code / Activity. Update them to match this WFP entry?")){ch.forEach(function(i){i.aip=aip;i.act=act;if(_aw)histAdd(i,"AIP Code / Activity updated from WFP edit: "+_aw)});save(KEY,items)}}
  var H=sugGet();H.aip=H.aip.filter(function(v){return v!==aip});H.act=H.act.filter(function(v){return v!==act});sugSet(H);save(ALK,alloc);alClear();renderAll();
 };
 $("alObjEdit").onclick=function(e){e.preventDefault();objMgr();$("objDlg").showModal()};
@@ -1205,11 +1230,12 @@ function renderWF(){
  var all=alloc.filter(function(r){return+r.year===year});wfFill(all);
  var rows=all.filter(function(r){return(!WFF.aip.length||WFF.aip.indexOf(r.aip)>=0)&&(!WFF.act.length||WFF.act.indexOf(r.act)>=0)&&(!WFF.obj.length||WFF.obj.indexOf(r.obj)>=0)&&(!WFF.q.length||WFF.q.some(function(k){return r.q[+k]>0}))}).sort(function(a,b){return a.act.localeCompare(b.act)||byObj(a.obj,b.obj)}),T=[0,0,0,0],sm=function(v){return v.reduce(function(a,b){return a+b},0)};
  var h="<thead><tr><th>AIP Code</th><th>Activity</th><th>Object of Expenditure</th><th>Account Code</th><th>1st Quarter</th><th>2nd Quarter</th><th>3rd Quarter</th><th>4th Quarter</th><th>Total</th><th class='act'></th></tr></thead><tbody>";
- rows.forEach(function(r){r.q.forEach(function(v,k){T[k]+=v});h+="<tr><td>"+esc(r.aip||"")+"</td><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td><td>"+esc(codeOf(r.obj))+"</td>"+r.q.map(function(v){return"<td class='n'>"+(v?money(v):"")+"</td>"}).join("")+"<td class='n'><b>"+money(sm(r.q))+"</b></td><td class='act' style='white-space:nowrap'><button data-w='e' data-id='"+r.id+"'>Edit</button><button class='d' data-w='d' data-id='"+r.id+"'>Delete</button></td></tr>"});
+ rows.forEach(function(r){r.q.forEach(function(v,k){T[k]+=v});h+="<tr><td>"+esc(r.aip||"")+"</td><td>"+esc(r.act)+"</td><td>"+esc(r.obj)+"</td><td>"+esc(codeOf(r.obj))+"</td>"+r.q.map(function(v){return"<td class='n'>"+(v?money(v):"")+"</td>"}).join("")+"<td class='n'><b>"+money(sm(r.q))+"</b></td><td class='act' style='white-space:nowrap'><button data-w='e' data-id='"+r.id+"'>Edit</button><button data-w='h' data-id='"+r.id+"'>History</button><button class='d' data-w='d' data-id='"+r.id+"'>Delete</button></td></tr>"});
  h+=rows.length?"</tbody><tfoot><tr style='font-weight:700;background:var(--soft)'><td colspan='4'>TOTAL</td>"+T.map(function(v){return"<td class='n'>"+money(v)+"</td>"}).join("")+"<td class='n'>"+money(sm(T))+"</td><td class='act'></td></tr></tfoot>":"<tr><td colspan='10' class='empty'>"+(all.length?"No WFP entries match the filters.":"No WFP entries for "+year+" yet.")+"</td></tr></tbody>";
  $("wfTbl").innerHTML=h;WFN=rows.length;var on=[].concat(WFF.aip,WFF.act,WFF.obj,qtxt(WFF.q));$("wfSum").textContent="Showing "+rows.length+" of "+all.length+" entries for "+year+(on.length?" — filtered by: "+on.join(" › "):"");
 }
 $("wfTbl").addEventListener("click",function(e){var b=e.target.closest("button");if(!b||!b.dataset.w)return;var r=alloc.filter(function(x){return x.id===b.dataset.id})[0];if(!r)return;
+ if(b.dataset.w==="h"){showHist(r,r.act+" \u2013 "+r.obj);return}
  if(b.dataset.w==="e")wfLoad(r);else if(confirm("Delete this WFP entry?")){alloc=alloc.filter(function(x){return x.id!==r.id});save(ALK,alloc);if(wx.eg)alClear();renderAll()}});
 function wfpChk(act,obj,q,ex){
  var keep=txs;if(ex)txs=txs.filter(function(t){return t.id!==ex});
