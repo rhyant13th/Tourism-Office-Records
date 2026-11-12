@@ -1,4 +1,4 @@
-window.APP_VER="r13 • Over-WFP hover, description search, Mode of Procurement in Items";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r14 • Remarks per Object of Expenditure (Office Budget + Budget Monitoring)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -99,6 +99,10 @@ items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year|
 if(years.indexOf(year)<0)years.push(year);
 save(KEY,items);save(YK,years);
 var yi=function(){return items.filter(function(i){return +i.year===year}).sort(function(a,b){return(a.acct||"~").localeCompare(b.acct||"~",undefined,{numeric:true})})};
+/* ---------- Remarks per Object of Expenditure (intended use) ---------- */
+function objRemOf(act,obj,exceptId){var l=yi().filter(function(i){return i.act===act&&i.obj===obj&&(i.objRem||"").trim()&&i.id!==exceptId});return l.length?l[0].objRem.trim():""}
+function remText(it){var a=(it.objRem||"").trim(),b=(it.remarks||"").trim();return a&&b?a+" | "+b:(a||b)}
+function remHtml(it){var a=(it.objRem||"").trim(),b=(it.remarks||"").trim();return esc(a)+(a&&b?"<br>":"")+(b?"<span style='color:#64748b'>"+esc(b)+"</span>":"")}
 var byId=function(id){for(var i=0;i<items.length;i++)if(items[i].id===id)return items[i]};
 var tot=function(it){return it.q.reduce(function(a,b){return a+b},0)};
 
@@ -403,15 +407,15 @@ function fillWfpSel(sa,sc){
 $("aip").addEventListener("change",function(){$("act").value="";fillWfpSel();wfpForm()});
 $("act").addEventListener("change",function(){fillWfpSel();wfpForm()});
 function clearForm(){
- ["aip","act","desc","stock","unit","price","mode","remarks","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
+ ["aip","act","desc","stock","unit","price","mode","remarks","objrem","q1","q2","q3","q4"].forEach(function(id){$(id).value=""});
  $("obj").value="";$("acct").value="";prevObj="";editing=null;fillWfpSel("","");
  $("formTitle").textContent="Add item";$("btnSave").textContent="Add item";$("btnCancel").classList.add("hidden");$("err").textContent="";calcForm();
- bxRows={};bxKey="";if(bxReady)bxRender();pickDesc();
+ bxRows={};bxRem={};bxKey="";if(bxReady)bxRender();pickDesc();
 }
 $("btnSave").onclick=function(){
  if(bxActive()){bxSave();return}
  var it={aip:$("aip").value.trim(),act:$("act").value.trim(),desc:$("desc").value.trim(),obj:$("obj").value,acct:$("acct").value,stock:$("stock").value.trim(),
-  unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:$("remarks").value.trim(),
+  unit:$("unit").value.trim(),price:parseFloat($("price").value)||0,mode:$("mode").value.trim(),remarks:$("remarks").value.trim(),objRem:$("objrem").value.trim(),
   q:[1,2,3,4].map(function(i){return parseFloat($("q"+i).value)||0})},e=$("err");
  if(!it.aip||!it.act||!it.desc){e.textContent="Select the AIP Code and Activities (from the Work Financial Plan) and enter a Description.";return}
  var cc=catByDesc(it.desc),old0=editing!==null?byId(editing):null;
@@ -422,12 +426,13 @@ $("btnSave").onclick=function(){
  if(tot(it)<=0){e.textContent="Enter a quantity for at least one quarter.";return}
  if(editing===null){it.id=uid();it.year=year;items.push(it)}
  else{var o=byId(editing);it.id=o.id;it.year=o.year;items[items.indexOf(o)]=it}
+ if(it.objRem){yi().forEach(function(i){if(i.act===it.act&&i.obj===it.obj)i.objRem=it.objRem})}else{var _ex=objRemOf(it.act,it.obj,it.id);if(_ex)it.objRem=_ex}
  save(KEY,items);clearForm();renderAll();refreshLists();$("aip").focus();
 };
 $("btnCancel").onclick=clearForm;$("btnClear").onclick=clearForm;
 
 /* ---------- Add items by Object of Expenditure (objects come from the WFP of the chosen Activity) ---------- */
-var bxSingle=false,bxRows={},bxKey="",bxObjs=[],bxReady=false;
+var bxSingle=false,bxRows={},bxRem={},bxKey="",bxObjs=[],bxReady=false;
 function bxEmpty(){return{desc:"",stock:"",unit:"",price:"",mode:"",remarks:"",q:["","","",""]}}
 function bxActive(){return editing===null&&!bxSingle}
 function bxList(){var act=$("act").value.trim();if(!act)return[];var s={};alloc.forEach(function(r){if(+r.year===year&&r.act===act&&r.obj)s[r.obj]=1});return Object.keys(s).sort(byObj)}
@@ -447,9 +452,12 @@ function bxRowHtml(oi,ri,r,many){
   +'<div class="x2 xdel">'+(many?'<button type="button" class="d" data-xdel="1">Remove</button>':'')+'</div></div>';
  return h;
 }
+function bxRemVal(oi){var act=$("act").value.trim(),o=bxObjs[oi],k=year+"|"+act+"|"+o;return bxRem[k]!==undefined?bxRem[k]:objRemOf(act,o)}
 function bxBlockHtml(oi){
  var o=bxObjs[oi],rows=bxGet(oi);
- return'<fieldset class="xblk" data-oi="'+oi+'"><legend>'+esc(o)+' <span style="font-weight:400">\u00b7 '+esc(codeOf(o))+'</span></legend><div class="xst"></div>'
+ return'<fieldset class="xblk" data-oi="'+oi+'"><legend>'+esc(o)+' <span style="font-weight:400">\u00b7 '+esc(codeOf(o))+'</span></legend>'
+  +'<div style="margin:0 0 8px"><label>Remarks for this Object of Expenditure <span style="font-weight:400">(what this budget is intended for \u2013 shown in Office Budget and Budget Monitoring)</span></label><input data-orem="1" autocomplete="off" style="width:100%" placeholder="e.g. Fuel for official travel during the Arawatan Festival" value="'+esc(bxRemVal(oi))+'"></div>'
+  +'<div class="xst"></div>'
   +rows.map(function(r,ri){return bxRowHtml(oi,ri,r,rows.length>1)}).join("")
   +'<button type="button" data-xadd="1">+ Add description</button></fieldset>';
 }
@@ -498,6 +506,7 @@ $("objBlocks").addEventListener("input",function(e){
   if(c){set("unit",c.unit);set("stock",c.stock);set("price",c.price);if(c.mode)set("mode",c.mode)}else{set("unit","");set("stock","");set("price","")}}
  bxStatus();
 });
+$("objBlocks").addEventListener("input",function(e){var t=e.target;if(!t.dataset||!t.dataset.orem)return;var bl=t.closest(".xblk");if(!bl)return;bxRem[year+"|"+$("act").value.trim()+"|"+bxObjs[+bl.dataset.oi]]=t.value});
 $("objBlocks").addEventListener("change",function(e){
  var f=e.target.dataset.f,x=bxRowOf(e.target);if(!f||!x)return;
  if(f==="mode"){var v=e.target.value.trim().toLowerCase();if(v){var ok=MODES.filter(function(m){return m.toLowerCase()===v})[0];if(ok){e.target.value=ok;x.r.mode=ok}else{alert("Mode of Procurement must be Procurement or Non-Procurement.");e.target.value="";x.r.mode=""}}}
@@ -527,7 +536,13 @@ function bxSave(){
   out.push({aip:aip,act:act,cid:cc.id,desc:cc.desc,obj:o,acct:codeOf(o),stock:cc.stock||"",unit:cc.unit||"",price:p,mode:m,remarks:r.remarks.trim(),q:q,id:uid(),year:year});
  })});
  if(bad){e.textContent=bad;return}
- if(!out.length){e.textContent="Enter at least one description with a unit price and a quantity.";return}
+ var remUp=0;
+ bxObjs.forEach(function(o,oi){
+  var k=year+"|"+act+"|"+o,ex=objRemOf(act,o),touched=bxRem[k]!==undefined,v=touched?String(bxRem[k]).trim():ex;
+  out.forEach(function(it){if(it.obj===o)it.objRem=v});
+  if(touched&&v!==ex){yi().forEach(function(i){if(i.act===act&&i.obj===o){i.objRem=v;remUp++}})}
+ });
+ if(!out.length&&!remUp){e.textContent="Enter at least one description with a unit price and a quantity.";return}
  out.forEach(function(it){items.push(it)});save(KEY,items);
  clearForm();renderAll();refreshLists();$("aip").focus();
 }
@@ -535,7 +550,7 @@ bxReady=true;bxRender();
 function edit(id){
  var it=byId(id);if(!it)return;editing=id;
  fillWfpSel(it.aip,it.act||"");$("desc").value=it.desc;$("stock").value=it.stock;$("unit").value=it.unit;
- $("price").value=it.price;modeSet(it.mode);$("remarks").value=it.remarks||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
+ $("price").value=it.price;modeSet(it.mode);$("remarks").value=it.remarks||"";$("objrem").value=it.objRem||"";$("obj").value=it.obj||"";$("acct").value=it.acct||"";prevObj=$("obj").value;
  for(var k=0;k<4;k++)$("q"+(k+1)).value=it.q[k]||"";
  pickDesc();calcForm();entryShow(true,1);$("formTitle").textContent="Edit item";$("btnSave").textContent="Update item";$("btnCancel").classList.remove("hidden");
  if(bxReady)bxRender();window.scrollTo({top:0,behavior:"smooth"});$("aip").focus();
@@ -586,7 +601,7 @@ function renderOB(){
   var t=qs.reduce(function(a,k){return a+it.q[k]},0),b=t*it.price;gq+=t;gb+=b;
   h+="<tr"+(obTips[it.id]?" class='ovr' data-ovid='"+it.id+"'":"")+"><td>"+esc(it.aip)+"</td><td>"+esc(it.act)+"</td><td>"+esc(it.desc)+"</td><td>"+esc(it.obj)+"</td><td style='white-space:nowrap'>"+esc(it.acct)+"</td><td>"+esc(it.stock)+"</td><td class='c'>"+esc(it.unit)+"</td><td class='n'>"+money(it.price)+"</td><td class='n'>"+qty(t)+"</td><td class='n'>"+money(b)+"</td><td>"+esc(it.mode)+"</td>";
   qs.forEach(function(k){var a=it.q[k]*it.price;gqq[k]+=it.q[k];ga[k]+=a;h+="<td class='n'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n'>"+(a?money(a):"")+"</td>"});
-  h+="<td>"+esc(it.remarks||"")+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
+  h+="<td>"+remHtml(it)+"</td><td class='act'><button data-e='"+it.id+"'>Edit</button><button class='d' data-d='"+it.id+"'>Delete</button></td></tr>";
  });
  $("obBody").innerHTML=h;
  $("obFoot").innerHTML="<tr><td colspan='8' style='text-align:right'>TOTAL</td><td class='n'>"+qty(gq)+"</td><td class='n'>"+money(gb)+"</td><td></td>"+
@@ -613,7 +628,7 @@ $("btnAll").onclick=function(){
 };
 
 /* ---------- Budget Monitoring ---------- */
-var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement"];
+var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement","Remarks"];
 var SUB=["Qty","Qty Balance","Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 /* ----- Budget Monitoring: show / hide fields ----- */
 var BMC={c:[],t:0,s:[]};try{var _r=function(a){a=a||[];return[a[0],a[6],a[1],a[2],a[3],a[4],a[5]].map(function(v){return v?1:0})},_bc=JSON.parse(localStorage.getItem("wfp_bm_cols3")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_bc.s||[]};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols2")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_r(_bc.s)};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_r([0].concat(_bc.s||[]))}}}}catch(e){}
@@ -629,11 +644,11 @@ function buildBMHead(){
  $("bmHead").innerHTML=h+"</tr>";
 }
 function bmColApply(){
- var css="",hid=0;
+ var css="table.bm .bc11{min-width:220px;max-width:340px;white-space:normal}",hid=0;
  BASE.forEach(function(b,i){if(BMC.c[i]){css+="table.bm .bc"+i+"{display:none}";hid++}});
  if(BMC.t){css+="table.bm .bct{display:none}";hid++}
  SUB.forEach(function(s,j){if(BMC.s[j]){css+="table.bm .bs"+j+"{display:none}";hid+=4}});
- css+="table.bm{min-width:"+Math.max(900,Math.round(4100*(1-hid/40)))+"px}";
+ css+="table.bm{min-width:"+Math.max(900,Math.round(4320*(1-hid/40)))+"px}";
  var st=$("bmColStyle");if(!st){st=document.createElement("style");st.id="bmColStyle";document.head.appendChild(st)}
  st.textContent=css;
 }
@@ -688,7 +703,7 @@ function renderBM(){
  else{
   list.forEach(function(it){
    var c=lineCalc(it),t=tot(it),sum=0;
-   h+="<tr><td class='bc0'>"+esc(it.aip)+"</td><td class='bc1'>"+esc(it.act)+"</td><td class='bc2'>"+esc(it.desc)+"</td><td class='bc3'>"+esc(it.obj)+"</td><td class='bc4' style='white-space:nowrap'>"+esc(it.acct)+"</td><td class='bc5'>"+esc(it.stock)+"</td><td class='c bc6'>"+esc(it.unit)+"</td><td class='n bc7'>"+money(it.price)+"</td><td class='n bc8'>"+qty(t)+"</td><td class='n bc9'>"+money(t*it.price)+"</td><td class='bc10'>"+esc(it.mode)+"</td>";
+   h+="<tr><td class='bc0'>"+esc(it.aip)+"</td><td class='bc1'>"+esc(it.act)+"</td><td class='bc2'>"+esc(it.desc)+"</td><td class='bc3'>"+esc(it.obj)+"</td><td class='bc4' style='white-space:nowrap'>"+esc(it.acct)+"</td><td class='bc5'>"+esc(it.stock)+"</td><td class='c bc6'>"+esc(it.unit)+"</td><td class='n bc7'>"+money(it.price)+"</td><td class='n bc8'>"+qty(t)+"</td><td class='n bc9'>"+money(t*it.price)+"</td><td class='bc10'>"+esc(it.mode)+"</td><td class='bc11'>"+remHtml(it)+"</td>";
       for(var k=0;k<4;k++){
     var qb=it.price>0?Math.round(c.bal[k]/it.price*100)/100:0,rCell=cellx(c.r[k],"bq"+k+" bs3",c.cr[k]),tCell=cellx(c.t[k],"bq"+k+" bs4",c.ct[k]),fCell=cellx(c.f[k],"bq"+k+" bs5",c.cf[k]);
     if(c.r[k]||c.cr[k])rCell=rCell.replace("<td","<td data-bmtip='r|"+it.id+"|"+k+"'");
@@ -847,7 +862,7 @@ Object.keys(mm).forEach(function(id){
 });
 
 /* ---------- Excel import / template / export of items ---------- */
-var IH=["Year","AIP Code","Activities","Description","Object of Expenditure","Stock No.","Unit","Unit Price","Mode of Procurement","1st Quarter Qty","2nd Quarter Qty","3rd Quarter Qty","4th Quarter Qty","Remarks"];
+var IH=["Year","AIP Code","Activities","Description","Object of Expenditure","Stock No.","Unit","Unit Price","Mode of Procurement","1st Quarter Qty","2nd Quarter Qty","3rd Quarter Qty","4th Quarter Qty","Remarks","Object Remarks"];
 function needX(){if(typeof XLSX==="undefined"){alert("The Excel library could not load. Check your internet connection and refresh the page.");return false}return true}
 function nk(h){return String(h).toLowerCase().replace(/[^a-z0-9]/g,"")}
 function nm(v){return parseFloat(String(v).replace(/[₱,\s]/g,""))}
@@ -865,7 +880,7 @@ $("obTpl").onclick=function(){
 };
 $("obExp").onclick=function(){
  if(!needX())return;if(!items.length){alert("There are no items to export yet.");return}
- var rows=[IH].concat(items.slice().sort(function(a,b){return a.year-b.year}).map(function(i){return[i.year,i.aip,i.act,i.desc,i.obj,i.stock,i.unit,i.price,i.mode,i.q[0],i.q[1],i.q[2],i.q[3],i.remarks||""]}));
+ var rows=[IH].concat(items.slice().sort(function(a,b){return a.year-b.year}).map(function(i){return[i.year,i.aip,i.act,i.desc,i.obj,i.stock,i.unit,i.price,i.mode,i.q[0],i.q[1],i.q[2],i.q[3],i.remarks||"",i.objRem||""]}));
  var ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=IH.map(function(h){return{wch:Math.max(14,h.length+2)}});ws["!cols"][2]={wch:40};ws["!cols"][3]={wch:40};ws["!cols"][4]={wch:36};
  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Items");XLSX.writeFile(wb,"office-budget-items-"+new Date().toISOString().slice(0,10)+".xlsx");
 };
@@ -890,7 +905,7 @@ $("obFile").onchange=function(){
    if(q.some(function(x){return isNaN(x)||x<0}))er.push("Quarter quantity is not a number");else if(!q.some(function(x){return x>0}))er.push("No quantity in any quarter");
    var mo="";if(md){mo=MODES.filter(function(m){return m.toLowerCase()===md.toLowerCase()})[0]||"";if(!mo)er.push("Mode must be Procurement or Non-Procurement")}
    if(er.length){bad.push("Row "+(n+2)+": "+er.join("; "));return}
-   var it={id:uid(),year:(yr>=2000&&yr<=2100)?yr:year,aip:aip,act:act,desc:desc,obj:hit[1],acct:hit[0],stock:String(pick("stockno","stock")).trim(),unit:String(pick("unit")).trim(),price:pr,mode:mo,remarks:String(pick("remarks","remark")).trim(),q:q};
+   var it={id:uid(),year:(yr>=2000&&yr<=2100)?yr:year,aip:aip,act:act,desc:desc,obj:hit[1],acct:hit[0],stock:String(pick("stockno","stock")).trim(),unit:String(pick("unit")).trim(),price:pr,mode:mo,remarks:String(pick("remarks","remark")).trim(),objRem:String(pick("objectremarks","objremarks")).trim(),q:q};
    var key=[it.year,it.aip,it.desc,it.obj,it.price,it.q.join("|")].join("~").toLowerCase();
    if(seen[key]){dup++;return}seen[key]=1;good.push(it);
   });
@@ -945,13 +960,13 @@ function obRemXlsx(){
 }
 $("obXlsx").onclick=function(){
  var list=fi("ob");if(!list.length){alert("There are no items for "+year+" to save yet.");return}
- var qs=qsOf(FS.ob.q),n=qs.length,h1=BASE.slice(),h2=BASE.map(function(){return""}),k,i;
+ var qs=qsOf(FS.ob.q),n=qs.length,h1=BASE.slice(0,11),h2=BASE.slice(0,11).map(function(){return""}),k,i;
  qs.forEach(function(j){h1.push(Q[j]+" Quarter","");h2.push("Quantity","Amount")});h1.push("Remarks");h2.push("");
  var rows=[["OFFICE BUDGET "+year+(n<4?" - "+qs.map(function(j){return Q[j]}).join(", ")+" Quarter":"")],[meta.office||""],[],h1,h2],gq=0,gb=0,gqq=[0,0,0,0],ga=[0,0,0,0];
  list.forEach(function(it){
   var r=baseCells(it,qs);gq+=r[8];gb+=r[9];
   qs.forEach(function(j){var a=it.q[j]*it.price;gqq[j]+=it.q[j];ga[j]+=a;r.push(it.q[j],a)});
-  r.push(it.remarks||"");rows.push(r);
+  r.push(remText(it));rows.push(r);
  });
  var tr=["TOTAL","","","","","","","",gq,gb,""];qs.forEach(function(j){tr.push(gqq[j],ga[j])});tr.push("");
  var rm=obRemXlsx();rows.push(tr);rm.forEach(function(r){rows.push(r)});rows.push([]);
@@ -968,14 +983,14 @@ $("bmXlsx").onclick=function(){
  h1.push("Total Balance");h2.push("");
  var rows=[["BUDGET MONITORING "+year+(n<4?" - "+qs.map(function(j){return Q[j]}).join(", ")+" Quarter":"")],[meta.office||""],[],h1,h2],tb=0;for(k=0;k<7*n;k++)T[k]=0;
  list.forEach(function(it){
-  var c=lineCalc(it),r=baseCells(it),s=0;
+  var c=lineCalc(it),r=baseCells(it).concat([remText(it)]),s=0;
   qs.forEach(function(j,g){var qb=it.price>0?Math.round(c.bal[j]/it.price*100)/100:0;r.push(it.q[j]||"",qb,c.b[j],c.r[j],c.t[j],c.f[j],c.bal[j]);T[g*7]+=it.q[j];T[g*7+1]+=qb;T[g*7+2]+=c.b[j];T[g*7+3]+=c.r[j];T[g*7+4]+=c.t[j];T[g*7+5]+=c.f[j];T[g*7+6]+=c.bal[j];s+=c.bal[j]});
   tb+=s;r.push(s);rows.push(r);
  });
- rows.push(["TOTAL","","","","","","","","","",""].concat(T,[tb]),[]);
- rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","Approved by: "+(meta.app||"")]);
- var cols=[14,30,38,34,16,12,8,12,12,16,26];for(k=0;k<7*n+1;k++)cols.push(14);
- var qc=[8],mc=[7,9];for(k=0;k<n;k++){qc.push(11+7*k,11+7*k+1);for(var z=2;z<7;z++)mc.push(11+7*k+z)}mc.push(11+7*n);
+ rows.push(["TOTAL","","","","","","","","","","",""].concat(T,[tb]),[]);
+ rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","","Approved by: "+(meta.app||"")]);
+ var cols=[14,30,38,34,16,12,8,12,12,16,26,36];for(k=0;k<7*n+1;k++)cols.push(14);
+ var qc=[8],mc=[7,9];for(k=0;k<n;k++){qc.push(12+7*k,12+7*k+1);for(var z=2;z<7;z++)mc.push(12+7*k+z)}mc.push(12+7*n);
  var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Quantity","Amount","Remarks"]];
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;
@@ -983,7 +998,7 @@ $("bmXlsx").onclick=function(){
   lg.push([x.date||"",isCan(x)?"Cancelled":(x.type==="rel"?"Release":"Augmentation"),lineLabel(s),Q[x.fq]+" Quarter",x.to?lineLabel(byId(x.to)):"",x.to?Q[x.tq]+" Quarter":"",x.qty||"",x.amt,x.note||""]);
  });
  toXlsx("Budget_Monitoring_"+year+".xlsx",[
-  {n:"Budget Monitoring",rows:rows,merges:headMerges(11,11+7*n,n,7,11,11+7*n),cols:cols,money:mc,qty:qc,from:5,to:5+list.length},
+  {n:"Budget Monitoring",rows:rows,merges:headMerges(12,12+7*n,n,7,12,12+7*n),cols:cols,money:mc,qty:qc,from:5,to:5+list.length},
   {n:"Transactions",rows:lg,cols:[12,14,70,14,70,14,14,30],money:[6],from:1,to:lg.length}
  ]);
 };
