@@ -1,4 +1,4 @@
-window.APP_VER="r17 • Quarters with WFP budget to itemize highlighted";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r18 • Click to pin + scroll the detail popups";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -36,10 +36,11 @@ var Q=["1st","2nd","3rd","4th"];
 /* ---------- Excel-like hover tooltip for Budget Monitoring ---------- */
 var bmTip=(function(){
   var d=document.createElement("div");d.id="bmTip";document.body.appendChild(d);
-  var cur=null,timer=null,inside=false,scrollLock=false;
+  var cur=null,timer=null,inside=false,scrollLock=false,pinned=false;
+  var st=document.createElement("style");st.textContent="#bmTip{overscroll-behavior:contain}#bmTip .bmx{position:sticky;top:0;float:right;margin:-4px -4px 0 6px;border:0;background:#fff;color:#64748b;font-size:20px;line-height:1;cursor:pointer;padding:0 4px;border-radius:4px}#bmTip .bmx:hover{background:#f1f5f9;color:#b3261e}#bmTip .bmh{position:sticky;bottom:-8px;margin:6px -10px -8px;padding:3px 10px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:11px}tr.ovr,.ovk,[data-bmtip]{cursor:pointer}";document.head.appendChild(st);
   function cancel(){if(timer){clearTimeout(timer);timer=null}}
-  function hide(){if(inside||scrollLock)return;cancel();cur=null;d.style.display="none"}
-  function arm(){cancel();timer=setTimeout(hide,700)}
+  function hide(){if(inside||scrollLock||pinned)return;cancel();cur=null;d.style.display="none"}
+  function arm(){if(pinned)return;cancel();timer=setTimeout(hide,900)}
   d.addEventListener("mouseenter",function(){inside=true;cancel()});
   d.addEventListener("mouseleave",function(){inside=false;arm()});
   /* keep it open while the inner scrollbar is engaged */
@@ -47,24 +48,41 @@ var bmTip=(function(){
     scrollLock=true;cancel();
     clearTimeout(d._sl);d._sl=setTimeout(function(){scrollLock=false;if(!inside)arm()},400);
   },{passive:true});
-  /* hide on page scroll, but never when the scroll originates inside the tooltip */
+  /* hide on page scroll, but never when the scroll originates inside the tooltip or it is pinned */
   document.addEventListener("scroll",function(e){
     if(d.contains(e.target))return;
-    if(inside||scrollLock)return;
+    if(inside||scrollLock||pinned)return;
     hide();
   },true);
+  function close(){inside=false;scrollLock=false;pinned=false;cancel();cur=null;d.style.display="none"}
+  /* click outside / Esc closes a pinned popup */
+  document.addEventListener("click",function(e){
+    if(!pinned||e._tipPin)return;
+    if(e.target.closest&&e.target.closest("#bmTip")&&!(e.target.classList&&e.target.classList.contains("bmx")))return;
+    close();
+  });
+  document.addEventListener("keydown",function(e){if(e.key==="Escape"&&pinned)close()});
+  function place(target){
+    var r=target.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
+    var x=r.left,y=r.bottom+2;
+    if(x+w>innerWidth-8)x=innerWidth-w-8;
+    if(x<8)x=8;
+    if(y+h>innerHeight-8){y=r.top-h-2;if(y<8)y=8}
+    d.style.left=x+"px";d.style.top=y+"px";
+  }
   return{
     show:function(target,html){
-      cancel();cur=target;d.innerHTML=html;d.style.display="block";
-      var r=target.getBoundingClientRect(),w=d.offsetWidth,h=d.offsetHeight;
-      var x=r.left,y=r.bottom+6;
-      if(x+w>innerWidth-8)x=innerWidth-w-8;
-      if(x<8)x=8;
-      if(y+h>innerHeight-8){y=r.top-h-6;if(y<8)y=8}
-      d.style.left=x+"px";d.style.top=y+"px";
+      if(pinned)return;
+      cancel();cur=target;d.innerHTML=html+'<div class="bmh">Click to keep this open and scroll \u00b7 Esc to close</div>';d.style.display="block";
+      place(target);
+    },
+    pin:function(target,html){
+      cancel();inside=false;scrollLock=false;cur=target;
+      d.innerHTML='<button type="button" class="bmx" title="Close">\u00d7</button>'+html;d.style.display="block";d.scrollTop=0;
+      pinned=true;place(target);
     },
     arm:arm,
-    hide:function(){inside=false;scrollLock=false;cancel();cur=null;d.style.display="none"}
+    hide:function(force){if(pinned&&!force)return;close()}
   };
 })();
 function bmTipHide(){bmTip.hide()}
@@ -762,6 +780,11 @@ function renderBM(){
     var p=td.dataset.bmtip.split("|"),it=byId(p[1]),k=+p[2];if(!it)return;
     bmTip.show(td,bmTipHTML(it,k,p[0]));
    });
+   $("bmBody").addEventListener("click",function(e){
+    var td=e.target.closest("[data-bmtip]");if(!td||e.target.closest("button,a,input,select,textarea"))return;
+    var p=td.dataset.bmtip.split("|"),it=byId(p[1]),k=+p[2];if(!it)return;
+    e._tipPin=1;bmTip.pin(td,bmTipHTML(it,k,p[0]));
+   });
    $("bmBody").addEventListener("mouseout",function(e){
     var td=e.target.closest("[data-bmtip]");if(!td)return;
     if(e.relatedTarget&&td.contains(e.relatedTarget))return;
@@ -1111,14 +1134,16 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){catResync();renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
+function renderAll(){bmTip.hide(true);catResync();renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
 buildBar("ob");buildBar("bm");
 ["ob","bm"].forEach(function(w){var d=$(w+"Dash");
  d.addEventListener("mouseover",function(e){var k=e.target.closest(".ovk");if(k&&k._tip)bmTip.show(k,k._tip)});
+ d.addEventListener("click",function(e){var k=e.target.closest(".ovk");if(k&&k._tip){e._tipPin=1;bmTip.pin(k,k._tip)}});
  d.addEventListener("mouseout",function(e){var k=e.target.closest(".ovk");if(!k)return;if(e.relatedTarget&&k.contains(e.relatedTarget))return;bmTip.arm()});
  d.addEventListener("input",function(e){var i=e.target.closest("[data-s]");if(!i)return;FS[w].text=i.value.trim();if(w==="ob")renderOB();else renderBM();renderDash(w)});
 });
 $("obBody").addEventListener("mouseover",function(e){var tr=e.target.closest("tr[data-ovid]");if(!tr)return;var h=obTips[tr.dataset.ovid];if(h)bmTip.show(tr,h)});
+$("obBody").addEventListener("click",function(e){var tr=e.target.closest("tr[data-ovid]");if(!tr||e.target.closest("button,a,input,select,textarea"))return;var h=obTips[tr.dataset.ovid];if(h){e._tipPin=1;bmTip.pin(tr,h)}});
 $("obBody").addEventListener("mouseout",function(e){var tr=e.target.closest("tr[data-ovid]");if(!tr)return;if(e.relatedTarget&&tr.contains(e.relatedTarget))return;bmTip.arm()});
 /* ---------- Objects of Expenditure: editable + sorted by account code ---------- */
 function oc(n){return codeOf(n)||"~"}
