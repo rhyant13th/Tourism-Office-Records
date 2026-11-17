@@ -1,12 +1,12 @@
-window.APP_VER="r18 • Click to pin + scroll the detail popups";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r19 • Notes section (per budget year, with history)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
-var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CATK="procurement_catalog_v1";
+var KEY="procurement_plan_v1",META="procurement_plan_meta_v1",TXK="procurement_tx_v1",YK="procurement_years_v1",CY="procurement_year_cur_v1",OBJKEY="procurement_objs_v1",ALK="procurement_alloc_v1",ANK="procurement_annual_v1",CATK="procurement_catalog_v1",NTK="procurement_notes_v1";
 function load(k,d){try{var v=JSON.parse(localStorage.getItem(k));return v==null?d:v}catch(e){return d}}
 /* ---------- Firebase (cloud backup + sync) ---------- */
 var firebaseConfig=window.FIREBASE_CONFIG;
-var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_catalog_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
+var CLOUD_KEYS=["procurement_plan_v1","procurement_plan_meta_v1","procurement_tx_v1","procurement_years_v1","procurement_objs_v1","procurement_alloc_v1","procurement_annual_v1","procurement_catalog_v1","procurement_notes_v1"],DIRTY="procurement_dirty_v1",MERGED="procurement_merged_v1";
 var db=null,docRef=null,cloudReady=false,booted=false,pushTimer=null,badge=document.getElementById("cloud");
 function setBadge(t,c){if(badge){badge.textContent=t;badge.className=c||""}}
 try{
@@ -285,6 +285,7 @@ $("year").onchange=function(){
 
 /* ---------- tabs ---------- */
 function tab(w){
+ $("tabNT").classList.toggle("hidden",w!=="NT");$("tabBtnNT").setAttribute("aria-selected",w==="NT");
  $("tabAN").classList.toggle("hidden",w!=="AN");$("tabBtnAN").setAttribute("aria-selected",w==="AN");
  $("tabWF").classList.toggle("hidden",w!=="WF");$("tabBtnWF").setAttribute("aria-selected",w==="WF");
  $("tabOB").classList.toggle("hidden",w!=="OB");$("tabBM").classList.toggle("hidden",w!=="BM");
@@ -297,6 +298,7 @@ $("tabBtnOB").onclick=function(){tab("OB")};
 $("tabBtnBM").onclick=function(){tab("BM")};
 $("tabBtnAL").onclick=function(){tab("AL")};
 $("tabBtnAN").onclick=function(){tab("AN")};
+$("tabBtnNT").onclick=function(){tab("NT")};
 $("tabBtnIT").onclick=function(){tab("IT")};
 $("saveCloud").onclick=function(){if(!cloudReady){alert("Cloud is not connected yet.");return}pushCloud()};
 
@@ -1134,7 +1136,7 @@ function renderDash(w){
  var on=[].concat(f.aip,f.act,f.obj,f.mode,qtxt(f.q),f.text?["search: "+f.text]:[]);
  el.querySelector(".fsum").textContent="Showing "+list.length+" of "+yi().length+" items"+(on.length?" — filtered by: "+on.join(" › "):"");
 }
-function renderAll(){bmTip.hide(true);catResync();renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
+function renderAll(){bmTip.hide(true);if(typeof renderNT==="function")renderNT();catResync();renderWF();if($("wfDash")&&$("wfDash").firstChild)renderWD();renderAN();renderIT();if(typeof renderAL==="function"&&$("alDash").firstChild)renderAL();fillStock();fillWfpSel();["ob","bm"].forEach(fillFilters);renderOB();fillTx();renderBM();paintMeta();renderDash("ob");renderDash("bm");if(bxReady)bxRender()}
 buildBar("ob");buildBar("bm");
 ["ob","bm"].forEach(function(w){var d=$(w+"Dash");
  d.addEventListener("mouseover",function(e){var k=e.target.closest(".ovk");if(k&&k._tip)bmTip.show(k,k._tip)});
@@ -1427,13 +1429,69 @@ $("anTbl").onclick=function(e){var b=e.target.closest("button");if(!b)return;var
  showBody("an");anEdit=r.id;$("anYear").value=r.year;$("anTour").value=r.tourism;$("anArw").value=r.arawatan;$("anTheme").value=r.theme;anCalc();
  $("anTitle").textContent="Edit Office Annual Budget";$("anSave").textContent="Update record";$("anCancel").classList.remove("hidden");$("anErr").textContent="";$("anYear").scrollIntoView({block:"center"})};
 $("anPrint").onclick=function(){if(!annual.length){alert("There are no records to print.");return}window.print()};
+/* ---------- Notes: reminders of what must be done in the budget of a year ---------- */
+var notes=load(NTK,[]),ntEdit=null;
+function ntYears(){var s={};notes.forEach(function(n){s[n.year]=1});s[year]=1;return Object.keys(s).map(Number).sort(function(a,b){return b-a})}
+function ntClear(){ntEdit=null;$("ntYear").value=year;$("ntHead").value=$("ntAmt").value=$("ntText").value="";$("ntStat").value="Pending";$("ntTitle").textContent="Add note";$("ntSave").textContent="Add note";$("ntCancel").classList.add("hidden");$("ntErr").textContent=""}
+function ntLabel(n){return(n.head||(n.text||"").slice(0,50))+" ("+n.year+")"}
+function ntPending(y){return notes.filter(function(n){return+n.year===+y&&n.status==="Pending"})}
+function renderNT(){
+ if(!$("ntTbl")||!notes)return;
+ var fy=$("ntFy"),cy=fy.value||"all",ys=ntYears();
+ fy.innerHTML='<option value="all">All years</option>'+ys.map(function(y){return'<option value="'+y+'">'+y+'</option>'}).join("");
+ fy.value=(cy==="all"||ys.indexOf(+cy)>=0)?cy:"all";
+ var fs=$("ntFs").value||"all";
+ var L=notes.filter(function(n){return(fy.value==="all"||+n.year===+fy.value)&&(fs==="all"||n.status===fs)}).sort(function(a,b){return b.year-a.year||(a.status===b.status?0:a.status==="Pending"?-1:1)||String(b.created||"").localeCompare(String(a.created||""))});
+ var pc=0,pa=0;L.forEach(function(n){if(n.status==="Pending"){pc++;pa+=+n.amt||0}});
+ $("ntSum").textContent="Showing "+L.length+" of "+notes.length+" note"+(notes.length===1?"":"s")+" \u2014 Pending: "+pc+(pa?" \u00b7 Pending amount: \u20b1 "+money(pa):"");
+ $("ntTbl").innerHTML='<thead><tr><th>Budget year</th><th>Title</th><th>Note</th><th>Amount</th><th>Status</th><th>Date encoded</th><th>Last edited</th><th class="act">Actions</th></tr></thead><tbody>'+
+  (L.map(function(n){var done=n.status==="Done";
+   return'<tr><td class="c">'+n.year+'</td><td><b>'+esc(n.head||"")+'</b></td><td style="white-space:pre-wrap">'+esc(n.text||"")+'</td><td class="n">'+(n.amt!==""&&n.amt!=null?money(n.amt):"")+'</td><td><span class="xqc '+(done?"xqc2":"xqc1")+'">'+esc(n.status)+'</span></td><td>'+(n.created?esc(fmtDt(n.created)):"\u2014")+'</td><td>'+(n.edited?esc(fmtDt(n.edited)):"\u2014")+'</td><td class="act"><button data-e="'+n.id+'">Edit</button> <button data-a="done" data-id="'+n.id+'">'+(done?"Reopen":"Mark done")+'</button> <button data-h="'+n.id+'">History</button> <button class="d" data-d="'+n.id+'">Delete</button></td></tr>'}).join("")||'<tr><td colspan="8" class="empty">No notes yet. Add one above.</td></tr>')+'</tbody>';
+ /* reminder banner in Office Budget and Budget Monitoring for the selected year */
+ var P=ntPending(year),amt=0;P.forEach(function(n){amt+=+n.amt||0});
+ ["tabOB","tabBM"].forEach(function(t){
+  var host=$(t),b=host.querySelector(":scope>.ntban");
+  if(!b){b=document.createElement("div");b.className="ntban noprint";b.style.cssText="margin:0 0 12px;padding:10px 14px;border:1px solid #f5b301;background:#fff4d6;color:#6b4500;border-radius:8px;font-size:13px";host.insertBefore(b,host.firstChild);
+   b.addEventListener("click",function(e){if(!e.target.closest("[data-nt]"))return;e.preventDefault();$("ntFy").value=String(year);$("ntFs").value="Pending";tab("NT");renderNT()})}
+  if(!P.length){b.style.display="none";return}
+  b.style.display="";
+  b.innerHTML='\ud83d\udcdd <b>'+P.length+' pending note'+(P.length===1?"":"s")+' for the '+year+' budget</b>'+(amt?' \u00b7 \u20b1 '+money(amt)+' to be settled':'')+' \u2014 '+esc(P.slice(0,2).map(function(n){return n.head||(n.text||"").slice(0,40)}).join("; "))+(P.length>2?"; \u2026":"")+' <a href="#" data-nt="1" style="font-weight:700;margin-left:6px">View notes</a>';
+ });
+}
+$("ntFy").onchange=$("ntFs").onchange=renderNT;
+$("ntCancel").onclick=ntClear;
+$("ntSave").onclick=function(){
+ var y=parseInt($("ntYear").value,10),hd=$("ntHead").value.trim(),tx=$("ntText").value.trim(),am=$("ntAmt").value===""?"":(+$("ntAmt").value),st=$("ntStat").value,e=$("ntErr");
+ if(!(y>=2000&&y<=2100)){e.textContent="Enter a valid year (2000 to 2100).";return}
+ if(!hd&&!tx){e.textContent="Enter a title or a note.";return}
+ if(am!==""&&am<0){e.textContent="The amount cannot be negative.";return}
+ if(ntEdit===null){notes.push({id:uid(),year:y,head:hd,text:tx,amt:am,status:st,created:nowIso()})}
+ else{
+  var o=notes.filter(function(x){return x.id===ntEdit})[0];if(!o){ntClear();return}
+  var chg=+o.year!==y||(o.head||"")!==hd||(o.text||"")!==tx||String(o.amt)!==String(am)||o.status!==st;
+  if(chg){var w=askWhy("note");if(w===null)return;histAdd(o,w)}
+  o.year=y;o.head=hd;o.text=tx;o.amt=am;o.status=st;
+ }
+ save(NTK,notes);ntClear();renderNT();
+};
+$("ntTbl").onclick=function(e){
+ var b=e.target.closest("button");if(!b)return;
+ var id=b.dataset.e||b.dataset.h||b.dataset.d||b.dataset.id,n=notes.filter(function(x){return x.id===id})[0];if(!n)return;
+ if(b.dataset.h){showHist(n,ntLabel(n));return}
+ if(b.dataset.d){if(confirm("Delete this note?")){notes=notes.filter(function(x){return x.id!==n.id});save(NTK,notes);if(ntEdit===n.id)ntClear();renderNT()}return}
+ if(b.dataset.a==="done"){n.status=n.status==="Done"?"Pending":"Done";histAdd(n,n.status==="Done"?"Marked as Done":"Reopened (Pending)");save(NTK,notes);renderNT();return}
+ ntEdit=n.id;$("ntYear").value=n.year;$("ntHead").value=n.head||"";$("ntText").value=n.text||"";$("ntAmt").value=(n.amt===""||n.amt==null)?"":n.amt;$("ntStat").value=n.status||"Pending";
+ $("ntTitle").textContent="Edit note";$("ntSave").textContent="Update note";$("ntCancel").classList.remove("hidden");$("ntErr").textContent="";$("ntHead").scrollIntoView({block:"center"});
+};
+$("ntPrint").onclick=function(){if(!notes.length){alert("There are no notes to print.");return}window.print()};
+ntClear();
 anClear();
 fillYear();fillObj("");calcForm();typeUi();refreshLists();renderAll();
 
 /* ---------- load from cloud on open ---------- */
 function applyCloud(d){
  CLOUD_KEYS.forEach(function(k){if(d[k]&&d[k]!=="null")try{localStorage.setItem(k,d[k])}catch(e){}});
- items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);catalog=load(CATK,[]);catMigrate();objInit();
+ items=load(KEY,[]);txs=load(TXK,[]);meta=load(META,{});years=load(YK,[]);custom=load(OBJKEY,[]);alloc=load(ALK,[]);annual=load(ANK,[]);catalog=load(CATK,[]);notes=load(NTK,[]);catMigrate();objInit();
  items.forEach(function(it){if(!it.id)it.id=uid();if(!it.year)it.year=+meta.year||thisYear;if(years.indexOf(+it.year)<0)years.push(+it.year)});
  if(years.indexOf(year)<0)years.push(year);
  Object.keys(mm).forEach(function(id){$(id).value=meta[mm[id]]||""});
@@ -1451,7 +1509,7 @@ if(docRef){
    var P=function(v){try{var x=JSON.parse(v);return x==null?[]:x}catch(e){return[]}},m=function(a,b,id){var seen={};a.forEach(function(x){seen[id(x)]=1});return a.concat(b.filter(function(x){return!seen[id(x)]}))};
    var L=function(k){return P(localStorage.getItem(k))},C=function(k){return P(d[k])},idf=function(x){return x.id};
    var o={};o[KEY]=JSON.stringify(m(L(KEY),C(KEY),idf));o[TXK]=JSON.stringify(m(L(TXK),C(TXK),idf));
-   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));o[CATK]=JSON.stringify(m(L(CATK),C(CATK),idf));
+   o[YK]=JSON.stringify(m(L(YK),C(YK),String));o[OBJKEY]=JSON.stringify(m(L(OBJKEY),C(OBJKEY),function(x){return x[0]}));o[ALK]=JSON.stringify(m(L(ALK),C(ALK),idf));o[ANK]=JSON.stringify(m(L(ANK),C(ANK),idf));o[CATK]=JSON.stringify(m(L(CATK),C(CATK),idf));o[NTK]=JSON.stringify(m(L(NTK),C(NTK),idf));
    var lm=localStorage.getItem(META);o[META]=(lm&&lm!=="{}"&&lm!=="null")?lm:(d[META]||"{}");
    applyCloud(o);localStorage.setItem(MERGED,"1");cloudReady=true;pushCloud();
   }else if(d&&!cloudEmpty&&!dirty){applyCloud(d);localStorage.setItem(MERGED,"1");cloudReady=true;setBadge("☁ Synced","ok")}
