@@ -1,4 +1,4 @@
-window.APP_VER="r20 • Search covers all remarks (object, item, transaction, notes, edit reasons)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r21 • Transactions: type-to-search remarks; qty shown in Augmented From/To";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -763,6 +763,7 @@ function bmQOk(x){var q=FS.bm.q;return!q.length||q.some(function(k){k=+k;return 
 function renderBM(){
  bmQApply();
  var list=fi("bm"),h="",T=[],i,qsel=qsOf(FS.bm.q);var TC=[];for(i=0;i<28;i++){T[i]=0;TC[i]=0}var tb=0;
+ var AQ={};txs.forEach(function(x){if(x.type!=="aug"||isCan(x))return;var a=byId(x.from),b=byId(x.to);if(a){var kf=x.from+"|"+x.fq+"|t";AQ[kf]=(AQ[kf]||0)+(x.qty||(a.price>0?x.amt/a.price:0))}if(b&&b.price>0){var kt=x.to+"|"+x.tq+"|f";AQ[kt]=(AQ[kt]||0)+x.amt/b.price}});
  if(!list.length){$("bmBody").innerHTML='<tr><td class="empty" colspan="40">'+(yi().length?"No budget lines match the selected filters.":"No budget lines for "+year+". Add items in Office Budget first.")+'</td></tr>';$("bmFoot").innerHTML=""}
  else{
   list.forEach(function(it){
@@ -773,7 +774,9 @@ function renderBM(){
     if(c.r[k]||c.cr[k])rCell=rCell.replace("<td","<td data-bmtip='r|"+it.id+"|"+k+"'");
     if(c.t[k]||c.ct[k])tCell=tCell.replace("<td","<td data-bmtip='t|"+it.id+"|"+k+"'");
     if(c.f[k]||c.cf[k])fCell=fCell.replace("<td","<td data-bmtip='f|"+it.id+"|"+k+"'");
-    h+="<td class='n bq"+k+" bs0 qtyc'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n bq"+k+" bs1 qtyc"+(qb<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?qty(qb):"")+"</td>"+cellx(c.b[k],"bq"+k+" bs2",c.cr[k]||c.ct[k]||c.cf[k])+rCell+tCell+fCell+"<td class='n bal bs6 bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
+    var _aq=function(cell,key,sign){var v=AQ[it.id+"|"+k+"|"+key];return v?cell.replace(/<\/td>$/,"<div style='font-size:11px;font-weight:400;color:#64748b'>("+sign+qty(Math.round(v*100)/100)+" "+esc(it.unit||"")+")</div></td>"):cell};
+    tCell=_aq(tCell,"t","\u2212");fCell=_aq(fCell,"f","+");
+    h+="<td class='n bq"+k+" bs0 qtyc'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n bq"+k+" bs1 qtyc"+(qb<-0.005?" neg":"")+"' title='New qty balance = Balance \u00f7 Unit Price (after releases and augmentations)'>"+((c.b[k]||c.bal[k])?qty(qb):"")+"</td>"+cellx(c.b[k],"bq"+k+" bs2",c.cr[k]||c.ct[k]||c.cf[k])+rCell+tCell+fCell+"<td class='n bal bs6 bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
     T[k*7]+=it.q[k];T[k*7+1]+=qb;T[k*7+2]+=c.b[k];T[k*7+3]+=c.r[k];T[k*7+4]+=c.t[k];T[k*7+5]+=c.f[k];T[k*7+6]+=c.bal[k];TC[k*7+3]+=c.cr[k];TC[k*7+4]+=c.ct[k];TC[k*7+5]+=c.cf[k];if(qsel.indexOf(k)>=0)sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal bct"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
@@ -814,6 +817,7 @@ var TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]},txEdit=null;
 function isCan(x){if(x.type==="can")return true;if(x.v===2)return false;return x.status?x.status==="Cancelled":/cancel/i.test(x.note||"")}
 function lgOn(){return TF.act.length||TF.type.length||TF.q.length||TF.rem.length||TF.stat.length}
 function lgOk(x,s){var d=byId(x.to);
+ var _lq=($("lgQ")&&$("lgQ").value||"").trim().toLowerCase();if(_lq&&txTxt(x).indexOf(_lq)<0)return false;
  if(TF.type.length&&TF.type.indexOf(isCan(x)?"can":x.type)<0)return false;
 
  if(TF.aip.length&&!(TF.aip.indexOf(s.aip)>=0||(d&&TF.aip.indexOf(d.aip)>=0)))return false;
@@ -829,8 +833,9 @@ function fillLgFilt(){
  msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"},{v:"can",t:"Cancelled"}],TF.type,"All transactions");
  msFill(g("rem"),[{v:"__none__",t:"(No remarks)"}].concat(L1(rm)),TF.rem,"All remarks");
 }
+$("lgQ").addEventListener("input",function(){renderBM()});
 $("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
-$("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
+$("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]};$("lgQ").value="";fillLgFilt();renderBM()}});
 function txShow(on,np){$("txBody").classList.toggle("hidden",!on);$("txToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_tx_hidden",on?"0":"1")}catch(e){}}
 $("txToggle").onclick=function(){txShow($("txBody").classList.contains("hidden"))};
 try{if(localStorage.getItem("wfp_tx_hidden")==="1")txShow(false,1)}catch(e){}
