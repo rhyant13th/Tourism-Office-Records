@@ -71,7 +71,7 @@
  <div class="btns"><button class="p" id="itSave" type="button">Add item</button><button id="itCancel" type="button" class="hidden">Cancel edit</button></div>
 </section>
 <section class="card">
- <div class="bar noprint"><h2 style="margin:0">Items list</h2><div class="btns" style="margin:0"><input id="itSearch" placeholder="Search description…" style="width:240px"><button id="itCopy" type="button" class="entry">Copy from another year</button></div></div>
+ <div class="bar noprint"><h2 style="margin:0">Items list</h2><div class="btns" style="margin:0"><input id="itSearch" placeholder="Search description or edit reasons…" style="width:240px"><button id="itCopy" type="button" class="entry">Copy from another year</button></div></div>
  <div class="fsum" id="itSum"></div>
  <div class="wrap"><table class="dt"><thead><tr><th>Description</th><th>Stock No.</th><th>Unit</th><th>Unit Price</th><th>Mode of Procurement</th><th>Used in Office Budget</th><th class="act">Actions</th></tr></thead><tbody id="itBody"></tbody></table></div>
 </section>
@@ -257,7 +257,7 @@
 <div class="btns"><button class="p" id="ntSave" type="button">Add note</button><button id="ntCancel" type="button" class="hidden">Cancel</button></div><div class="err" id="ntErr"></div></section>
 <section class="card"><div class="bar noprint"><h2 style="margin:0">Notes</h2><button class="p" id="ntPrint" type="button">Print notes</button></div>
 <div class="rhead"><h2>Budget Notes</h2></div>
-<div class="fbar noprint"><div><label for="ntFy">Budget year</label><select id="ntFy"><option value="all">All years</option></select></div><div><label for="ntFs">Status</label><select id="ntFs"><option value="all">All</option><option>Pending</option><option>Done</option></select></div></div>
+<div class="fbar noprint"><div style="flex:2 1 240px"><label for="ntQ">Search notes</label><input id="ntQ" autocomplete="off" placeholder="Search title, note, amount or edit reasons…"></div><div><label for="ntFy">Budget year</label><select id="ntFy"><option value="all">All years</option></select></div><div><label for="ntFs">Status</label><select id="ntFs"><option value="all">All</option><option>Pending</option><option>Done</option></select></div></div>
 <div class="fsum" id="ntSum"></div>
 <div class="wrap"><table class="dt" id="ntTbl"></table></div></section>
 </div>
