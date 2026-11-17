@@ -1,4 +1,4 @@
-window.APP_VER="r22 • Budget Monitoring: Previous Balance + New Balance (augmentation); Qty Balance removed";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r20 • Search covers all remarks (object, item, transaction, notes, edit reasons)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -693,10 +693,10 @@ $("btnAll").onclick=function(){
 
 /* ---------- Budget Monitoring ---------- */
 var BASE=["AIP Code","Activities","Description","Object of Expenditure","Account Code","Stock No.","Unit","Unit Price","Total Qty","Estimated Budget","Mode of Procurement","Remarks"];
-var SUB=["Qty","Amount","Release","Previous Balance","Augmented From (−)","Augmented To (+)","New Balance"];
+var SUB=["Qty","Qty Balance","Amount","Release","Augmented From (−)","Augmented To (+)","Balance"];
 /* ----- Budget Monitoring: show / hide fields ----- */
-var BMC={c:[],t:0,s:[]};try{var _r=function(a){a=a||[];return[a[0],a[6],a[1],a[2],a[3],a[4],a[5]].map(function(v){return v?1:0})},_m4=function(a){a=a||[];return[a[0],a[2],a[3],0,a[4],a[5],a[6]].map(function(v){return v?1:0})},_bc=JSON.parse(localStorage.getItem("wfp_bm_cols4")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_bc.s||[]};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols3")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_m4(_bc.s)};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols2")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_m4(_r(_bc.s))};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_m4(_r([0].concat(_bc.s||[])))}}}}}catch(e){}
-function bmColSave(){try{localStorage.setItem("wfp_bm_cols4",JSON.stringify(BMC))}catch(e){}}
+var BMC={c:[],t:0,s:[]};try{var _r=function(a){a=a||[];return[a[0],a[6],a[1],a[2],a[3],a[4],a[5]].map(function(v){return v?1:0})},_bc=JSON.parse(localStorage.getItem("wfp_bm_cols3")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_bc.s||[]};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols2")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_r(_bc.s)};else{_bc=JSON.parse(localStorage.getItem("wfp_bm_cols")||"null");if(_bc&&typeof _bc==="object")BMC={c:_bc.c||[],t:_bc.t?1:0,s:_r([0].concat(_bc.s||[]))}}}}catch(e){}
+function bmColSave(){try{localStorage.setItem("wfp_bm_cols3",JSON.stringify(BMC))}catch(e){}}
 function bmVisSub(){var n=0;SUB.forEach(function(s,j){if(!BMC.s[j])n++});return n}
 function bmVisBase(){var n=0;BASE.forEach(function(b,i){if(!BMC.c[i])n++});return n}
 function buildBMHead(){
@@ -769,13 +769,12 @@ function renderBM(){
    var c=lineCalc(it),t=tot(it),sum=0;
    h+="<tr><td class='bc0'>"+esc(it.aip)+"</td><td class='bc1'>"+esc(it.act)+"</td><td class='bc2'>"+esc(it.desc)+"</td><td class='bc3'>"+esc(it.obj)+"</td><td class='bc4' style='white-space:nowrap'>"+esc(it.acct)+"</td><td class='bc5'>"+esc(it.stock)+"</td><td class='c bc6'>"+esc(it.unit)+"</td><td class='n bc7'>"+money(it.price)+"</td><td class='n bc8'>"+qty(t)+"</td><td class='n bc9'>"+money(t*it.price)+"</td><td class='bc10'>"+esc(it.mode)+"</td><td class='bc11'>"+remHtml(it)+"</td>";
       for(var k=0;k<4;k++){
-    var prev=c.b[k]-c.r[k],rCell=cellx(c.r[k],"bq"+k+" bs2",c.cr[k]),tCell=cellx(c.t[k],"bq"+k+" bs4",c.ct[k]),fCell=cellx(c.f[k],"bq"+k+" bs5",c.cf[k]);
+    var qb=it.price>0?Math.round(c.bal[k]/it.price*100)/100:0,rCell=cellx(c.r[k],"bq"+k+" bs3",c.cr[k]),tCell=cellx(c.t[k],"bq"+k+" bs4",c.ct[k]),fCell=cellx(c.f[k],"bq"+k+" bs5",c.cf[k]);
     if(c.r[k]||c.cr[k])rCell=rCell.replace("<td","<td data-bmtip='r|"+it.id+"|"+k+"'");
     if(c.t[k]||c.ct[k])tCell=tCell.replace("<td","<td data-bmtip='t|"+it.id+"|"+k+"'");
     if(c.f[k]||c.cf[k])fCell=fCell.replace("<td","<td data-bmtip='f|"+it.id+"|"+k+"'");
-    var pCell="<td class='n bq"+k+" bs3"+(prev<-0.005?" neg":"")+"' title='Balance before the augmentation (Amount \u2212 Release)'>"+((c.b[k]||prev||c.t[k]||c.f[k])?money(prev):"")+"</td>";
-    h+="<td class='n bq"+k+" bs0 qtyc'>"+(it.q[k]?qty(it.q[k]):"")+"</td>"+cellx(c.b[k],"bq"+k+" bs1",c.cr[k]||c.ct[k]||c.cf[k])+rCell+pCell+tCell+fCell+"<td class='n bal bs6 bq"+k+(c.bal[k]<-0.005?" neg":"")+"' title='New balance after the augmentation (Previous Balance \u2212 Augmented From + Augmented To)'>"+((c.b[k]||c.bal[k]||c.t[k]||c.f[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
-    T[k*7]+=it.q[k];T[k*7+1]+=c.b[k];T[k*7+2]+=c.r[k];T[k*7+3]+=prev;T[k*7+4]+=c.t[k];T[k*7+5]+=c.f[k];T[k*7+6]+=c.bal[k];TC[k*7+2]+=c.cr[k];TC[k*7+4]+=c.ct[k];TC[k*7+5]+=c.cf[k];if(qsel.indexOf(k)>=0)sum+=c.bal[k];
+    h+="<td class='n bq"+k+" bs0 qtyc'>"+(it.q[k]?qty(it.q[k]):"")+"</td><td class='n bq"+k+" bs1 qtyc"+(qb<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?qty(qb):"")+"</td>"+cellx(c.b[k],"bq"+k+" bs2",c.cr[k]||c.ct[k]||c.cf[k])+rCell+tCell+fCell+"<td class='n bal bs6 bq"+k+(c.bal[k]<-0.005?" neg":"")+"'>"+((c.b[k]||c.bal[k])?money(c.bal[k]):"")+"</td><td class='bqs bqs"+k+"'></td>";
+    T[k*7]+=it.q[k];T[k*7+1]+=qb;T[k*7+2]+=c.b[k];T[k*7+3]+=c.r[k];T[k*7+4]+=c.t[k];T[k*7+5]+=c.f[k];T[k*7+6]+=c.bal[k];TC[k*7+3]+=c.cr[k];TC[k*7+4]+=c.ct[k];TC[k*7+5]+=c.cf[k];if(qsel.indexOf(k)>=0)sum+=c.bal[k];
    }
    tb+=sum;h+="<td class='n bal bct"+(sum<-0.005?" neg":"")+"'>"+money(sum)+"</td></tr>";
   });
@@ -799,7 +798,7 @@ function renderBM(){
    });
    var _bmWrap=document.querySelector("table.bm");if(_bmWrap&&_bmWrap.closest(".wrap"))_bmWrap.closest(".wrap").addEventListener("scroll",bmTipHide,{passive:true});
   }
-  var _nb=bmVisBase();$("bmFoot").innerHTML="<tr>"+(_nb?"<td colspan='"+_nb+"' style='text-align:right'>TOTAL</td>":"")+T.slice(0,28).map(function(v,i){var j=i%7;return"<td class='n bq"+Math.floor(i/7)+" bs"+j+"'>"+(j<1?qty(v):money(v))+"</td>"+(j===6?"<td class='bqs bqs"+Math.floor(i/7)+"'></td>":"")}).join("")+"<td class='n bct'>"+money(tb)+"</td></tr>";
+  var _nb=bmVisBase();$("bmFoot").innerHTML="<tr>"+(_nb?"<td colspan='"+_nb+"' style='text-align:right'>TOTAL</td>":"")+T.slice(0,28).map(function(v,i){var j=i%7;return"<td class='n bq"+Math.floor(i/7)+" bs"+j+"'>"+(j<2?qty(v):money(v))+"</td>"+(j===6?"<td class='bqs bqs"+Math.floor(i/7)+"'></td>":"")}).join("")+"<td class='n bct'>"+money(tb)+"</td></tr>";
  }
  // transaction log
  var lg="";
@@ -815,7 +814,6 @@ var TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]},txEdit=null;
 function isCan(x){if(x.type==="can")return true;if(x.v===2)return false;return x.status?x.status==="Cancelled":/cancel/i.test(x.note||"")}
 function lgOn(){return TF.act.length||TF.type.length||TF.q.length||TF.rem.length||TF.stat.length}
 function lgOk(x,s){var d=byId(x.to);
- var _lq=($("lgQ")&&$("lgQ").value||"").trim().toLowerCase();if(_lq&&txTxt(x).indexOf(_lq)<0)return false;
  if(TF.type.length&&TF.type.indexOf(isCan(x)?"can":x.type)<0)return false;
 
  if(TF.aip.length&&!(TF.aip.indexOf(s.aip)>=0||(d&&TF.aip.indexOf(d.aip)>=0)))return false;
@@ -831,9 +829,8 @@ function fillLgFilt(){
  msFill(g("type"),[{v:"rel",t:"Release"},{v:"aug",t:"Augmentation"},{v:"can",t:"Cancelled"}],TF.type,"All transactions");
  msFill(g("rem"),[{v:"__none__",t:"(No remarks)"}].concat(L1(rm)),TF.rem,"All remarks");
 }
-$("lgQ").addEventListener("input",function(){renderBM()});
 $("lgFilt").addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.lf)return;TF[b.dataset.lf]=msVal(b);msNow(b);later(function(){fillLgFilt();renderBM()})});
-$("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]};$("lgQ").value="";fillLgFilt();renderBM()}});
+$("lgFilt").addEventListener("click",function(e){var mc=msClear(e);if(mc){TF[mc.dataset.lf]=[];fillLgFilt();renderBM();return}if(e.target.dataset.lclr){TF={aip:[],act:[],type:[],q:[],rem:[],stat:[]};fillLgFilt();renderBM()}});
 function txShow(on,np){$("txBody").classList.toggle("hidden",!on);$("txToggle").textContent=on?"Hide form":"Show form";if(!np)try{localStorage.setItem("wfp_tx_hidden",on?"0":"1")}catch(e){}}
 $("txToggle").onclick=function(){txShow($("txBody").classList.contains("hidden"))};
 try{if(localStorage.getItem("wfp_tx_hidden")==="1")txShow(false,1)}catch(e){}
@@ -1056,13 +1053,13 @@ $("bmXlsx").onclick=function(){
  var rows=[["BUDGET MONITORING "+year+(n<4?" - "+qs.map(function(j){return Q[j]}).join(", ")+" Quarter":"")],[meta.office||""],[],h1,h2],tb=0;for(k=0;k<7*n;k++)T[k]=0;
  list.forEach(function(it){
   var c=lineCalc(it),r=baseCells(it).concat([remText(it)]),s=0;
-  qs.forEach(function(j,g){var pv=c.b[j]-c.r[j];r.push(it.q[j]||"",c.b[j],c.r[j],pv,c.t[j],c.f[j],c.bal[j]);T[g*7]+=it.q[j];T[g*7+1]+=c.b[j];T[g*7+2]+=c.r[j];T[g*7+3]+=pv;T[g*7+4]+=c.t[j];T[g*7+5]+=c.f[j];T[g*7+6]+=c.bal[j];s+=c.bal[j]});
+  qs.forEach(function(j,g){var qb=it.price>0?Math.round(c.bal[j]/it.price*100)/100:0;r.push(it.q[j]||"",qb,c.b[j],c.r[j],c.t[j],c.f[j],c.bal[j]);T[g*7]+=it.q[j];T[g*7+1]+=qb;T[g*7+2]+=c.b[j];T[g*7+3]+=c.r[j];T[g*7+4]+=c.t[j];T[g*7+5]+=c.f[j];T[g*7+6]+=c.bal[j];s+=c.bal[j]});
   tb+=s;r.push(s);rows.push(r);
  });
  rows.push(["TOTAL","","","","","","","","","","",""].concat(T,[tb]),[]);
  rows.push(["Prepared by: "+(meta.by||""),"","","","","","","","","","","","Approved by: "+(meta.app||"")]);
  var cols=[14,30,38,34,16,12,8,12,12,16,26,36];for(k=0;k<7*n+1;k++)cols.push(14);
- var qc=[8],mc=[7,9];for(k=0;k<n;k++){qc.push(12+7*k);for(var z=1;z<7;z++)mc.push(12+7*k+z)}mc.push(12+7*n);
+ var qc=[8],mc=[7,9];for(k=0;k<n;k++){qc.push(12+7*k,12+7*k+1);for(var z=2;z<7;z++)mc.push(12+7*k+z)}mc.push(12+7*n);
  var lg=[["Date","Type","From (budget line)","From quarter","Augmented to (budget line)","To quarter","Quantity","Amount","Remarks"]];
  txs.forEach(function(x){
   var s=byId(x.from);if(!s||+s.year!==year)return;
