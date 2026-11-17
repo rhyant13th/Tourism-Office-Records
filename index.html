@@ -37,6 +37,7 @@
  <button role="tab" id="tabBtnIT" aria-selected="false">📦 Items (Description)</button>
  <button role="tab" id="tabBtnOB" aria-selected="true">🧾 Office Budget (Itemized)</button>
  <button role="tab" id="tabBtnAN" aria-selected="false">🎯 Office Annual Budget</button>
+ <button role="tab" id="tabBtnNT" aria-selected="false">📝 Notes</button>
  <h6>ANALYTICS &amp; REPORTS</h6>
  <button role="tab" id="tabBtnBM" aria-selected="false">📊 Budget Monitoring</button>
  <button role="tab" id="tabBtnAL" aria-selected="false">⚖️ WFP vs Actual</button>
@@ -244,6 +245,21 @@
 <section class="card"><div class="bar noprint"><h2 style="margin:0">Office Annual Budget records</h2><button class="p" id="anPrint" type="button">Print report</button></div>
 <div class="rhead"><h2>Office Annual Budget</h2></div>
 <div class="wrap"><table class="dt" id="anTbl"></table></div></section>
+</div>
+<div id="tabNT" class="hidden">
+<section class="card entry noprint"><div class="bar" style="margin-bottom:0"><h2 id="ntTitle" style="margin:0">Add note</h2></div>
+<p class="fsum">Reminders of what must be done in the budget of a year – for example, a borrowed amount that will be paid from the 2027 budget.</p>
+<div class="fbar"><div><label for="ntYear">Budget year this note is for</label><input id="ntYear" type="number" min="2000" max="2100"></div>
+<div style="flex:3 1 280px"><label for="ntHead">Title</label><input id="ntHead" autocomplete="off" placeholder="e.g. Pay the borrowed amount"></div>
+<div><label for="ntAmt">Amount <span style="font-weight:400">(optional)</span></label><input id="ntAmt" type="number" min="0" step="0.01"></div>
+<div><label for="ntStat">Status</label><select id="ntStat"><option>Pending</option><option>Done</option></select></div></div>
+<div style="margin-top:8px"><label for="ntText">Note</label><textarea id="ntText" rows="3" style="width:100%" placeholder="What should be done in the budget of that year? e.g. Borrowed from ___ for ___; to be paid from the Office budget of 2027."></textarea></div>
+<div class="btns"><button class="p" id="ntSave" type="button">Add note</button><button id="ntCancel" type="button" class="hidden">Cancel</button></div><div class="err" id="ntErr"></div></section>
+<section class="card"><div class="bar noprint"><h2 style="margin:0">Notes</h2><button class="p" id="ntPrint" type="button">Print notes</button></div>
+<div class="rhead"><h2>Budget Notes</h2></div>
+<div class="fbar noprint"><div><label for="ntFy">Budget year</label><select id="ntFy"><option value="all">All years</option></select></div><div><label for="ntFs">Status</label><select id="ntFs"><option value="all">All</option><option>Pending</option><option>Done</option></select></div></div>
+<div class="fsum" id="ntSum"></div>
+<div class="wrap"><table class="dt" id="ntTbl"></table></div></section>
 </div>
 <div id="tabAL" class="hidden">
 
