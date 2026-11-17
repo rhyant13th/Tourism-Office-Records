@@ -85,6 +85,7 @@
  <div class="grid">
   <div class="c3"><label for="aip">AIP Code <span style="font-weight:400">(from WFP)</span></label><select id="aip"></select></div>
   <div class="c9"><label for="act">Activities <span style="font-weight:400">(from WFP)</span></label><select id="act"></select></div>
+  <div class="c12"><label for="progShow">Program <span style="font-weight:400">(from WFP, shown automatically)</span></label><input id="progShow" readonly tabindex="-1" placeholder="Shown when you pick the AIP Code / Activity"></div>
   <div class="c12" id="bxSwWrap" style="font-size:13px"><a href="#" id="bxSw"></a></div>
   <div class="c12" id="objBlocks"></div>
   <div class="c12 grid hidden" id="oneItem" style="padding:0">
@@ -145,7 +146,7 @@
  <table class="ob">
   <thead>
    <tr>
-    <th rowspan="2">AIP Code</th><th rowspan="2">Activities</th><th rowspan="2">Description</th><th rowspan="2">Object of Expenditure</th><th rowspan="2">Account Code</th><th rowspan="2">Stock No.</th><th rowspan="2">Unit</th>
+    <th rowspan="2">Program</th><th rowspan="2">AIP Code</th><th rowspan="2">Activities</th><th rowspan="2">Description</th><th rowspan="2">Object of Expenditure</th><th rowspan="2">Account Code</th><th rowspan="2">Stock No.</th><th rowspan="2">Unit</th>
     <th rowspan="2">Unit Price</th><th rowspan="2">Total Qty</th><th rowspan="2">Estimated Budget</th><th rowspan="2">Mode of Procurement</th>
     <th colspan="2">1st Quarter</th><th colspan="2">2nd Quarter</th><th colspan="2">3rd Quarter</th><th colspan="2">4th Quarter</th><th rowspan="2">Remarks</th><th rowspan="2" class="act">Actions</th>
    </tr>
@@ -221,7 +222,8 @@
 <div id="tabWF" class="hidden">
 <section class="card noprint"><div class="bar" style="margin-bottom:0"><h2 id="alTitle" style="margin:0">Add WFP entry</h2><button id="alHide" type="button">Hide</button></div><div id="alBody">
 <p class="fsum" style="margin-top:0">Enter the AIP Code and Activity once, then add each Object of Expenditure with its 1st to 4th quarter budget. This is the lump-sum Work Financial Plan for the selected year (no quantity or unit price). The items you encode in Office Budget are checked against it.</p>
-<div class="fbar"><div><label for="alAip">AIP Code</label><input id="alAip" list="alAipList" autocomplete="off" placeholder="e.g. 1000-001-1-001"><datalist id="alAipList"></datalist></div><div style="flex:3 1 320px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div></div>
+<div class="fbar"><div><label for="alPcode">Program Code</label><input id="alPcode" list="alPcodeList" autocomplete="off" placeholder="e.g. 1000-001"><datalist id="alPcodeList"></datalist></div><div style="flex:3 1 320px"><label for="alProg">Program</label><input id="alProg" list="alProgList" autocomplete="off" placeholder="Program the activity belongs to"><datalist id="alProgList"></datalist></div></div>
+<div class="fbar" style="margin-top:10px"><div><label for="alAip">AIP Code</label><input id="alAip" list="alAipList" autocomplete="off" placeholder="e.g. 1000-001-1-001"><datalist id="alAipList"></datalist></div><div style="flex:3 1 320px"><label for="alAct">Activities</label><input id="alAct" list="alActList" autocomplete="off"><datalist id="alActList"></datalist></div></div>
 <div class="fbar" style="margin-top:10px"><div style="flex:3 1 320px"><label for="alObj">Object of Expenditure <a href="#" id="alObjEdit" style="font-size:12px;font-weight:400">Add / edit list</a></label><input id="alObj" list="objList" autocomplete="off" placeholder="Type to search or select, then it is added below…"></div><div style="flex:0 0 auto"><button type="button" id="alObjAdd">+ Add object of expenditure</button></div></div>
 <div id="wxBlocks" style="margin-top:12px"></div>
 <div class="info" id="wxSum"></div>
@@ -229,7 +231,7 @@
 <section class="card noprint" id="wfDash"></section>
 <section class="card"><div class="bar noprint" style="margin-bottom:8px"><h2 style="margin:0">Work Financial Plan entries</h2><button class="p" id="wfPrint">Print report</button></div>
 <div class="rhead"><h2 id="wfTitle"></h2><div class="m"><span id="wfOffice"></span><span id="wfYear"></span></div></div>
-<div class="fbar noprint" id="wfFilt"><div><label>AIP Code</label><div class="ms" data-wf="aip"></div></div><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
+<div class="fbar noprint" id="wfFilt"><div><label>Program</label><div class="ms" data-wf="prog"></div></div><div><label>AIP Code</label><div class="ms" data-wf="aip"></div></div><div><label>Activities</label><div class="ms" data-wf="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-wf="obj"></div></div><div><label>Quarter</label><div class="ms" data-wf="q"></div></div><button data-wclr="1">Clear filters</button></div>
 <div class="fsum" id="wfSum"></div><div class="wrap" style="overflow-x:auto"><table class="dt" id="wfTbl"></table></div>
 <div class="sign"><div class="sBy"></div><div class="sApp"></div></div></section>
 </div>
