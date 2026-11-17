@@ -1,4 +1,4 @@
-window.APP_VER="r19 • Notes section (per budget year, with history)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
+window.APP_VER="r20 • Search covers all remarks (object, item, transaction, notes, edit reasons)";(function(){var v=document.createElement("div");v.id="appVer";v.className="noprint";v.textContent="App version: "+window.APP_VER;v.style.cssText="position:fixed;left:8px;bottom:6px;font:11px system-ui,sans-serif;color:#64748b;z-index:5;background:rgba(255,255,255,.85);padding:1px 6px;border-radius:6px";document.body.appendChild(v)})();
 
 (function(){
 var $=function(id){return document.getElementById(id)};
@@ -135,6 +135,10 @@ function showHist(r,label){
   +'<div class="btns" style="justify-content:flex-end;margin-top:12px"><button type="button" id="histX">Close</button></div>';
  d.showModal();document.getElementById("histX").onclick=function(){d.close()};
 }
+/* ---------- searchable text: remarks + edit reasons ---------- */
+function histTxt(r){return(r.hist||[]).map(function(x){return x.why}).join(" ")}
+function lineTxt(it){return[it.desc,it.objRem,it.remarks,histTxt(it)].join(" \u0001 ").toLowerCase()}
+function txTxt(x){return[x.note,histTxt(x)].join(" \u0001 ").toLowerCase()}
 /* ---------- Remarks per Object of Expenditure (intended use) ---------- */
 function objRemOf(act,obj,exceptId){var l=yi().filter(function(i){return i.act===act&&i.obj===obj&&(i.objRem||"").trim()&&i.id!==exceptId});return l.length?l[0].objRem.trim():""}
 function remText(it){var a=(it.objRem||"").trim(),b=(it.remarks||"").trim();return a&&b?a+" | "+b:(a||b)}
@@ -203,7 +207,7 @@ var normMode=function(v){v=String(v||"").trim().toLowerCase();if(!v)return"";ret
 function fillDescList(){var h="";ci().forEach(function(c){h+='<option value="'+esc(c.desc)+'" label="'+esc((c.unit?c.unit+" \u00b7 ":"")+"\u20b1"+money(c.price))+'"></option>'});$("descList").innerHTML=h}
 function renderIT(){
  fillDescList();
- var all=ci(),q=itQ.trim().toLowerCase(),rows=q?all.filter(function(c){return(c.desc+" "+(c.stock||"")+" "+(c.unit||"")).toLowerCase().indexOf(q)>=0}):all;
+ var all=ci(),q=itQ.trim().toLowerCase(),rows=q?all.filter(function(c){return(c.desc+" "+(c.stock||"")+" "+(c.unit||"")+" "+histTxt(c)).toLowerCase().indexOf(q)>=0}):all;
  $("itSum").textContent="Year "+year+" \u2014 showing "+rows.length+" of "+all.length+" description"+(all.length===1?"":"s")+". Each year has its own list.";
  $("itBody").innerHTML=rows.length?rows.map(function(c){return"<tr><td>"+esc(c.desc)+"</td><td>"+esc(c.stock||"")+"</td><td>"+esc(c.unit||"")+"</td><td class='n'>"+money(c.price)+"</td><td>"+esc(c.mode||"")+"</td><td class='n'>"+catUse(c)+"</td><td class='act'><button data-k='e' data-id='"+c.id+"'>Edit</button><button data-k='h' data-id='"+c.id+"'>History</button><button class='d' data-k='d' data-id='"+c.id+"'>Delete</button></td></tr>"}).join(""):"<tr><td colspan='7' class='empty'>"+(all.length?"No descriptions match your search.":"No items for "+year+" yet. Add them above, paste them from Excel, or copy them from another year.")+"</td></tr>";
 }
@@ -799,7 +803,7 @@ function renderBM(){
  // transaction log
  var lg="";
  txs.forEach(function(x){
-  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!bmQOk(x))return;if(!lgOk(x,s))return;
+  var s=byId(x.from);if(!s||+s.year!==year)return;if(list.indexOf(s)<0&&list.indexOf(byId(x.to))<0)return;if(!bmQOk(x))return;if(!lgOk(x,s))return;var _t=(FS.bm.text||"").toLowerCase();if(_t&&txTxt(x).indexOf(_t)<0&&lineTxt(s).indexOf(_t)<0&&(!x.to||!byId(x.to)||lineTxt(byId(x.to)).indexOf(_t)<0))return;
   lg+="<tr><td>"+esc(x.date||"")+"</td><td>"+(isCan(x)?"<b style='color:var(--warn)'>Cancelled</b>":(x.type==="rel"?"Release":"Augmentation"))+"</td><td>"+esc(lineLabel(s))+" ("+Q[x.fq]+" Quarter)</td><td>"+
    (x.to?esc(lineLabel(byId(x.to)))+" ("+Q[x.tq]+" Quarter)":"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+(x.qty?x.qty:"")+"</td><td class='n'"+(isCan(x)?" style='color:var(--warn);font-weight:700'":"")+">"+money(x.amt)+"</td><td>"+esc(x.note||"")+"</td><td class='act'><button data-e='"+x.id+"'>Edit</button> <button data-h='"+x.id+"'>History</button> <button class='d' data-t='"+x.id+"'>Delete</button></td></tr>";
  });
@@ -1091,13 +1095,13 @@ function qsOf(a){return a.length?a.map(Number).sort():[0,1,2,3]}
 function qtxt(a){return a.map(function(k){return Q[+k]+" Quarter"})}
 var FS={ob:{aip:[],act:[],obj:[],mode:[],q:[],text:""},bm:{aip:[],act:[],obj:[],mode:[],q:[],text:""}},MODES=["Procurement","Non-Procurement"];
 function modeSet(v){$("mode").value=v||"";return;var s=$("mode");if(v&&![].some.call(s.options,function(o){return o.value===v})){var o=document.createElement("option");o.value=o.textContent=v;s.appendChild(o)}s.value=v||""}
-function fi(w){var f=FS[w],tx=(f.text||"").toLowerCase();return yi().filter(function(it){return(!tx||(it.desc||"").toLowerCase().indexOf(tx)>=0)&&(!f.aip.length||f.aip.indexOf(it.aip)>=0)&&(!f.act.length||f.act.indexOf(it.act)>=0)&&(!f.obj.length||f.obj.indexOf(it.obj)>=0)&&(!f.mode.length||f.mode.indexOf(it.mode||"")>=0)&&(!f.q.length||f.q.some(function(k){return it.q[+k]>0}))})}
+function fi(w){var f=FS[w],tx=(f.text||"").toLowerCase(),tmap=null;if(tx&&w==="bm"){tmap={};txs.forEach(function(x){if(txTxt(x).indexOf(tx)<0)return;[x.from,x.to].forEach(function(id){if(id)tmap[id]=1})})}return yi().filter(function(it){return(!tx||lineTxt(it).indexOf(tx)>=0||(tmap&&tmap[it.id]))&&(!f.aip.length||f.aip.indexOf(it.aip)>=0)&&(!f.act.length||f.act.indexOf(it.act)>=0)&&(!f.obj.length||f.obj.indexOf(it.obj)>=0)&&(!f.mode.length||f.mode.indexOf(it.mode||"")>=0)&&(!f.q.length||f.q.some(function(k){return it.q[+k]>0}))})}
 function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i}).sort()}
 function opts(vals,sel,all){var h='<option value="">'+all+'</option>';vals.forEach(function(v){h+='<option value="'+esc(v)+'"'+(v===sel?" selected":"")+'>'+esc(v)+'</option>'});return h}
 function fillStock(){var u=uniq(items.map(function(i){return i.stock}).filter(function(s){return s!=="N/A"}));$("stockList").innerHTML='<option value="N/A">'+u.map(function(s){return'<option value="'+esc(s)+'">'}).join("")}
 function buildBar(w){
  var el=$(w+"Dash");
- el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>AIP Code</label><div class="ms" data-f="aip"></div></div><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><div style="flex:2 1 240px"><label>Search description</label><input data-s="1" placeholder="Type part of an item description…" autocomplete="off"></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
+ el.innerHTML='<h2 style="margin:0 0 10px">'+(w==="ob"?"Office Budget":"Budget Monitoring")+' dashboard</h2><div class="fbar"><div><label>AIP Code</label><div class="ms" data-f="aip"></div></div><div><label>Activities</label><div class="ms" data-f="act"></div></div><div><label>Object of Expenditure</label><div class="ms" data-f="obj"></div></div><div><label>Mode of Procurement</label><div class="ms" data-f="mode"></div></div><div><label>Quarter</label><div class="ms" data-f="q"></div></div><div style="flex:2 1 240px"><label>Search description</label><input data-s="1" placeholder="Search item description or any remarks…" autocomplete="off"></div><button data-clr="1">Clear filters</button></div><div class="fsum"></div><div class="kpis"></div><div class="dtw"></div>';
  el.addEventListener("change",function(e){var b=e.target.closest(".ms");if(!b||!b.dataset.f)return;var k=b.dataset.f;FS[w][k]=msVal(b);msNow(b);later(function(){if(k==="act"){FS[w].obj=[];FS[w].mode=[]}fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w)})});
  el.addEventListener("click",function(e){var mc=msClear(e);if(mc){var k=mc.dataset.f;FS[w][k]=[];if(k==="act"){FS[w].obj=[];FS[w].mode=[]}fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w);return}if(e.target.dataset.clr){FS[w]={aip:[],act:[],obj:[],mode:[],q:[],text:""};fillFilters(w);if(w==="ob")renderOB();else renderBM();renderDash(w)}});
 }
@@ -1440,8 +1444,8 @@ function renderNT(){
  var fy=$("ntFy"),cy=fy.value||"all",ys=ntYears();
  fy.innerHTML='<option value="all">All years</option>'+ys.map(function(y){return'<option value="'+y+'">'+y+'</option>'}).join("");
  fy.value=(cy==="all"||ys.indexOf(+cy)>=0)?cy:"all";
- var fs=$("ntFs").value||"all";
- var L=notes.filter(function(n){return(fy.value==="all"||+n.year===+fy.value)&&(fs==="all"||n.status===fs)}).sort(function(a,b){return b.year-a.year||(a.status===b.status?0:a.status==="Pending"?-1:1)||String(b.created||"").localeCompare(String(a.created||""))});
+ var fs=$("ntFs").value||"all",nq=($("ntQ").value||"").trim().toLowerCase();
+ var L=notes.filter(function(n){return(fy.value==="all"||+n.year===+fy.value)&&(fs==="all"||n.status===fs)&&(!nq||[n.head,n.text,n.amt,histTxt(n)].join(" ").toLowerCase().indexOf(nq)>=0)}).sort(function(a,b){return b.year-a.year||(a.status===b.status?0:a.status==="Pending"?-1:1)||String(b.created||"").localeCompare(String(a.created||""))});
  var pc=0,pa=0;L.forEach(function(n){if(n.status==="Pending"){pc++;pa+=+n.amt||0}});
  $("ntSum").textContent="Showing "+L.length+" of "+notes.length+" note"+(notes.length===1?"":"s")+" \u2014 Pending: "+pc+(pa?" \u00b7 Pending amount: \u20b1 "+money(pa):"");
  $("ntTbl").innerHTML='<thead><tr><th>Budget year</th><th>Title</th><th>Note</th><th>Amount</th><th>Status</th><th>Date encoded</th><th>Last edited</th><th class="act">Actions</th></tr></thead><tbody>'+
@@ -1458,7 +1462,7 @@ function renderNT(){
   b.innerHTML='\ud83d\udcdd <b>'+P.length+' pending note'+(P.length===1?"":"s")+' for the '+year+' budget</b>'+(amt?' \u00b7 \u20b1 '+money(amt)+' to be settled':'')+' \u2014 '+esc(P.slice(0,2).map(function(n){return n.head||(n.text||"").slice(0,40)}).join("; "))+(P.length>2?"; \u2026":"")+' <a href="#" data-nt="1" style="font-weight:700;margin-left:6px">View notes</a>';
  });
 }
-$("ntFy").onchange=$("ntFs").onchange=renderNT;
+$("ntFy").onchange=$("ntFs").onchange=renderNT;$("ntQ").oninput=renderNT;
 $("ntCancel").onclick=ntClear;
 $("ntSave").onclick=function(){
  var y=parseInt($("ntYear").value,10),hd=$("ntHead").value.trim(),tx=$("ntText").value.trim(),am=$("ntAmt").value===""?"":(+$("ntAmt").value),st=$("ntStat").value,e=$("ntErr");
